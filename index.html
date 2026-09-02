@@ -130,8 +130,13 @@
     border: 1px solid var(--ivory-dim); background: #efe8d6;
     display: grid; place-items: center;
   }
-  .fig img { width: 100%; height: 100%; object-fit: cover; }
-  .fig-alt { font-family: var(--display); font-size: 66px; color: var(--ivory-dim); }
+  .fig img, .fig .art { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card-thumb-alt { padding: 0; overflow: hidden; }
+  .card-thumb-alt .art { width: 100%; height: 100%; display: block; }
+  .sheet-art {
+    height: 150px; overflow: hidden; border: 1px solid var(--ivory-dim); margin-bottom: 15px;
+  }
+  .sheet-art .art { width: 100%; height: 100%; display: block; }
   .face-front h2 {
     font-family: var(--display); font-weight: 600; font-size: 20px;
     line-height: 1.15; margin: 10px 0 3px;
@@ -145,6 +150,11 @@
     border-top: 1px solid var(--ivory-dim); font-size: 12px; color: var(--ink-soft);
   }
   .face-foot b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .more {
+    margin-left: auto; font: inherit; font-size: 11px; cursor: pointer;
+    padding: 3px 8px; color: var(--tier); background: transparent;
+    border: 1px solid var(--tier); border-radius: 0;
+  }
 
   .flipper.foil .face-front::after {
     content: ""; position: absolute; inset: 0; pointer-events: none;
@@ -421,7 +431,7 @@
       title: page.title,
       url: page.fullurl || ('https://' + WIKI + '.org/wiki/' + encodeURIComponent(page.title)),
       desc: page.description || '',
-      extract: (page.extract || '').trim().slice(0, 700),
+      extract: (page.extract || '').trim().slice(0, 1400),
       thumb: page.thumbnail ? page.thumbnail.source : '',
       bytes: bytes, views: views,
       atk: Math.max(1, Math.round(Math.log10(views + 1) * 90)),
@@ -457,21 +467,91 @@
 
   /* ---------- rendu ---------- */
 
-  function blurb(c) {
-    if (c.extract) return c.extract;
-    if (c.desc) return c.desc;
-    return 'Cet article n\u2019a pas encore de r\u00e9sum\u00e9.';
+  function blurb(c, limit) {
+    var t = c.extract || c.desc || 'Cet article n\u2019a pas encore de r\u00e9sum\u00e9.';
+    if (t.length <= limit) return t;
+    var head = t.slice(0, limit + 40);
+    var cut = Math.max(
+      head.lastIndexOf('. '), head.lastIndexOf('! '),
+      head.lastIndexOf('? '), head.lastIndexOf('\u2026 ')
+    );
+    if (cut > limit * 0.45) return head.slice(0, cut + 1);
+    var sp = head.lastIndexOf(' ', limit);
+    return (sp > 0 ? head.slice(0, sp) : head.slice(0, limit)) + '\u2026';
+  }
+
+  /* Illustration deterministe pour les articles sans image :
+     le titre sert de graine, la carte a donc toujours le meme motif. */
+  function seedOf(str) {
+    var h = 2166136261;
+    for (var i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  function artSVG(title, color) {
+    var seed = seedOf(title);
+    var rnd = function () {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      return seed / 4294967296;
+    };
+    var mode = Math.floor(rnd() * 3);
+    var body = '';
+    var i, n;
+
+    if (mode === 0) {
+      n = 4 + Math.floor(rnd() * 4);
+      var cx = 25 + rnd() * 50, cy = 25 + rnd() * 50;
+      for (i = n; i > 0; i--) {
+        body += '<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1)
+          + '" r="' + (i * (8 + rnd() * 4)).toFixed(1)
+          + '" fill="none" stroke="' + color
+          + '" stroke-opacity="' + (0.10 + i * 0.045).toFixed(2)
+          + '" stroke-width="' + (1 + rnd() * 2).toFixed(1) + '"/>';
+      }
+    } else if (mode === 1) {
+      var x = -40;
+      while (x < 140) {
+        var w = 3 + rnd() * 12;
+        body += '<rect x="' + x.toFixed(1) + '" y="-30" width="' + w.toFixed(1)
+          + '" height="160" fill="' + color
+          + '" fill-opacity="' + (0.06 + rnd() * 0.26).toFixed(2)
+          + '" transform="rotate(-24 50 50)"/>';
+        x += w + 2 + rnd() * 7;
+      }
+    } else {
+      n = 4 + Math.floor(rnd() * 3);
+      var step = 100 / n;
+      for (i = 0; i < n * n; i++) {
+        if (rnd() < 0.42) continue;
+        body += '<rect x="' + ((i % n) * step).toFixed(1)
+          + '" y="' + (Math.floor(i / n) * step).toFixed(1)
+          + '" width="' + step.toFixed(1) + '" height="' + step.toFixed(1)
+          + '" fill="' + color
+          + '" fill-opacity="' + (0.05 + rnd() * 0.28).toFixed(2) + '"/>';
+      }
+    }
+
+    return '<svg class="art" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice"'
+      + ' xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+      + '<rect width="100" height="100" fill="#efe8d6"/>' + body
+      + '<text x="50" y="50" text-anchor="middle" dominant-baseline="central"'
+      + ' font-family="Fraunces, Georgia, serif" font-size="46" font-weight="600"'
+      + ' fill="#262119" fill-opacity=".72">' + esc(title.charAt(0).toUpperCase())
+      + '</text></svg>';
   }
 
   function cardHTML(c, dupes) {
     var t = tierOf(c.rank);
     var visual = c.thumb
       ? '<img class="card-thumb" src="' + esc(c.thumb) + '" alt="" loading="lazy">'
-      : '<span class="card-thumb-alt" aria-hidden="true">' + esc(c.title.charAt(0)) + '</span>';
+      : '<span class="card-thumb-alt">' + artSVG(c.title, t.color) + '</span>';
     return '<button class="card" style="--tier:' + t.color + '" data-title="' + esc(c.title) + '">'
       + '<span class="card-head">' + visual
       + '<span><span class="card-title">' + esc(c.title) + '</span>'
-      + '<span class="card-desc">' + esc(blurb(c)) + '</span></span></span>'
+      + '<span class="card-desc">' + esc(blurb(c, 120)) + '</span></span></span>'
       + '<span class="card-foot">'
       + '<span>ATQ <b>' + c.atk + '</b></span>'
       + '<span>DÉF <b>' + c.def + '</b></span>'
@@ -480,15 +560,18 @@
   }
 
   function frontHTML(c) {
+    var t = tierOf(c.rank);
     var fig = c.thumb
       ? '<img src="' + esc(c.thumb) + '" alt="">'
-      : '<div class="fig-alt">' + esc(c.title.charAt(0)) + '</div>';
+      : artSVG(c.title, t.color);
     return '<div class="ribbon">' + esc(c.rank.toUpperCase()) + '</div>'
       + '<div class="fig">' + fig + '</div>'
       + '<h2>' + esc(c.title) + '</h2>'
-      + '<p>' + esc(blurb(c)) + '</p>'
+      + '<p>' + esc(blurb(c, 190)) + '</p>'
       + '<div class="face-foot"><span>ATQ <b>' + c.atk + '</b></span>'
-      + '<span>DÉF <b>' + c.def + '</b></span></div>';
+      + '<span>DÉF <b>' + c.def + '</b></span>'
+      + '<button class="more" data-title="' + esc(c.title) + '">Fiche complète</button>'
+      + '</div>';
   }
 
   /* ---------- révélation ---------- */
@@ -508,8 +591,10 @@
     el('tap-on').textContent = 'Touchez la carte pour la retourner';
   }
 
-  function onFlip() {
+  function onFlip(ev) {
     var f = el('flipper');
+    var more = ev && ev.target && ev.target.closest ? ev.target.closest('.more') : null;
+    if (more) { openSheet(more.getAttribute('data-title')); return; }
     if (qi >= queue.length) return;
     if (!f.classList.contains('is-open')) {
       f.classList.add('is-open');
@@ -573,7 +658,9 @@
     inner.innerHTML = '<h2>' + esc(c.title) + '</h2>'
       + '<p class="sheet-sub">' + esc(c.rank.toUpperCase())
       + (c.count > 1 ? ' · ' + c.count + ' EXEMPLAIRES' : '') + '</p>'
-      + (c.thumb ? '<img class="sheet-img" src="' + esc(c.thumb) + '" alt="">' : '')
+      + (c.thumb
+          ? '<img class="sheet-img" src="' + esc(c.thumb) + '" alt="">'
+          : '<div class="sheet-art">' + artSVG(c.title, t.color) + '</div>')
       + '<p class="sheet-text" id="sheet-text">'
       + esc(c.extract || 'Chargement du résumé…') + '</p>'
       + '<div class="sheet-meta">ATQ <b>' + c.atk + '</b> — '
@@ -591,7 +678,7 @@
     if (!c.extract) {
       fetchSummary(c.title)
         .then(function (d) {
-          c.extract = (d.extract || '').trim().slice(0, 700);
+          c.extract = (d.extract || '').trim().slice(0, 1400);
           save();
           el('sheet-text').textContent = c.extract || 'Cet article n’a pas de résumé.';
         })
@@ -642,9 +729,10 @@
 
   el('pack').addEventListener('click', openPack);
   el('again').addEventListener('click', function () { resetPack(); openPack(); });
+  el('sheet-inner').addEventListener('click', function (e) { e.stopPropagation(); });
   el('flipper').addEventListener('click', onFlip);
   el('flipper').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onFlip(); }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onFlip(null); }
   });
   el('tab-open').addEventListener('click', function () { switchTo('open'); });
   el('tab-coll').addEventListener('click', function () { switchTo('coll'); });
