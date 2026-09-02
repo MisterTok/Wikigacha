@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wikigacha</title>
+<style>
+  :root {
+    --paper: #ffffff;
+    --chrome: #f8f9fa;
+    --rule: #a2a9b1;
+    --hairline: #c8ccd1;
+    --ink: #202122;
+    --ink-soft: #54595d;
+    --link: #3366cc;
+    --serif: "Linux Libertine", Georgia, "Times New Roman", serif;
+    --sans: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+  * , *::before, *::after { box-sizing: border-box; }
+  body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background: var(--chrome);
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 0 14px 48px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .masthead { padding: 22px 0 0; }
+  .masthead h1 {
+    font-family: var(--serif); font-weight: 400; font-size: 34px;
+    line-height: 1.1; margin: 0; letter-spacing: -0.01em;
+  }
+  .tagline {
+    margin: 6px 0 0; font-size: 13px; color: var(--ink-soft);
+    border-bottom: 1px solid var(--rule); padding-bottom: 12px;
+  }
+  .tabs { display: flex; gap: 18px; margin: 12px 0 20px; }
+  .tab {
+    background: none; border: 0; padding: 4px 0 8px;
+    font: inherit; font-size: 14px; color: var(--link);
+    cursor: pointer; border-bottom: 3px solid transparent;
+  }
+  .tab.is-active { color: var(--ink); border-bottom-color: var(--ink); }
+  .tab:focus-visible, .pack:focus-visible, .again:focus-visible, .card:focus-visible {
+    outline: 2px solid var(--link); outline-offset: 2px;
+  }
+  #coll-count { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+  .pack-stage { text-align: center; padding: 28px 0 8px; }
+  .pack {
+    position: relative; width: 168px; height: 236px;
+    background: var(--paper); border: 1px solid var(--rule);
+    box-shadow: 4px 4px 0 var(--hairline), 8px 8px 0 #dde1e6;
+    cursor: pointer; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px;
+    transition: transform .18s ease;
+  }
+  .pack:active { transform: translate(3px, 3px); box-shadow: 2px 2px 0 var(--hairline); }
+  .pack-w { font-family: var(--serif); font-size: 72px; line-height: 1; color: var(--ink); }
+  .pack-label { font-size: 12px; color: var(--ink-soft); }
+  .pack[disabled] { opacity: .45; cursor: default; }
+  .hint { font-size: 12px; color: var(--ink-soft); margin: 14px 0 0; }
+
+  .draw { display: grid; gap: 12px; padding: 8px 0 20px; }
+  .grid { display: grid; gap: 12px; padding-bottom: 20px; }
+  @media (min-width: 460px) { .grid { grid-template-columns: 1fr 1fr; } }
+
+  .card {
+    display: block; width: 100%; text-align: left;
+    background: var(--paper); border: 1px solid var(--hairline);
+    border-left: 4px solid var(--rule); padding: 12px 14px;
+    font: inherit; color: inherit; text-decoration: none;
+    animation: deal .34s ease both;
+  }
+  @keyframes deal { from { opacity: 0; transform: translateY(10px); } }
+  @media (prefers-reduced-motion: reduce) {
+    .card { animation: none; } .pack { transition: none; }
+  }
+
+  .card-head { display: flex; gap: 12px; align-items: flex-start; }
+  .card-thumb {
+    width: 56px; height: 56px; flex: none; object-fit: cover;
+    border: 1px solid var(--hairline); background: var(--chrome);
+  }
+  .card-thumb-alt {
+    width: 56px; height: 56px; flex: none;
+    border: 1px solid var(--hairline); background: var(--chrome);
+    display: grid; place-items: center;
+    font-family: var(--serif); font-size: 26px; color: var(--rule);
+  }
+  .card-title {
+    font-family: var(--serif); font-size: 19px; line-height: 1.2;
+    margin: 0 0 3px; color: var(--link);
+  }
+  .card-desc {
+    margin: 0; font-size: 12px; color: var(--ink-soft);
+    display: -webkit-box; -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .card-foot {
+    display: flex; align-items: baseline; gap: 14px;
+    margin-top: 10px; padding-top: 8px;
+    border-top: 1px solid var(--chrome);
+    font-size: 12px; color: var(--ink-soft);
+  }
+  .stat b { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
+  .rank { margin-left: auto; font-size: 11px; letter-spacing: .02em; }
+  .dupe { font-size: 11px; color: var(--ink-soft); }
+
+  .r-ebauche { border-left-color: #c8ccd1; }
+  .r-debut   { border-left-color: #72777d; }
+  .r-b       { border-left-color: #36c; }
+  .r-ba      { border-left-color: #ac6600; }
+  .r-adq     { border-left-color: #b32424; }
+  .r-ba .rank, .r-adq .rank { font-weight: 600; color: var(--ink); }
+  .r-ba, .r-adq { box-shadow: 0 1px 0 var(--hairline); }
+  .r-adq {
+    background: linear-gradient(115deg, #fff 0%, #fdf6e3 38%, #fff 52%, #f3f7fd 70%, #fff 100%);
+  }
+  .r-ba { background: linear-gradient(115deg, #fff 0%, #fffaf0 60%, #fff 100%); }
+
+  .status { font-size: 13px; color: var(--ink-soft); padding: 20px 4px; text-align: center; }
+  .status.error { color: #b32424; }
+  .again {
+    display: block; width: 100%; margin: 4px 0 0; padding: 13px;
+    background: var(--paper); border: 1px solid var(--rule);
+    font: inherit; font-size: 15px; color: var(--link); cursor: pointer;
+  }
+  .again:active { background: var(--chrome); }
+  .empty { text-align: center; padding: 48px 0 24px; color: var(--ink-soft); font-size: 14px; }
+  .coll-stats {
+    font-size: 12px; color: var(--ink-soft);
+    border-bottom: 1px solid var(--hairline);
+    padding-bottom: 10px; margin-bottom: 16px; line-height: 1.6;
+  }
+  .coll-stats b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .credit {
+    font-size: 11px; color: var(--ink-soft); line-height: 1.6;
+    border-top: 1px solid var(--hairline); padding-top: 12px; margin-top: 8px;
+  }
+  .credit a { color: var(--link); }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <h1>Wikigacha</h1>
+  <p class="tagline">Cinq articles au hasard. À vous de voir ce que ça vaut.</p>
+  <nav class="tabs">
+    <button id="tab-open" class="tab is-active">Ouvrir un paquet</button>
+    <button id="tab-coll" class="tab">Collection <span id="coll-count">(0)</span></button>
+  </nav>
+</header>
+
+<main id="view-open">
+  <div id="pack-stage" class="pack-stage">
+    <button id="pack" class="pack" aria-label="Ouvrir un paquet de cinq cartes">
+      <span class="pack-w">W</span>
+      <span class="pack-label">5 articles</span>
+    </button>
+    <p class="hint">Touchez le paquet</p>
+  </div>
+  <div id="draw" class="draw" hidden></div>
+  <div id="status" class="status" hidden></div>
+  <button id="again" class="again" hidden>Ouvrir un autre paquet</button>
+</main>
+
+<main id="view-coll" hidden>
+  <div id="coll-empty" class="empty">
+    <p>Votre collection est vide.</p>
+    <button id="goto-open" class="again">Ouvrir un premier paquet</button>
+  </div>
+  <div id="coll-stats" class="coll-stats" hidden></div>
+  <div id="coll-grid" class="grid"></div>
+</main>
+
+<p class="credit">
+  Contenu et données issus de <a href="https://fr.wikipedia.org" target="_blank" rel="noopener">Wikipédia</a>,
+  sous licence <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr" target="_blank" rel="noopener">CC BY-SA 4.0</a>.
+  Chaque carte renvoie à son article d’origine.
+</p>
+
+<script>
+(function () {
+  var WIKI = 'fr.wikipedia';
+  var KEY = 'wikigacha:collection';
+  var collection = {};
+
+  var TIERS = [
+    { max: 0.70, name: 'Ébauche',            cls: 'r-ebauche' },
+    { max: 1.00, name: 'Bon début',          cls: 'r-debut' },
+    { max: 1.28, name: 'B',                  cls: 'r-b' },
+    { max: 1.52, name: 'Bon article',        cls: 'r-ba' },
+    { max: 99,   name: 'Article de qualité', cls: 'r-adq' }
+  ];
+
+  var el = function (id) { return document.getElementById(id); };
+  var rankIndex = function (n) {
+    return TIERS.findIndex(function (t) { return t.name === n; });
+  };
+
+  function fetchPack() {
+    var url = 'https://' + WIKI + '.org/w/api.php'
+      + '?action=query&format=json&origin=*'
+      + '&generator=random&grnnamespace=0&grnlimit=5'
+      + '&prop=info|pageimages|description'
+      + '&inprop=url&piprop=thumbnail&pithumbsize=200';
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (data) {
+      var pages = data && data.query && data.query.pages;
+      if (!pages) throw new Error('réponse vide');
+      return Object.keys(pages).map(function (k) { return pages[k]; });
+    });
+  }
+
+  function viewRange() {
+    var n = new Date();
+    var start = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth() - 2, 1));
+    var end = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), 0));
+    var f = function (d) { return d.toISOString().slice(0, 10).replace(/-/g, '') + '00'; };
+    return [f(start), f(end)];
+  }
+
+  function fetchViews(title) {
+    var r = viewRange();
+    var slug = encodeURIComponent(title.replace(/ /g, '_'));
+    var url = 'https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/'
+      + WIKI + '/all-access/user/' + slug + '/monthly/' + r[0] + '/' + r[1];
+    return fetch(url)
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (d) {
+        if (!d || !d.items) return 0;
+        return d.items.reduce(function (s, i) { return s + (i.views || 0); }, 0);
+      })
+      .catch(function () { return 0; });
+  }
+
+  function toCard(page, views) {
+    var bytes = page.length || 1;
+    var score = Math.log10(bytes + 1) / 5 + Math.log10(views + 1) / 6;
+    var tier = TIERS.find(function (t) { return score < t.max; });
+    return {
+      title: page.title,
+      url: page.fullurl || ('https://' + WIKI + '.org/wiki/' + encodeURIComponent(page.title)),
+      desc: page.description || '',
+      thumb: page.thumbnail ? page.thumbnail.source : '',
+      bytes: bytes,
+      views: views,
+      atk: Math.max(1, Math.round(Math.log10(views + 1) * 90)),
+      def: Math.max(1, Math.round(Math.log10(bytes + 1) * 90)),
+      rank: tier.name,
+      cls: tier.cls
+    };
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (m) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[m];
+    });
+  }
+
+  function cardHTML(c, dupes) {
+    var visual = c.thumb
+      ? '<img class="card-thumb" src="' + esc(c.thumb) + '" alt="" loading="lazy">'
+      : '<div class="card-thumb-alt" aria-hidden="true">' + esc(c.title.charAt(0)) + '</div>';
+    return '<a class="card ' + c.cls + '" href="' + esc(c.url) + '" target="_blank" rel="noopener">'
+      + '<div class="card-head">' + visual
+      + '<div><h2 class="card-title">' + esc(c.title) + '</h2>'
+      + '<p class="card-desc">' + esc(c.desc || 'Aucune description courte.') + '</p></div></div>'
+      + '<div class="card-foot">'
+      + '<span class="stat">Attaque <b>' + c.atk + '</b></span>'
+      + '<span class="stat">Défense <b>' + c.def + '</b></span>'
+      + (dupes > 1 ? '<span class="dupe">×' + dupes + '</span>' : '')
+      + '<span class="rank">' + esc(c.rank) + '</span>'
+      + '</div></a>';
+  }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      collection = raw ? JSON.parse(raw) : {};
+    } catch (e) { collection = {}; }
+  }
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(collection)); } catch (e) {}
+  }
+
+  function add(cards) {
+    cards.forEach(function (c) {
+      var e = collection[c.title];
+      if (e) { e.count += 1; } else { c.count = 1; collection[c.title] = c; }
+    });
+    save();
+  }
+
+  function refreshCount() {
+    el('coll-count').textContent = '(' + Object.keys(collection).length + ')';
+  }
+
+  function open() {
+    var pack = el('pack'), draw = el('draw'), status = el('status');
+    pack.disabled = true;
+    draw.hidden = true; draw.innerHTML = '';
+    el('again').hidden = true;
+    status.hidden = false; status.className = 'status';
+    status.textContent = 'Tirage de cinq articles…';
+
+    fetchPack()
+      .then(function (pages) {
+        return Promise.all(pages.map(function (p) {
+          return fetchViews(p.title).then(function (v) { return toCard(p, v); });
+        }));
+      })
+      .then(function (cards) {
+        cards.sort(function (a, b) { return rankIndex(a.rank) - rankIndex(b.rank); });
+        status.hidden = true;
+        el('pack-stage').hidden = true;
+        draw.hidden = false;
+        cards.forEach(function (c, i) {
+          var d = document.createElement('div');
+          d.innerHTML = cardHTML(c, 1);
+          d.firstChild.style.animationDelay = (i * 0.11) + 's';
+          draw.appendChild(d.firstChild);
+        });
+        el('again').hidden = false;
+        add(cards);
+        refreshCount();
+      })
+      .catch(function (err) {
+        status.className = 'status error';
+        status.textContent = 'Wikipédia n’a pas répondu (' + err.message + '). Réessayez.';
+        pack.disabled = false;
+      });
+  }
+
+  function showCollection() {
+    var items = Object.keys(collection).map(function (k) { return collection[k]; });
+    el('coll-empty').hidden = items.length > 0;
+    el('coll-stats').hidden = items.length === 0;
+    if (items.length) {
+      var total = items.reduce(function (s, c) { return s + c.count; }, 0);
+      var rare = items.filter(function (c) {
+        return c.rank === 'Bon article' || c.rank === 'Article de qualité';
+      }).length;
+      el('coll-stats').innerHTML = '<b>' + items.length + '</b> articles distincts sur '
+        + '<b>' + total + '</b> cartes tirées · <b>' + rare + '</b> de haute qualité';
+    }
+    items.sort(function (a, b) {
+      var d = rankIndex(b.rank) - rankIndex(a.rank);
+      return d !== 0 ? d : a.title.localeCompare(b.title, 'fr');
+    });
+    el('coll-grid').innerHTML = items.map(function (c) {
+      return cardHTML(c, c.count);
+    }).join('');
+  }
+
+  function switchTo(which) {
+    var isOpen = which === 'open';
+    el('view-open').hidden = !isOpen;
+    el('view-coll').hidden = isOpen;
+    el('tab-open').classList.toggle('is-active', isOpen);
+    el('tab-coll').classList.toggle('is-active', !isOpen);
+    if (!isOpen) showCollection();
+  }
+
+  function reset() {
+    el('pack-stage').hidden = false;
+    el('pack').disabled = false;
+    el('draw').hidden = true;
+    el('draw').innerHTML = '';
+    el('again').hidden = true;
+  }
+
+  el('pack').addEventListener('click', open);
+  el('again').addEventListener('click', function () { reset(); open(); });
+  el('tab-open').addEventListener('click', function () { switchTo('open'); });
+  el('tab-coll').addEventListener('click', function () { switchTo('coll'); });
+  el('goto-open').addEventListener('click', function () { switchTo('open'); });
+
+  load();
+  refreshCount();
+})();
+</script>
+</body>
+</html>
