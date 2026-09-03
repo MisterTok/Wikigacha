@@ -408,13 +408,18 @@
   .manche.ko .verdict { color: #8d5050; }
 
   /* --- echange --- */
+  .echange-lien {
+    display: block; width: 100%; text-align: left; margin-bottom: 16px;
+    padding: 0; background: none; border: 0; cursor: pointer;
+    font: inherit; font-size: 12px; color: var(--glass-dim);
+    text-decoration: underline; text-underline-offset: 3px;
+  }
   .echange {
     border: 1px solid var(--night-line); background: var(--night-up);
-    padding: 12px 13px; margin-bottom: 18px;
+    padding: 13px; margin-bottom: 18px;
   }
-  .echange-lab {
-    display: block; font-size: 11px; letter-spacing: .1em;
-    color: var(--glass-dim); margin-bottom: 8px;
+  .echange-aide {
+    margin: 0 0 10px; font-size: 12px; line-height: 1.6; color: var(--glass-dim);
   }
   .echange-ligne { display: flex; gap: 8px; }
   .code-champ {
@@ -602,11 +607,16 @@
 </main>
 
 <main id="view-coll" hidden>
-  <div class="echange">
-    <label class="echange-lab" for="code-champ">Recevoir une carte</label>
+  <button id="echange-plier" class="echange-lien">
+    Recevoir une carte offerte par un ami
+  </button>
+  <div class="echange" id="echange-bloc" hidden>
+    <p class="echange-aide">Un ami qui joue peut vous offrir une carte de sa
+      collection : son jeu produit alors un code, qu’il vous envoie par message.
+      Collez-le ici pour recevoir la carte.</p>
     <div class="echange-ligne">
       <input id="code-champ" class="code-champ" type="text"
-             placeholder="Collez un code WG1-…" autocomplete="off" spellcheck="false">
+             placeholder="WG1-…" autocomplete="off" spellcheck="false">
       <button id="code-valider" class="btn echange-btn">Recevoir</button>
     </div>
     <p class="recompense-msg" id="echange-msg"></p>
@@ -2052,6 +2062,14 @@
     e.stopPropagation();
     var o = e.target.closest ? e.target.closest('[data-offrir]') : null;
     if (o) offrir(o.getAttribute('data-offrir'));
+  });
+  el('echange-plier').addEventListener('click', function () {
+    var b = el('echange-bloc');
+    b.hidden = !b.hidden;
+    el('echange-plier').textContent = b.hidden
+      ? 'Recevoir une carte offerte par un ami'
+      : 'Masquer';
+    if (!b.hidden) el('code-champ').focus();
   });
   el('code-valider').addEventListener('click', recevoir);
   el('code-champ').addEventListener('keydown', function (e) {
