@@ -582,7 +582,7 @@
   <h1>Wikigacha</h1>
   <p class="tagline">Cinq articles au hasard. À vous de voir ce que ça vaut.</p>
   <nav class="tabs">
-    <button id="tab-open" class="tab is-active">Ouvrir</button>
+    <button id="tab-open" class="tab is-active">Paquets</button>
     <button id="tab-coll" class="tab">Collection <span id="coll-count">(0)</span></button>
     <button id="tab-raid" class="tab">Combat</button>
     <button id="tab-succes" class="tab">Succès <span id="succes-count"></span></button>
@@ -597,7 +597,7 @@
       <span class="pack-w">W</span>
       <span class="pack-label">5 CARTES</span>
     </button>
-    <p class="hint">Touchez le paquet</p>
+    <p class="hint" id="hint">Touchez le paquet</p>
   </div>
 
   <div id="reveal" class="reveal" hidden>
@@ -616,7 +616,7 @@
 
   <div id="draw" class="draw"></div>
   <div id="status" class="status" hidden></div>
-  <button id="again" class="btn btn-solid" hidden>Ouvrir un autre paquet</button>
+
 </main>
 
 <main id="view-coll" hidden>
@@ -1034,7 +1034,10 @@
     if (qi >= queue.length) {
       el('reveal').hidden = true;
       el('draw').innerHTML = queue.map(function (c) { return cardHTML(c, 1); }).join('');
-      el('again').hidden = false;
+      /* Le paquet revient sous le recapitulatif : on le touche pour recommencer. */
+      el('pack-stage').hidden = false;
+      el('pack').disabled = false;
+      el('hint').textContent = 'Touchez le paquet pour en ouvrir un autre';
       return;
     }
     var c = queue[qi], t = tierOf(c.rank);
@@ -1079,7 +1082,6 @@
 
     el('pack').disabled = true;
     el('draw').innerHTML = '';
-    el('again').hidden = true;
     status.hidden = false; status.className = 'status';
     status.textContent = 'Tirage de cinq articles…';
 
@@ -1119,9 +1121,10 @@
 
   function resetPack() {
     el('pack-stage').hidden = false;
+    el('pack').disabled = false;
     el('reveal').hidden = true;
     el('draw').innerHTML = '';
-    el('again').hidden = true;
+    el('hint').textContent = 'Touchez le paquet';
   }
 
   /* ---------- fiche ---------- */
@@ -2123,7 +2126,6 @@
   }
 
   el('pack').addEventListener('click', openPack);
-  el('again').addEventListener('click', function () { resetPack(); openPack(); });
   el('sheet-inner').addEventListener('click', function (e) {
     e.stopPropagation();
     var fu = e.target.closest ? e.target.closest('[data-fusion]') : null;
