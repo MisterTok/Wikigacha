@@ -343,6 +343,30 @@
   }
   .win p { margin: 0; font-size: 13px; color: var(--glass-dim); }
 
+  /* --- echange --- */
+  .echange {
+    border: 1px solid var(--night-line); background: var(--night-up);
+    padding: 12px 13px; margin-bottom: 18px;
+  }
+  .echange-lab {
+    display: block; font-size: 11px; letter-spacing: .1em;
+    color: var(--glass-dim); margin-bottom: 8px;
+  }
+  .echange-ligne { display: flex; gap: 8px; }
+  .code-champ {
+    flex: 1 1 auto; min-width: 0; padding: 10px;
+    background: #11141f; border: 1px solid var(--night-line);
+    color: var(--ivory); font: inherit; font-size: 13px;
+  }
+  .code-champ::placeholder { color: var(--glass-dim); opacity: .7; }
+  .echange-btn { flex: none; width: auto; margin: 0; padding: 10px 16px; }
+  .code-zone {
+    width: 100%; margin-bottom: 16px; padding: 10px;
+    background: #fff; border: 1px solid var(--ivory-dim);
+    color: var(--ink); font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 12px; line-height: 1.5; word-break: break-all; resize: vertical;
+  }
+
   /* --- succes --- */
   .succes-tete {
     font-size: 12px; color: var(--glass-dim); line-height: 1.7;
@@ -422,6 +446,10 @@
     margin: 0; background: #fff; border-color: var(--ivory-dim);
     color: var(--ink); text-decoration: none;
   }
+  .btn-offrir {
+    margin-top: 10px; background: transparent;
+    border-color: var(--ivory-dim); color: var(--ink-soft); font-size: 13px;
+  }
 
   .credit {
     font-size: 11px; color: var(--glass-dim); line-height: 1.7;
@@ -479,6 +507,15 @@
 </main>
 
 <main id="view-coll" hidden>
+  <div class="echange">
+    <label class="echange-lab" for="code-champ">Recevoir une carte</label>
+    <div class="echange-ligne">
+      <input id="code-champ" class="code-champ" type="text"
+             placeholder="Collez un code WG1-…" autocomplete="off" spellcheck="false">
+      <button id="code-valider" class="btn echange-btn">Recevoir</button>
+    </div>
+    <p class="recompense-msg" id="echange-msg"></p>
+  </div>
   <div id="coll-empty" class="empty">
     <p>Votre collection est vide.</p>
     <button id="goto-open" class="btn btn-solid">Ouvrir un premier paquet</button>
@@ -951,7 +988,10 @@
       + '<div class="sheet-actions">'
       + '<button class="btn" id="sheet-close">Fermer</button>'
       + '<a class="btn" href="' + esc(c.url) + '" target="_blank" rel="noopener">Lire l’article</a>'
-      + '</div>';
+      + '</div>'
+      + '<button class="btn btn-offrir" id="sheet-offrir" data-offrir="' + esc(c.title) + '">'
+      + 'Offrir cette carte' + (c.count > 1 ? ' (vous en avez ' + c.count + ')' : '')
+      + '</button>';
     el('sheet').hidden = false;
     document.body.style.overflow = 'hidden';
     el('sheet-close').addEventListener('click', closeSheet);
@@ -1307,6 +1347,119 @@
     paintRaid(etat);
   }
 
+  /* ---------- echange par code ----------
+     Pas de serveur : la carte est encodee dans une courte chaine que le joueur
+     transmet comme il veut. Le code ne porte que l'essentiel (titre et stats) ;
+     le resume et l'image sont refetches a l'arrivee. */
+
+  var CKEY = 'wikigacha:codes';
+
+  function enc64(str) {
+    var u = new TextEncoder().encode(str), s = '';
+    u.forEach(function (c) { s += String.fromCharCode(c); });
+    return btoa(s).replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+  }
+  function dec64(b) {
+    b = b.replace(/-/g, '+').replace(/_/g, '/');
+    var s = atob(b), u = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+    return new TextDecoder().decode(u);
+  }
+
+  function faireCode(c) {
+    return 'WG1-' + enc64(JSON.stringify({
+      t: c.title, r: rankIndex(c.rank), a: c.atk, d: c.def,
+      b: c.bytes, v: c.views, s: c.score
+    }));
+  }
+
+  function lireCode(code) {
+    code = (code || '').trim().replace(/\s+/g, '');
+    if (code.indexOf('WG1-') !== 0) throw new Error('Ce n’est pas un code Wikigacha.');
+    var o = JSON.parse(dec64(code.slice(4)));
+    if (!o.t || typeof o.r !== 'number' || !TIERS[o.r]) throw new Error('Code abîmé.');
+    return o;
+  }
+
+  function codesUtilises() {
+    try { return JSON.parse(localStorage.getItem(CKEY)) || []; } catch (e) { return []; }
+  }
+  function marquerCode(code) {
+    var l = codesUtilises();
+    l.push(code.slice(-24));
+    if (l.length > 400) l = l.slice(-400);
+    try { localStorage.setItem(CKEY, JSON.stringify(l)); } catch (e) {}
+  }
+
+  /* Offrir : la carte quitte reellement la collection. */
+  function offrir(titre) {
+    var c = collection[titre];
+    if (!c) return;
+    var code = faireCode(c);
+    if (c.count > 1) { c.count -= 1; } else { delete collection[titre]; }
+    save(); refreshCount(); refreshSucces();
+
+    var inner = el('sheet-inner');
+    inner.innerHTML = '<h2>Carte offerte</h2>'
+      + '<p class="sheet-sub">' + esc(titre.toUpperCase()) + '</p>'
+      + '<p class="sheet-text">Transmettez ce code à qui vous voulez. '
+      + 'La carte a quitté votre collection.</p>'
+      + '<textarea class="code-zone" id="code-zone" readonly rows="4">' + code + '</textarea>'
+      + '<div class="sheet-actions">'
+      + '<button class="btn" id="sheet-close">Fermer</button>'
+      + '<button class="btn" id="code-copier">Copier le code</button></div>';
+    el('sheet-close').addEventListener('click', closeSheet);
+    el('code-copier').addEventListener('click', function () {
+      var z = el('code-zone');
+      z.select(); z.setSelectionRange(0, 99999);
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) {}
+      if (navigator.clipboard) navigator.clipboard.writeText(z.value).catch(function () {});
+      el('code-copier').textContent = ok || navigator.clipboard ? 'Copié' : 'Sélectionnez et copiez';
+    });
+  }
+
+  function recevoir() {
+    var champ = el('code-champ');
+    var msg = el('echange-msg');
+    var code = (champ.value || '').trim().replace(/\s+/g, '');
+    if (!code) return;
+    var o;
+    try { o = lireCode(code); }
+    catch (e) { msg.textContent = e.message; return; }
+
+    if (codesUtilises().indexOf(code.slice(-24)) !== -1) {
+      msg.textContent = 'Ce code a déjà été utilisé sur cet appareil.';
+      return;
+    }
+    var tier = TIERS[o.r];
+    var carte = {
+      title: o.t,
+      url: 'https://' + WIKI + '.org/wiki/' + encodeURIComponent(o.t.replace(/ /g, '_')),
+      desc: '', extract: '', thumb: '',
+      bytes: o.b || 1, views: o.v || 0,
+      atk: o.a || 1, def: o.d || 1, score: o.s,
+      rank: tier.name, count: 1
+    };
+    var e = collection[o.t];
+    if (e) { e.count += 1; } else { collection[o.t] = carte; }
+    marquerCode(code);
+    save(); refreshCount(); refreshSucces();
+    champ.value = '';
+    msg.textContent = o.t + ' (' + tier.name + ') rejoint votre collection.';
+    showCollection();
+
+    /* On complete la fiche depuis Wikipedia, sans bloquer. */
+    fetchSummary(o.t).then(function (d) {
+      var c2 = collection[o.t];
+      if (!c2) return;
+      c2.extract = (d.extract || '').trim().slice(0, 1400);
+      c2.desc = d.description || '';
+      c2.thumb = (d.thumbnail && d.thumbnail.source) || '';
+      save(); showCollection();
+    }).catch(function () {});
+  }
+
   /* ---------- succes ---------- */
 
   /* Chaque succes se lit : un objectif chiffre, une mesure, une recompense.
@@ -1475,7 +1628,15 @@
 
   el('pack').addEventListener('click', openPack);
   el('again').addEventListener('click', function () { resetPack(); openPack(); });
-  el('sheet-inner').addEventListener('click', function (e) { e.stopPropagation(); });
+  el('sheet-inner').addEventListener('click', function (e) {
+    e.stopPropagation();
+    var o = e.target.closest ? e.target.closest('[data-offrir]') : null;
+    if (o) offrir(o.getAttribute('data-offrir'));
+  });
+  el('code-valider').addEventListener('click', recevoir);
+  el('code-champ').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') recevoir();
+  });
   el('flipper').addEventListener('click', onFlip);
   el('flipper').addEventListener('keydown', function (e) {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onFlip(null); }
