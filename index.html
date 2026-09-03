@@ -549,6 +549,19 @@
     margin-top: 10px; background: transparent;
     border-color: var(--ivory-dim); color: var(--ink-soft); font-size: 13px;
   }
+  .fusion {
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--ivory-dim);
+  }
+  .fusion-lig {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin: 0 0 8px; font-size: 13px; color: var(--ink-soft);
+  }
+  .fusion-lig span:first-child { color: var(--ink); letter-spacing: .08em; }
+  .fusion .btn { margin: 0; }
+  .fusion .btn[disabled] { opacity: .5; }
+  .stars {
+    font-size: 10px; letter-spacing: .05em; color: #c9992e;
+  }
 
   .credit {
     font-size: 11px; color: var(--glass-dim); line-height: 1.7;
@@ -698,6 +711,24 @@
   };
   var rankIndex = function (name) {
     return TIERS.findIndex(function (t) { return t.name === name; });
+  };
+
+  /* Fusion : monter une carte en etoiles avec ses doublons.
+     Bonus modere, pour qu'une carte de haute rarete garde l'avantage. */
+  var ETOILE_MAX = 5;
+  var ETOILE_BONUS = [0, 0.06, 0.13, 0.22, 0.33];   /* cumul, de ★1 a ★5 */
+  var ETOILE_COUT  = [0, 2, 3, 4, 5];               /* doublons pour le palier suivant */
+
+  var niveau = function (c) { return c.star || 1; };
+  var bonusStat = function (c) { return 1 + ETOILE_BONUS[niveau(c) - 1]; };
+  var atkEff = function (c) { return Math.max(1, Math.round(c.atk * bonusStat(c))); };
+  var defEff = function (c) { return Math.max(1, Math.round(c.def * bonusStat(c))); };
+  var coutProchain = function (c) {
+    var n = niveau(c);
+    return n >= ETOILE_MAX ? 0 : ETOILE_COUT[n];
+  };
+  var etoiles = function (n) {
+    return '★★★★★'.slice(0, n) + '☆☆☆☆☆'.slice(0, ETOILE_MAX - n);
   };
   var esc = function (s) {
     return String(s).replace(/[&<>"]/g, function (m) {
@@ -860,7 +891,11 @@
   function refreshPacks() {
     var d = readPacks();
     writePacks(d);
-    var txt = 'Paquets ' + d.n + ' / ' + MAX_PAQUETS;
+    /* Au-dessus du plafond (recompenses accumulees), on affiche le total brut ;
+       la regeneration a la minute ne reprend qu'une fois repasse sous le plafond. */
+    var txt = d.n > MAX_PAQUETS
+      ? 'Paquets ' + d.n + ' (max auto ' + MAX_PAQUETS + ')'
+      : 'Paquets ' + d.n + ' / ' + MAX_PAQUETS;
     if (d.n < MAX_PAQUETS) {
       var reste = Math.max(0, REGEN_MS - (Date.now() - d.ts));
       var sec = Math.ceil(reste / 1000);
@@ -969,8 +1004,9 @@
       + '<span><span class="card-title">' + esc(c.title) + '</span>'
       + '<span class="card-desc">' + esc(blurb(c, 120)) + '</span></span></span>'
       + '<span class="card-foot">'
-      + '<span>ATQ <b>' + c.atk + '</b></span>'
-      + '<span>DÉF <b>' + c.def + '</b></span>'
+      + '<span>ATQ <b>' + atkEff(c) + '</b></span>'
+      + '<span>DÉF <b>' + defEff(c) + '</b></span>'
+      + (niveau(c) > 1 ? '<span class="stars">' + etoiles(niveau(c)) + '</span>' : '')
       + (dupes > 1 ? '<span class="dupe">×' + dupes + '</span>' : '')
       + '<span class="rank">' + esc(tierOf(c.rank).short) + '</span></span></button></div>';
   }
@@ -981,12 +1017,13 @@
       ? '<img src="' + esc(c.thumb) + '" alt="">'
       : artSVG(c.title, t.color);
     return '<div class="ribbon">' + esc(c.rank.toUpperCase())
-      + (c.garantie ? ' · GARANTIE' : '') + '</div>'
+      + (c.garantie ? ' · GARANTIE' : '')
+      + (niveau(c) > 1 ? ' · ' + etoiles(niveau(c)) : '') + '</div>'
       + '<div class="fig">' + fig + '</div>'
       + '<h2>' + esc(c.title) + '</h2>'
       + '<p>' + esc(blurb(c, 150)) + '</p>'
-      + '<div class="face-foot"><span>ATQ <b>' + c.atk + '</b></span>'
-      + '<span>DÉF <b>' + c.def + '</b></span>'
+      + '<div class="face-foot"><span>ATQ <b>' + atkEff(c) + '</b></span>'
+      + '<span>DÉF <b>' + defEff(c) + '</b></span>'
       + '<button class="more" data-title="' + esc(c.title) + '">Fiche complète</button>'
       + '</div>';
   }
@@ -1097,15 +1134,18 @@
     inner.style.setProperty('--tier', t.color);
     inner.innerHTML = '<h2>' + esc(c.title) + '</h2>'
       + '<p class="sheet-sub">' + esc(c.rank.toUpperCase())
+      + ' · ' + etoiles(niveau(c))
       + (c.count > 1 ? ' · ' + c.count + ' EXEMPLAIRES' : '') + '</p>'
       + (c.thumb
           ? '<img class="sheet-img" src="' + esc(c.thumb) + '" alt="">'
           : '<div class="sheet-art">' + artSVG(c.title, t.color) + '</div>')
       + '<p class="sheet-text" id="sheet-text">'
       + esc(c.extract || 'Chargement du résumé…') + '</p>'
-      + '<div class="sheet-meta">ATQ <b>' + c.atk + '</b> — '
+      + '<div class="sheet-meta">ATQ <b>' + atkEff(c) + '</b>'
+      + (niveau(c) > 1 ? ' (base ' + c.atk + ')' : '') + ' — '
       + c.views.toLocaleString('fr-FR') + ' vues sur deux mois<br>'
-      + 'DÉF <b>' + c.def + '</b> — '
+      + 'DÉF <b>' + defEff(c) + '</b>'
+      + (niveau(c) > 1 ? ' (base ' + c.def + ')' : '') + ' — '
       + (Math.round(c.bytes / 102.4) / 10) + ' Ko d’article'
       + (typeof c.score === 'number'
           ? '<br>Qualité <b>' + c.score + '</b> / 100'
@@ -1119,6 +1159,7 @@
       + '<button class="btn" id="sheet-close">Fermer</button>'
       + '<a class="btn" href="' + esc(c.url) + '" target="_blank" rel="noopener">Lire l’article</a>'
       + '</div>'
+      + blocFusion(c)
       + '<button class="btn btn-offrir" id="sheet-offrir" data-offrir="' + esc(c.title) + '">'
       + 'Offrir cette carte' + (c.count > 1 ? ' (vous en avez ' + c.count + ')' : '')
       + '</button>';
@@ -1137,6 +1178,42 @@
           el('sheet-text').textContent = 'Résumé indisponible.';
         });
     }
+  }
+
+  function blocFusion(c) {
+    var n = niveau(c);
+    if (n >= ETOILE_MAX) {
+      return '<div class="fusion"><p class="fusion-lig">'
+        + '<span>' + etoiles(n) + '</span> Niveau maximum atteint.</p></div>';
+    }
+    var cout = coutProchain(c);
+    var dispo = (c.count || 1) - 1;      /* on garde la carte elle-meme */
+    var prochainBonus = Math.round(ETOILE_BONUS[n] * 100);
+    var pret = dispo >= cout;
+    return '<div class="fusion">'
+      + '<p class="fusion-lig"><span>' + etoiles(n) + ' → ' + etoiles(n + 1) + '</span>'
+      + ' +' + prochainBonus + '% ATQ/DÉF</p>'
+      + '<button class="btn' + (pret ? ' btn-solid' : '') + '" '
+      + (pret ? 'data-fusion="' + esc(c.title) + '"' : 'disabled')
+      + '>' + (pret
+          ? 'Fusionner (' + cout + ' doublons)'
+          : 'Il faut ' + cout + ' doublons — vous en avez ' + dispo)
+      + '</button></div>';
+  }
+
+  function fusionner(titre) {
+    var c = collection[titre];
+    if (!c) return;
+    var n = niveau(c);
+    var cout = coutProchain(c);
+    if (n >= ETOILE_MAX || cout === 0) return;
+    if ((c.count || 1) - 1 < cout) return;
+    c.count -= cout;
+    c.star = n + 1;
+    save();
+    refreshCount(); refreshSucces();
+    openSheet(titre);      /* on rouvre la fiche a jour */
+    if (!el('view-coll').hidden) showCollection();
   }
 
   function closeSheet() {
@@ -1227,7 +1304,7 @@
   function degats(c, boss) {
     var m = MULT[rankIndex(c.rank)] || 1;
     var reduction = 900 / (900 + boss.def);
-    return Math.max(1, Math.round(c.atk * m * reduction));
+    return Math.max(1, Math.round(atkEff(c) * m * reduction));
   }
 
   function readRaid() {
@@ -1442,19 +1519,12 @@
     if (etat.reclames.indexOf(i) !== -1) return;
 
     var pk = readPacks();
-    if (pk.n >= MAX_PAQUETS) {
-      el('recompense-msg').textContent =
-        'Réserve pleine (' + MAX_PAQUETS + '/' + MAX_PAQUETS
-        + '). Ouvrez des paquets, puis revenez réclamer.';
-      return;
-    }
-    var gain = Math.min(PALIERS[i].gain, MAX_PAQUETS - pk.n);
+    var gain = PALIERS[i].gain;   /* les recompenses peuvent depasser le plafond */
     pk.n += gain;
     writePacks(pk);
     etat.reclames.push(i);
     etat.journal.push('<b>' + PALIERS[i].nom + '</b> — ' + gain
-      + (gain > 1 ? ' paquets récupérés.' : ' paquet récupéré.')
-      + (gain < PALIERS[i].gain ? ' (réserve pleine, le reste est perdu)' : ''));
+      + (gain > 1 ? ' paquets récupérés.' : ' paquet récupéré.'));
     writeRaid(etat);
     refreshPacks();
     paintRaid(etat);
@@ -1538,8 +1608,7 @@
     var courant = (m.c === 'rarete') ? d.rarete : (d[m.c] || 0);
     if (courant < m.v) return;
     var pk = readPacks();
-    if (pk.n >= MAX_PAQUETS) { showMissions('Réserve pleine. Ouvrez des paquets, puis revenez.'); return; }
-    pk.n = Math.min(MAX_PAQUETS, pk.n + m.gain);
+    pk.n = pk.n + m.gain;   /* les recompenses peuvent depasser le plafond */
     writePacks(pk);
     d.reclamees.push(id);
     writeJour(d);
@@ -1698,15 +1767,15 @@
     return Object.keys(collection)
       .map(function (k) { return collection[k]; })
       .sort(function (a, b) {
-        return (b.atk + b.def + rankIndex(b.rank) * 60)
-             - (a.atk + a.def + rankIndex(a.rank) * 60);
+        return (atkEff(b) + defEff(b) + rankIndex(b.rank) * 60)
+             - (atkEff(a) + defEff(a) + rankIndex(a.rank) * 60);
       })
       .slice(0, 5);
   }
 
   function manche(mien, sien) {
-    var perceeA = mien.atk - sien.def;
-    var perceeB = sien.atk - mien.def;
+    var perceeA = atkEff(mien) - defEff(sien);
+    var perceeB = atkEff(sien) - defEff(mien);
     if (perceeA !== perceeB) return perceeA > perceeB ? 1 : -1;
     var r = rankIndex(mien.rank) - rankIndex(sien.rank);
     return r > 0 ? 1 : (r < 0 ? -1 : 0);
@@ -1730,8 +1799,8 @@
       })
       .then(function (adverse) {
         adverse.sort(function (a, b) {
-          return (b.atk + b.def + rankIndex(b.rank) * 60)
-               - (a.atk + a.def + rankIndex(a.rank) * 60);
+          return (atkEff(b) + defEff(b) + rankIndex(b.rank) * 60)
+               - (atkEff(a) + defEff(a) + rankIndex(a.rank) * 60);
         });
         var manches = [], gagnees = 0;
         for (var i = 0; i < 5; i++) {
@@ -1749,7 +1818,7 @@
         var recu = 0;
         if (gagne) {
           var pk = readPacks();
-          recu = Math.min(GAIN_DUEL, MAX_PAQUETS - pk.n);
+          recu = GAIN_DUEL;   /* les recompenses peuvent depasser le plafond */
           pk.n += recu;
           writePacks(pk);
           refreshPacks();
@@ -1786,11 +1855,8 @@
       + '<div class="duel-verdict ' + (gagne ? 'gagne' : 'perdu') + '">'
       + '<b>' + (gagne ? 'Victoire' : 'Défaite') + '</b> — ' + gagnees + ' manche'
       + (gagnees > 1 ? 's' : '') + ' sur 5'
-      + (gagne
-          ? (recu ? ' · ' + recu + ' paquet' + (recu > 1 ? 's' : '') + ' gagné'
-                    + (recu > 1 ? 's' : '')
-             : ' · réserve pleine, aucun paquet reçu')
-          : '')
+      + (gagne ? ' · ' + recu + ' paquet' + (recu > 1 ? 's' : '') + ' gagné'
+                    + (recu > 1 ? 's' : '') : '')
       + '</div>';
 
     manches.forEach(function (m) {
@@ -1845,6 +1911,8 @@
       rang: parRang, octets: octets, vuesMax: vuesMax,
       doublonMax: doublonMax, sansImage: sansImage, muettes: muettes,
       initiales: Object.keys(initiales).length,
+      etoileMax: items.reduce(function (m, c) { return Math.max(m, niveau(c)); }, 1),
+      cartes5: items.filter(function (c) { return niveau(c) >= 5; }).length,
       paquets: pk.ouverts || 0,
       boss: st.boss || 0, coupMax: st.coupMax || 0, jours: st.jours || 1
     };
@@ -1871,6 +1939,8 @@
     { g: 'Paquets', id: 'p200', n: 'Ouvreur compulsif',   d: '200 paquets ouverts', v: 200, gain: 3, m: function (x) { return x.paquets; } },
     { g: 'Paquets', id: 'd3',   n: 'Déjà vu',             d: 'Une carte en 3 exemplaires', v: 3, gain: 1, m: function (x) { return x.doublonMax; } },
     { g: 'Paquets', id: 'd8',   n: 'Insistance',          d: 'Une carte en 8 exemplaires', v: 8, gain: 2, m: function (x) { return x.doublonMax; } },
+    { g: 'Paquets', id: 'f3',   n: 'Première fusion',     d: 'Monter une carte à ★3',     v: 3, gain: 2, m: function (x) { return x.etoileMax; } },
+    { g: 'Paquets', id: 'f5',   n: 'Alchimiste',          d: 'Monter une carte à ★5',     v: 5, gain: 4, m: function (x) { return x.etoileMax; } },
 
     { g: 'Raid', id: 'b1',   n: 'Premier tombé',   d: 'Vaincre un article du jour',      v: 1,    gain: 2, m: function (x) { return x.boss; } },
     { g: 'Raid', id: 'b5',   n: 'Chasseur',        d: 'Vaincre cinq articles du jour',   v: 5,    gain: 3, m: function (x) { return x.boss; } },
@@ -1896,11 +1966,7 @@
     if ((sc.m(x) || 0) < sc.v) return;
 
     var pk = readPacks();
-    if (pk.n >= MAX_PAQUETS) {
-      el('succes-msg').textContent = 'Réserve pleine. Ouvrez des paquets, puis revenez.';
-      return;
-    }
-    pk.n = Math.min(MAX_PAQUETS, pk.n + sc.gain);
+    pk.n = pk.n + sc.gain;   /* les recompenses peuvent depasser le plafond */
     writePacks(pk);
     st.reclames.push(id);
     writeStats(st);
@@ -2060,6 +2126,8 @@
   el('again').addEventListener('click', function () { resetPack(); openPack(); });
   el('sheet-inner').addEventListener('click', function (e) {
     e.stopPropagation();
+    var fu = e.target.closest ? e.target.closest('[data-fusion]') : null;
+    if (fu) { fusionner(fu.getAttribute('data-fusion')); return; }
     var o = e.target.closest ? e.target.closest('[data-offrir]') : null;
     if (o) offrir(o.getAttribute('data-offrir'));
   });
