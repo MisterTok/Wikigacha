@@ -343,6 +343,70 @@
   }
   .win p { margin: 0; font-size: 13px; color: var(--glass-dim); }
 
+  /* --- missions --- */
+  #missions { margin-bottom: 18px; }
+  .mission-tete {
+    font-size: 11px; letter-spacing: .12em; color: var(--glass-dim); margin: 0 0 8px;
+  }
+  .mission {
+    display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+    font: inherit; font-size: 13px; color: var(--glass);
+    background: var(--night-up); border: 1px solid var(--night-line);
+    border-left: 3px solid var(--night-line); padding: 9px 12px; margin-bottom: 6px;
+  }
+  .mission-nom { flex: 1 1 auto; min-width: 0; color: var(--glass-dim); }
+  .mission-etat {
+    flex: none; font-size: 11px; color: var(--glass-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .mission.fait { border-left-color: #c9992e; }
+  .mission.fait .mission-nom { color: var(--ivory); }
+  .mission.fait .mission-etat { color: #c9992e; }
+  .mission.pret {
+    border-left-color: #c9992e; cursor: pointer;
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  .mission.pret .mission-nom { color: var(--ivory); }
+  .mission.pret .mission-etat {
+    color: #1a1d29; font-weight: 600; padding: 3px 9px;
+    background: linear-gradient(160deg, #f3dfa4, #c9992e);
+  }
+
+  /* --- duel --- */
+  #duel-body { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--night-line); }
+  .duel-titre {
+    font-size: 12px; letter-spacing: .1em; color: var(--glass-dim); margin: 0 0 10px;
+  }
+  .duel-intro { font-size: 13px; line-height: 1.6; color: var(--glass-dim); margin: 0 0 14px; }
+  .duel-verdict {
+    padding: 12px; margin-bottom: 12px; font-size: 13px;
+    background: var(--night-up); border: 1px solid var(--night-line);
+  }
+  .duel-verdict b { font-family: var(--display); font-size: 17px; }
+  .duel-verdict.gagne { border-color: #c9992e; }
+  .duel-verdict.gagne b { color: #f0dda4; }
+  .duel-verdict.perdu b { color: var(--glass); }
+  .manche {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+    padding: 9px 11px; background: var(--night-up);
+    border: 1px solid var(--night-line); border-left: 3px solid var(--night-line);
+  }
+  .manche.ok { border-left-color: #4f8d72; }
+  .manche.ko { border-left-color: #8d5050; }
+  .cote { flex: 1 1 0; min-width: 0; }
+  .cote.droite { text-align: right; }
+  .cote-nom {
+    display: block; font-family: var(--display); font-size: 13px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .cote-st {
+    display: block; font-size: 10px; color: var(--glass-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .verdict { flex: none; font-size: 13px; color: var(--glass-dim); }
+  .manche.ok .verdict { color: #4f8d72; }
+  .manche.ko .verdict { color: #8d5050; }
+
   /* --- echange --- */
   .echange {
     border: 1px solid var(--night-line); background: var(--night-up);
@@ -472,13 +536,14 @@
   <nav class="tabs">
     <button id="tab-open" class="tab is-active">Ouvrir</button>
     <button id="tab-coll" class="tab">Collection <span id="coll-count">(0)</span></button>
-    <button id="tab-raid" class="tab">Raid</button>
+    <button id="tab-raid" class="tab">Combat</button>
     <button id="tab-succes" class="tab">Succès <span id="succes-count"></span></button>
   </nav>
 </header>
 
 <main id="view-open">
   <p id="packs" class="packs"></p>
+  <div id="missions"></div>
   <div id="pack-stage" class="pack-stage">
     <button id="pack" class="pack" aria-label="Ouvrir un paquet de cinq cartes">
       <span class="pack-w">W</span>
@@ -526,6 +591,7 @@
 
 <main id="view-raid" hidden>
   <div id="raid-body"></div>
+  <div id="duel-body"></div>
 </main>
 
 <main id="view-succes" hidden>
@@ -700,6 +766,8 @@
   }
   function add(c) {
     var e = collection[c.title];
+    noterJour('rarete', rankIndex(c.rank));
+    if (!e) noterJour('nouvelles', 1);
     if (e) { e.count += 1; }
     else {
       collection[c.title] = {
@@ -907,6 +975,7 @@
       return;
     }
     etat.n -= 1; etat.ouverts += 1;
+    noterJour('paquets', 1);
     if (etat.n === MAX_PAQUETS - 1) etat.ts = Date.now();
     writePacks(etat);
     var pitie = (etat.ouverts % PITIE_TOUS) === 0;
@@ -939,6 +1008,7 @@
         showNext();
         refreshPacks();
         refreshSucces();
+        showMissions();
       })
       .catch(function (err) {
         /* Le paquet n'a pas abouti : on le rend au joueur. */
@@ -1266,6 +1336,7 @@
       etat.pv = Math.max(0, etat.pv - d);
       etat.utilisees.push(c.title);
       noterCoup(d);
+      noterJour('degats', d);
       totalDeg += d;
     });
     etat.journal.push('<b>' + dispo.length + ' cartes</b> infligent '
@@ -1338,6 +1409,7 @@
 
     var d = degats(c, etat.boss);
     etat.pv = Math.max(0, etat.pv - d);
+    noterJour('degats', d);
     etat.utilisees.push(titre);
     noterCoup(d);
     etat.journal.push('<b>' + esc(titre) + '</b> inflige ' + d + ' dégâts.');
@@ -1345,6 +1417,100 @@
     verifierPaliers(etat);
     writeRaid(etat);
     paintRaid(etat);
+  }
+
+  /* ---------- compteurs du jour ----------
+     Remis a zero chaque matin ; ils alimentent les missions quotidiennes. */
+
+  var JKEY = 'wikigacha:journee';
+
+  function readJour() {
+    var d;
+    try { d = JSON.parse(localStorage.getItem(JKEY)); } catch (e) { d = null; }
+    if (!d || d.date !== jour()) {
+      d = { date: jour(), paquets: 0, nouvelles: 0, degats: 0,
+            duels: 0, duelsJoues: 0, rarete: -1, reclamees: [] };
+      try { localStorage.setItem(JKEY, JSON.stringify(d)); } catch (e) {}
+    }
+    return d;
+  }
+  function writeJour(d) {
+    try { localStorage.setItem(JKEY, JSON.stringify(d)); } catch (e) {}
+  }
+  function noterJour(champ, valeur) {
+    var d = readJour();
+    if (champ === 'rarete') { if (valeur > d.rarete) d.rarete = valeur; }
+    else { d[champ] = (d[champ] || 0) + valeur; }
+    writeJour(d);
+  }
+
+  /* ---------- missions quotidiennes ---------- */
+
+  var MISSIONS = [
+    { id: 'm-p3',  n: 'Ouvrir trois paquets',        v: 3,    gain: 1, c: 'paquets' },
+    { id: 'm-p6',  n: 'Ouvrir six paquets',          v: 6,    gain: 2, c: 'paquets' },
+    { id: 'm-n5',  n: 'Découvrir 5 nouveaux articles', v: 5,  gain: 2, c: 'nouvelles' },
+    { id: 'm-n12', n: 'Découvrir 12 nouveaux articles', v: 12, gain: 3, c: 'nouvelles' },
+    { id: 'm-r2',  n: 'Tirer une carte Rare ou mieux', v: 2,  gain: 1, c: 'rarete' },
+    { id: 'm-r3',  n: 'Tirer une Super rare ou mieux', v: 3,  gain: 3, c: 'rarete' },
+    { id: 'm-d800',n: 'Infliger 800 dégâts en raid',  v: 800, gain: 2, c: 'degats' },
+    { id: 'm-d2500',n:'Infliger 2500 dégâts en raid', v: 2500,gain: 3, c: 'degats' },
+    { id: 'm-v1',  n: 'Gagner un duel',               v: 1,   gain: 2, c: 'duels' },
+    { id: 'm-v2',  n: 'Gagner deux duels',            v: 2,   gain: 3, c: 'duels' }
+  ];
+
+  /* Trois missions par jour, tirees a partir de la date :
+     tout le monde a les memes, et elles ne changent pas en cours de journee. */
+  function missionsDuJour() {
+    var g = seedOf(jour());
+    var rnd = function () { g = (Math.imul(g, 1664525) + 1013904223) >>> 0; return g / 4294967296; };
+    var pool = MISSIONS.slice(), out = [];
+    while (out.length < 3 && pool.length) {
+      out.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
+    }
+    return out;
+  }
+
+  function reclamerMission(id) {
+    var d = readJour();
+    var m = MISSIONS.filter(function (x) { return x.id === id; })[0];
+    if (!m || d.reclamees.indexOf(id) !== -1) return;
+    var courant = (m.c === 'rarete') ? d.rarete : (d[m.c] || 0);
+    if (courant < m.v) return;
+    var pk = readPacks();
+    if (pk.n >= MAX_PAQUETS) { showMissions('Réserve pleine. Ouvrez des paquets, puis revenez.'); return; }
+    pk.n = Math.min(MAX_PAQUETS, pk.n + m.gain);
+    writePacks(pk);
+    d.reclamees.push(id);
+    writeJour(d);
+    refreshPacks();
+    showMissions();
+  }
+
+  function showMissions(msg) {
+    var d = readJour();
+    var liste = missionsDuJour();
+    var html = '<p class="mission-tete">MISSIONS DU JOUR</p>';
+    liste.forEach(function (m) {
+      /* Pour la rarete, le compteur est l'indice du meilleur palier tire
+         aujourd'hui (-1 si rien) ; ailleurs c'est un simple cumul. */
+      var val = (m.c === 'rarete') ? d.rarete : (d[m.c] || 0);
+      var fait = val >= m.v;
+      var pris = d.reclamees.indexOf(m.id) !== -1;
+      var etat;
+      if (pris) etat = 'reçu';
+      else if (fait) etat = '+' + m.gain;
+      else if (m.c === 'rarete') etat = TIERS[m.v].short + ' requis';
+      else etat = val.toLocaleString('fr-FR') + ' / ' + m.v.toLocaleString('fr-FR');
+      var cls = 'mission' + (pris ? ' fait' : (fait ? ' pret' : ''));
+      html += '<' + (fait && !pris ? 'button' : 'div') + ' class="' + cls + '"'
+        + (fait && !pris ? ' data-mission="' + m.id + '"' : '') + '>'
+        + '<span class="mission-nom">' + esc(m.n) + '</span>'
+        + '<span class="mission-etat">' + etat + '</span>'
+        + '</' + (fait && !pris ? 'button' : 'div') + '>';
+    });
+    html += '<p class="recompense-msg" id="mission-msg">' + (msg ? esc(msg) : '') + '</p>';
+    el('missions').innerHTML = html;
   }
 
   /* ---------- echange par code ----------
@@ -1458,6 +1624,137 @@
       c2.thumb = (d.thumbnail && d.thumbnail.source) || '';
       save(); showCollection();
     }).catch(function () {});
+  }
+
+  /* ---------- duel 5 contre 5 ----------
+     Cinq articles tires au hasard forment l'equipe adverse. Chaque manche
+     oppose votre attaque a leur defense, et l'inverse : celui qui perce le
+     plus l'emporte. Trois manches gagnees suffisent. */
+
+  var DUELS_PAR_JOUR = 5;
+  var GAIN_DUEL = 2;
+
+  function equipeJoueur() {
+    return Object.keys(collection)
+      .map(function (k) { return collection[k]; })
+      .sort(function (a, b) {
+        return (b.atk + b.def + rankIndex(b.rank) * 60)
+             - (a.atk + a.def + rankIndex(a.rank) * 60);
+      })
+      .slice(0, 5);
+  }
+
+  function manche(mien, sien) {
+    var perceeA = mien.atk - sien.def;
+    var perceeB = sien.atk - mien.def;
+    if (perceeA !== perceeB) return perceeA > perceeB ? 1 : -1;
+    var r = rankIndex(mien.rank) - rankIndex(sien.rank);
+    return r > 0 ? 1 : (r < 0 ? -1 : 0);
+  }
+
+  function lancerDuel() {
+    var d = readJour();
+    if (d.duelsJoues >= DUELS_PAR_JOUR) return;
+    var mienne = equipeJoueur();
+    if (mienne.length < 5) return;
+
+    el('duel-body').innerHTML = '<p class="duel-titre">DUEL 5 CONTRE 5</p>'
+      + '<p class="status">Recherche d’un adversaire…</p>';
+
+    fetchPack()
+      .then(function (pages) {
+        return Promise.all(pages.map(function (p) {
+          return Promise.all([fetchViews(p.title), fetchQuality(p.pageid)])
+            .then(function (r) { return toCard(p, r[0], r[1]); });
+        }));
+      })
+      .then(function (adverse) {
+        adverse.sort(function (a, b) {
+          return (b.atk + b.def + rankIndex(b.rank) * 60)
+               - (a.atk + a.def + rankIndex(a.rank) * 60);
+        });
+        var manches = [], gagnees = 0;
+        for (var i = 0; i < 5; i++) {
+          var r = manche(mienne[i], adverse[i]);
+          if (r > 0) gagnees += 1;
+          manches.push({ moi: mienne[i], lui: adverse[i], r: r });
+        }
+        var gagne = gagnees >= 3;
+
+        var j = readJour();
+        j.duelsJoues += 1;
+        if (gagne) j.duels += 1;
+        writeJour(j);
+
+        var recu = 0;
+        if (gagne) {
+          var pk = readPacks();
+          recu = Math.min(GAIN_DUEL, MAX_PAQUETS - pk.n);
+          pk.n += recu;
+          writePacks(pk);
+          refreshPacks();
+        }
+        peindreDuel(manches, gagnees, gagne, recu);
+        showMissions();
+        refreshSucces();
+      })
+      .catch(function (err) {
+        el('duel-body').innerHTML = '<p class="duel-titre">DUEL 5 CONTRE 5</p>'
+          + '<p class="status error">Aucun adversaire trouvé (' + esc(err.message) + ').</p>'
+          + boutonDuel();
+      });
+  }
+
+  function boutonDuel() {
+    var d = readJour();
+    var reste = DUELS_PAR_JOUR - d.duelsJoues;
+    var n = Object.keys(collection).length;
+    if (n < 5) {
+      return '<p class="status">Il faut cinq cartes pour engager un duel. '
+        + 'Vous en avez ' + n + '.</p>';
+    }
+    if (reste <= 0) {
+      return '<p class="status">Vos ' + DUELS_PAR_JOUR
+        + ' duels du jour sont joués. Retour demain.</p>';
+    }
+    return '<button class="btn btn-solid" id="duel-lancer">Chercher un adversaire ('
+      + reste + ' duel' + (reste > 1 ? 's' : '') + ')</button>';
+  }
+
+  function peindreDuel(manches, gagnees, gagne, recu) {
+    var html = '<p class="duel-titre">DUEL 5 CONTRE 5</p>'
+      + '<div class="duel-verdict ' + (gagne ? 'gagne' : 'perdu') + '">'
+      + '<b>' + (gagne ? 'Victoire' : 'Défaite') + '</b> — ' + gagnees + ' manche'
+      + (gagnees > 1 ? 's' : '') + ' sur 5'
+      + (gagne
+          ? (recu ? ' · ' + recu + ' paquet' + (recu > 1 ? 's' : '') + ' gagné'
+                    + (recu > 1 ? 's' : '')
+             : ' · réserve pleine, aucun paquet reçu')
+          : '')
+      + '</div>';
+
+    manches.forEach(function (m) {
+      var tm = tierOf(m.moi.rank), tl = tierOf(m.lui.rank);
+      html += '<div class="manche ' + (m.r > 0 ? 'ok' : (m.r < 0 ? 'ko' : 'nul')) + '">'
+        + '<div class="cote"><span class="cote-nom" style="color:' + tm.color + '">'
+        + esc(m.moi.title) + '</span>'
+        + '<span class="cote-st">ATQ ' + m.moi.atk + ' · DÉF ' + m.moi.def + '</span></div>'
+        + '<div class="verdict">' + (m.r > 0 ? '▲' : (m.r < 0 ? '▼' : '=')) + '</div>'
+        + '<div class="cote droite"><span class="cote-nom" style="color:' + tl.color + '">'
+        + esc(m.lui.title) + '</span>'
+        + '<span class="cote-st">ATQ ' + m.lui.atk + ' · DÉF ' + m.lui.def + '</span></div>'
+        + '</div>';
+    });
+
+    html += boutonDuel();
+    el('duel-body').innerHTML = html;
+  }
+
+  function showDuel() {
+    el('duel-body').innerHTML = '<p class="duel-titre">DUEL 5 CONTRE 5</p>'
+      + '<p class="duel-intro">Vos cinq meilleures cartes affrontent cinq articles '
+      + 'tirés au hasard. Trois manches gagnées suffisent.</p>'
+      + boutonDuel();
   }
 
   /* ---------- succes ---------- */
@@ -1622,7 +1919,7 @@
       el('tab-' + v).classList.toggle('is-active', v === which);
     });
     if (which === 'coll') showCollection();
-    if (which === 'raid') showRaid();
+    if (which === 'raid') { showRaid(); showDuel(); }
     if (which === 'succes') showSucces();
   }
 
@@ -1649,6 +1946,13 @@
     var b = e.target.closest ? e.target.closest('[data-succes]') : null;
     if (b) reclamerSucces(b.getAttribute('data-succes'));
   });
+  el('duel-body').addEventListener('click', function (e) {
+    if (e.target.closest && e.target.closest('#duel-lancer')) lancerDuel();
+  });
+  el('missions').addEventListener('click', function (e) {
+    var m = e.target.closest ? e.target.closest('[data-mission]') : null;
+    if (m) reclamerMission(m.getAttribute('data-mission'));
+  });
   el('raid-body').addEventListener('click', function (e) {
     if (!e.target.closest) return;
     var cl = e.target.closest('[data-claim]');
@@ -1668,6 +1972,7 @@
 
   load();
   pointerPresence();
+  showMissions();
   refreshCount();
   refreshSucces();
   refreshPacks();
