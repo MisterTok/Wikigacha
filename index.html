@@ -531,6 +531,45 @@
   }
   .jauge span { position: absolute; inset: 0 auto 0 0; background: #c9992e; }
 
+  /* --- mode histoire --- */
+  #histoire-body { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--night-line); }
+  .hist-titre { font-size: 12px; letter-spacing: .1em; color: var(--glass-dim); margin: 0 0 10px; }
+  .chapitre {
+    display: block; width: 100%; text-align: left; cursor: pointer;
+    font: inherit; color: var(--glass);
+    background: var(--night-up); border: 1px solid var(--night-line);
+    border-left: 4px solid #3f79c4; padding: 12px 14px; margin-bottom: 8px;
+  }
+  .chapitre.fini { border-left-color: #c9992e; }
+  .chap-tete { display: flex; justify-content: space-between; align-items: baseline; }
+  .chap-nom { font-family: var(--display); font-size: 16px; color: var(--ivory); }
+  .chap-prog { font-size: 12px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
+  .chapitre.fini .chap-prog { color: #c9992e; }
+  .chap-dom { display: block; font-size: 12px; color: var(--glass-dim); margin-top: 3px; }
+  .chap-barre {
+    display: block; height: 3px; background: var(--night-line); margin-top: 8px; position: relative;
+  }
+  .chap-barre span { position: absolute; inset: 0 auto 0 0; background: #c9992e; }
+  .hist-retour {
+    background: none; border: 0; padding: 0 0 12px; cursor: pointer;
+    font: inherit; font-size: 13px; color: var(--glass-dim);
+  }
+  .niveau {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 13px; margin-bottom: 8px;
+    background: var(--night-up); border: 1px solid var(--night-line);
+    border-left: 4px solid var(--night-line);
+  }
+  .niveau.franchi { border-left-color: #4f8d72; }
+  .niveau.actuel { border-left-color: #c9992e; }
+  .niveau.verrou { opacity: .55; }
+  .niv-info { flex: 1 1 auto; min-width: 0; }
+  .niv-nom { display: block; font-family: var(--display); font-size: 15px; color: var(--ivory); }
+  .niv-def { display: block; font-size: 11px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
+  .niveau .btn { margin: 0; width: auto; flex: none; padding: 9px 14px; font-size: 13px; }
+  .niv-etat { flex: none; font-size: 15px; color: #4f8d72; }
+  .niveau.verrou .niv-etat { color: var(--glass-dim); }
+
   /* --- fiche --- */
   .sheet {
     position: fixed; inset: 0; z-index: 20; background: rgba(8,10,17,.66);
@@ -689,6 +728,7 @@
 <main id="view-raid" hidden>
   <div id="raid-body"></div>
   <div id="duel-body"></div>
+  <div id="histoire-body"></div>
 </main>
 
 <main id="view-succes" hidden>
@@ -819,7 +859,7 @@
   function fetchQuality(pageid) {
     var url = 'https://' + WIKI + '.org/w/api.php'
       + '?action=parse&format=json&origin=*&pageid=' + pageid
-      + '&prop=sections|externallinks|images';
+      + '&prop=sections|externallinks|images|categories';
     return fetch(url)
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
@@ -828,10 +868,63 @@
         return {
           refs: (pr.externallinks || []).length,
           img:  (pr.images || []).length,
-          sec:  (pr.sections || []).length
+          sec:  (pr.sections || []).length,
+          cats: (pr.categories || []).map(function (c) {
+            return (c['*'] || '').replace(/_/g, ' ');
+          })
         };
       })
       .catch(function () { return null; });
+  }
+
+  /* ---------- domaines ----------
+     Le domaine est deduit une seule fois, au tirage, a partir des categories
+     Wikipedia (deja recuperees ci-dessus). Il est ensuite stocke avec la carte,
+     donc le mode histoire n'a jamais besoin du reseau. */
+
+  var DOMAINES = [
+    { id: 'geo', nom: 'Géographie', mots: ['commune', 'ville', 'village', 'pays', 'région',
+      'département', 'géographie', 'fleuve', 'rivière', 'montagne', 'massif', 'île', 'lac',
+      'mer', 'océan', 'capitale', 'localité', 'territoire', 'canton', 'quartier'] },
+    { id: 'hist', nom: 'Histoire', mots: ['histoire', 'guerre', 'bataille', 'siècle', 'empire',
+      'royaume', 'dynastie', 'antiquité', 'moyen âge', 'médiéval', 'révolution', 'traité',
+      'monarque', 'noblesse', 'préhistoire', 'colonisation'] },
+    { id: 'sci', nom: 'Sciences', mots: ['physique', 'chimie', 'biologie', 'mathématiques',
+      'espèce', 'genre', 'astronomie', 'science', 'médecine', 'anatomie', 'géologie',
+      'botanique', 'zoologie', 'minéral', 'planète', 'étoile', 'molécule', 'informatique',
+      'algorithme', 'technologie', 'physicien', 'chimiste', 'biologiste', 'scientifique', 'naturaliste', 'ingénieur', 'inventeur', 'mathématicien'] },
+    { id: 'art', nom: 'Arts et culture', mots: ['peintre', 'peinture', 'musique', 'musicien',
+      'film', 'cinéma', 'écrivain', 'roman', 'artiste', 'album', 'chanson', 'sculpture',
+      'architecture', 'monument', 'poète', 'compositeur', 'groupe', 'littérature', 'théâtre',
+      'opéra', 'jeu vidéo', 'bande dessinée'] },
+    { id: 'sport', nom: 'Sport', mots: ['football', 'sport', 'joueur', 'olympique', 'championnat',
+      'athlète', 'cyclisme', 'tennis', 'rugby', 'basket', 'club sportif', 'compétition',
+      'coupe', 'stade', 'équipe'] },
+    { id: 'soc', nom: 'Société', mots: ['politique', 'entreprise', 'religion', 'économie',
+      'organisation', 'parti', 'droit', 'philosophie', 'sociologie', 'homme politique',
+      'femme politique', 'association', 'institution', 'gouvernement', 'militaire', 'entreprise française'] }
+  ];
+
+  function detecterDomaine(cats) {
+    if (!cats || !cats.length) return null;
+    var scores = {};
+    DOMAINES.forEach(function (d) { scores[d.id] = 0; });
+    cats.forEach(function (cat) {
+      var bas = cat.toLowerCase();
+      DOMAINES.forEach(function (d) {
+        d.mots.forEach(function (mot) { if (bas.indexOf(mot) !== -1) scores[d.id] += 1; });
+      });
+    });
+    var meilleur = null, max = 0;
+    DOMAINES.forEach(function (d) {
+      if (scores[d.id] > max) { max = scores[d.id]; meilleur = d.id; }
+    });
+    return meilleur;   /* null si aucun mot-cle ne ressort */
+  }
+
+  function domaineNom(id) {
+    var d = DOMAINES.filter(function (x) { return x.id === id; })[0];
+    return d ? d.nom : 'Divers';
   }
 
   function qualityScore(bytes, q) {
@@ -869,6 +962,7 @@
     return {
       score: Math.round(score * 10) / 10,
       refs: q ? q.refs : null, img: q ? q.img : null, sec: q ? q.sec : null,
+      domaine: q ? detecterDomaine(q.cats) : null,
       title: page.title,
       url: page.fullurl || ('https://' + WIKI + '.org/wiki/' + encodeURIComponent(page.title)),
       desc: page.description || '',
@@ -912,6 +1006,7 @@
         title: c.title, url: c.url, desc: c.desc, extract: c.extract, thumb: c.thumb,
         bytes: c.bytes, views: c.views, atk: c.atk, def: c.def,
         score: c.score, refs: c.refs, img: c.img, sec: c.sec,
+        domaine: c.domaine,
         rank: c.rank, count: 1, obtenu: Date.now()
       };
     }
@@ -1158,6 +1253,7 @@
         refreshPacks();
         refreshSucces();
         showMissions();
+        if (!el('view-raid').hidden) showHistoire();
       })
       .catch(function (err) {
         /* Le paquet n'a pas abouti : on le rend au joueur. */
@@ -2041,6 +2137,191 @@
       + boutonDuel();
   }
 
+  /* ---------- mode histoire ----------
+     Un parcours de chapitres thematiques. Chaque chapitre demande une equipe
+     de cartes du bon domaine pour affronter un boss celebre. La progression
+     est sauvegardee ; tout se calcule sur les donnees deja en collection,
+     sans reseau. */
+
+  var HKEY = 'wikigacha:histoire';
+
+  var CHAPITRES = [
+    { id: 'geo', domaine: 'geo', nom: 'Le tour du monde',
+      boss: 'Les grands espaces', intro: 'Rassemblez des cartes de géographie pour arpenter la planète.',
+      niveaux: [
+        { nom: 'Premiers pas', def: 300 },
+        { nom: 'Terres lointaines', def: 360 },
+        { nom: 'Sommets et océans', def: 430 },
+        { nom: 'Boss : les grands espaces', def: 520, boss: true }
+      ] },
+    { id: 'hist', domaine: 'hist', nom: 'Les âges sombres',
+      boss: 'Le poids des siècles', intro: 'Convoquez l’Histoire, de l’Antiquité aux révolutions.',
+      niveaux: [
+        { nom: 'Vestiges anciens', def: 320 },
+        { nom: 'Empires et batailles', def: 390 },
+        { nom: 'Bascule du monde', def: 460 },
+        { nom: 'Boss : le poids des siècles', def: 550, boss: true }
+      ] },
+    { id: 'sci', domaine: 'sci', nom: 'La marche du savoir',
+      boss: 'Le grand inconnu', intro: 'Les sciences, du vivant à l’infiniment grand.',
+      niveaux: [
+        { nom: 'Premières lois', def: 340 },
+        { nom: 'Le vivant', def: 410 },
+        { nom: 'Aux confins', def: 480 },
+        { nom: 'Boss : le grand inconnu', def: 570, boss: true }
+      ] },
+    { id: 'art', domaine: 'art', nom: 'Le cabinet des muses',
+      boss: 'L’œuvre totale', intro: 'Arts et culture, de la toile à la scène.',
+      niveaux: [
+        { nom: 'Premiers traits', def: 350 },
+        { nom: 'Chefs-d’œuvre', def: 420 },
+        { nom: 'Avant-gardes', def: 500 },
+        { nom: 'Boss : l’œuvre totale', def: 590, boss: true }
+      ] },
+    { id: 'sport', domaine: 'sport', nom: 'L’arène',
+      boss: 'Le titre suprême', intro: 'Le sport, des terrains aux podiums.',
+      niveaux: [
+        { nom: 'Échauffement', def: 330 },
+        { nom: 'Compétition', def: 400 },
+        { nom: 'Finale', def: 480 },
+        { nom: 'Boss : le titre suprême', def: 560, boss: true }
+      ] },
+    { id: 'soc', domaine: 'soc', nom: 'Le grand théâtre',
+      boss: 'L’édifice commun', intro: 'La société, ses pouvoirs et ses idées.',
+      niveaux: [
+        { nom: 'Fondations', def: 340 },
+        { nom: 'Institutions', def: 410 },
+        { nom: 'Le pouvoir', def: 490 },
+        { nom: 'Boss : l’édifice commun', def: 580, boss: true }
+      ] }
+  ];
+
+  function readHist() {
+    var d;
+    try { d = JSON.parse(localStorage.getItem(HKEY)); } catch (e) { d = null; }
+    return d || {};   /* { chapId: nombre de niveaux franchis } */
+  }
+  function writeHist(d) {
+    try { localStorage.setItem(HKEY, JSON.stringify(d)); } catch (e) {}
+  }
+
+  /* Cartes du domaine d'un chapitre, triees par force decroissante. */
+  function cartesDomaine(domaine) {
+    return Object.keys(collection)
+      .map(function (k) { return collection[k]; })
+      .filter(function (c) { return c.domaine === domaine; })
+      .sort(function (a, b) {
+        return (atkEff(b) + defEff(b) + rankIndex(b.rank) * 60)
+             - (atkEff(a) + defEff(a) + rankIndex(a.rank) * 60);
+      });
+  }
+
+  /* Puissance d'attaque d'une equipe contre une defense donnee. */
+  function forceEquipe(cartes, def) {
+    var reduction = 900 / (900 + def);
+    return cartes.slice(0, 3).reduce(function (t, c) {
+      var m = MULT[rankIndex(c.rank)] || 1;
+      return t + atkEff(c) * m * reduction;
+    }, 0);
+  }
+
+  var histChapOuvert = null;
+
+  function showHistoire() {
+    if (histChapOuvert) { peindreChapitre(histChapOuvert); return; }
+    var prog = readHist();
+    var html = '<p class="hist-titre">MODE HISTOIRE</p>'
+      + '<p class="duel-intro">Six parcours à travers Wikipédia. Chaque chapitre '
+      + 'se joue avec les cartes de son domaine — collectionnez pour progresser.</p>';
+
+    CHAPITRES.forEach(function (ch) {
+      var fait = prog[ch.id] || 0;
+      var total = ch.niveaux.length;
+      var termine = fait >= total;
+      var dispo = cartesDomaine(ch.domaine).length;
+      html += '<button class="chapitre' + (termine ? ' fini' : '') + '" data-chap="' + ch.id + '">'
+        + '<span class="chap-tete"><span class="chap-nom">' + esc(ch.nom) + '</span>'
+        + '<span class="chap-prog">' + fait + ' / ' + total
+        + (termine ? ' ✓' : '') + '</span></span>'
+        + '<span class="chap-dom">' + esc(domaineNom(ch.domaine)) + ' · '
+        + dispo + ' carte' + (dispo > 1 ? 's' : '') + ' en réserve</span>'
+        + '<span class="chap-barre"><span style="width:'
+        + Math.round(fait / total * 100) + '%"></span></span>'
+        + '</button>';
+    });
+    el('histoire-body').innerHTML = html;
+  }
+
+  function peindreChapitre(chapId) {
+    var ch = CHAPITRES.filter(function (c) { return c.id === chapId; })[0];
+    if (!ch) { histChapOuvert = null; showHistoire(); return; }
+    var prog = readHist();
+    var fait = prog[ch.id] || 0;
+    var cartes = cartesDomaine(ch.domaine);
+
+    var html = '<button class="hist-retour" data-hist-retour="1">‹ Tous les chapitres</button>'
+      + '<p class="hist-titre">' + esc(ch.nom.toUpperCase()) + '</p>'
+      + '<p class="duel-intro">' + esc(ch.intro) + ' Vos trois meilleures cartes de '
+      + esc(domaineNom(ch.domaine).toLowerCase()) + ' mènent l’assaut.</p>';
+
+    if (cartes.length < 3) {
+      html += '<p class="status">Il vous faut au moins trois cartes de '
+        + esc(domaineNom(ch.domaine).toLowerCase()) + ' pour ce chapitre. '
+        + 'Vous en avez ' + cartes.length + '. Ouvrez des paquets pour en trouver.</p>';
+      el('histoire-body').innerHTML = html;
+      return;
+    }
+
+    ch.niveaux.forEach(function (niv, i) {
+      var franchi = i < fait;
+      var actuel = i === fait;
+      var verrou = i > fait;
+      var force = forceEquipe(cartes, niv.def);
+      var gagne = force >= niv.def;
+      var cls = 'niveau' + (franchi ? ' franchi' : (actuel ? ' actuel' : ' verrou'));
+      html += '<div class="' + cls + '">'
+        + '<div class="niv-info"><span class="niv-nom">'
+        + (niv.boss ? '★ ' : '') + esc(niv.nom) + '</span>'
+        + '<span class="niv-def">Défense ' + niv.def + '</span></div>'
+        + (franchi ? '<span class="niv-etat">✓</span>'
+           : actuel ? '<button class="btn' + (gagne ? ' btn-solid' : '') + '" '
+               + (gagne ? 'data-hist-go="' + ch.id + '"' : 'disabled') + '>'
+               + (gagne ? 'Combattre' : 'Trop puissant (votre force : '
+                   + Math.round(force) + ')') + '</button>'
+           : '<span class="niv-etat">🔒</span>')
+        + '</div>';
+    });
+
+    if (fait >= ch.niveaux.length) {
+      html += '<div class="win"><h3>Chapitre terminé</h3>'
+        + '<p>Vous avez dompté « ' + esc(ch.boss) + ' ».</p></div>';
+    }
+    el('histoire-body').innerHTML = html;
+  }
+
+  function combattreHist(chapId) {
+    var ch = CHAPITRES.filter(function (c) { return c.id === chapId; })[0];
+    if (!ch) return;
+    var prog = readHist();
+    var fait = prog[ch.id] || 0;
+    if (fait >= ch.niveaux.length) return;
+    var niv = ch.niveaux[fait];
+    var cartes = cartesDomaine(ch.domaine);
+    if (forceEquipe(cartes, niv.def) < niv.def) return;
+
+    prog[ch.id] = fait + 1;
+    writeHist(prog);
+
+    /* Recompense : un paquet par niveau, trois pour le boss final. */
+    var gain = niv.boss ? 3 : 1;
+    var pk = readPacks();
+    pk.n += gain;
+    writePacks(pk);
+    refreshPacks();
+    refreshSucces();
+    peindreChapitre(chapId);
+  }
+
   /* ---------- succes ---------- */
 
   /* Chaque succes se lit : un objectif chiffre, une mesure, une recompense.
@@ -2071,6 +2352,18 @@
       initiales: Object.keys(initiales).length,
       etoileMax: items.reduce(function (m, c) { return Math.max(m, niveau(c)); }, 1),
       cartes5: items.filter(function (c) { return niveau(c) >= 5; }).length,
+      chapitres: (function () {
+        var h = readHist(), n = 0;
+        CHAPITRES.forEach(function (ch) {
+          if ((h[ch.id] || 0) >= ch.niveaux.length) n += 1;
+        });
+        return n;
+      })(),
+      domaines: (function () {
+        var vus = {};
+        items.forEach(function (c) { if (c.domaine) vus[c.domaine] = 1; });
+        return Object.keys(vus).length;
+      })(),
       paquets: pk.ouverts || 0,
       boss: st.boss || 0, coupMax: st.coupMax || 0, jours: st.jours || 1
     };
@@ -2112,7 +2405,12 @@
     { g: 'Curiosités', id: 'ghost',n: 'Personne n’est venu',  d: 'Cinq articles à zéro vue',        v: 5,       gain: 2, m: function (x) { return x.muettes; } },
     { g: 'Curiosités', id: 'noimg',n: 'Sans illustration',    d: 'Vingt cartes sans image',         v: 20,      gain: 2, m: function (x) { return x.sansImage; } },
     { g: 'Curiosités', id: 'abc',  n: 'Tout l’alphabet',      d: 'Vingt initiales différentes',     v: 20,      gain: 3, m: function (x) { return x.initiales; } },
-    { g: 'Curiosités', id: 'stub', n: 'Éloge de l’ébauche',   d: 'Cent cartes Communes',            v: 100,     gain: 2, m: function (x) { return x.rang['Commune']; } }
+    { g: 'Curiosités', id: 'stub', n: 'Éloge de l’ébauche',   d: 'Cent cartes Communes',            v: 100,     gain: 2, m: function (x) { return x.rang['Commune']; } },
+
+    { g: 'Histoire', id: 'h1', n: 'Premier parcours', d: 'Terminer un chapitre',        v: 1, gain: 2, m: function (x) { return x.chapitres; } },
+    { g: 'Histoire', id: 'h3', n: 'Érudit',           d: 'Terminer trois chapitres',    v: 3, gain: 4, m: function (x) { return x.chapitres; } },
+    { g: 'Histoire', id: 'h6', n: 'Encyclopédie vivante', d: 'Terminer les six chapitres', v: 6, gain: 6, m: function (x) { return x.chapitres; } },
+    { g: 'Histoire', id: 'hd', n: 'Touche-à-tout',    d: 'Des cartes de six domaines',  v: 6, gain: 3, m: function (x) { return x.domaines; } }
   ];
 
   function reclamerSucces(id) {
@@ -2278,7 +2576,7 @@
       el('tab-' + v).classList.toggle('is-active', v === which);
     });
     if (which === 'coll') showCollection();
-    if (which === 'raid') { showRaid(); showDuel(); }
+    if (which === 'raid') { showRaid(); showDuel(); showHistoire(); }
     if (which === 'succes') showSucces();
   }
 
@@ -2325,6 +2623,14 @@
     var i = parseInt(sel.getAttribute('data-slot'), 10);
     duelCourant.choix[i] = sel.value;
     peindrePlacement();
+  });
+  el('histoire-body').addEventListener('click', function (e) {
+    if (!e.target.closest) return;
+    if (e.target.closest('[data-hist-retour]')) { histChapOuvert = null; showHistoire(); return; }
+    var go = e.target.closest('[data-hist-go]');
+    if (go) { combattreHist(go.getAttribute('data-hist-go')); return; }
+    var ch = e.target.closest('[data-chap]');
+    if (ch) { histChapOuvert = ch.getAttribute('data-chap'); peindreChapitre(histChapOuvert); }
   });
   el('missions').addEventListener('click', function (e) {
     var m = e.target.closest ? e.target.closest('[data-mission]') : null;
