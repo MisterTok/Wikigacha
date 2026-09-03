@@ -52,9 +52,9 @@
     line-height: 1; margin: 0; color: var(--ivory); letter-spacing: -0.015em;
   }
   .tagline { margin: 8px 0 16px; font-size: 13px; color: var(--glass-dim); }
-  .tabs { display: flex; gap: 8px; margin-bottom: 22px; }
+  .tabs { display: flex; gap: 5px; margin-bottom: 22px; }
   .tab {
-    flex: 1; padding: 10px 12px; font: inherit; font-size: 13px;
+    flex: 1; padding: 10px 4px; font: inherit; font-size: 12px;
     background: var(--night-up); color: var(--glass);
     border: 1px solid var(--night-line); cursor: pointer;
   }
@@ -343,6 +343,52 @@
   }
   .win p { margin: 0; font-size: 13px; color: var(--glass-dim); }
 
+  /* --- succes --- */
+  .succes-tete {
+    font-size: 12px; color: var(--glass-dim); line-height: 1.7;
+    border-bottom: 1px solid var(--night-line); padding-bottom: 12px; margin-bottom: 18px;
+  }
+  .succes-tete b { color: var(--ivory); font-variant-numeric: tabular-nums; }
+  .succes-groupe {
+    font-size: 11px; letter-spacing: .12em; color: var(--glass-dim);
+    margin: 22px 0 10px;
+  }
+  .succes {
+    display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+    font: inherit; color: var(--glass); cursor: default;
+    background: var(--night-up); border: 1px solid var(--night-line);
+    border-left: 4px solid var(--night-line); padding: 11px 13px; margin-bottom: 8px;
+  }
+  .succes-txt { flex: 1 1 auto; min-width: 0; }
+  .succes-nom {
+    display: block; font-family: var(--display); font-size: 15px; color: var(--glass-dim);
+  }
+  .succes-desc { display: block; font-size: 12px; color: var(--glass-dim); opacity: .75; }
+  .succes-gain {
+    flex: none; font-size: 11px; color: var(--glass-dim);
+    border: 1px solid var(--night-line); padding: 4px 8px; white-space: nowrap;
+  }
+  .succes.fait { border-left-color: #c9992e; }
+  .succes.fait .succes-nom { color: var(--ivory); }
+  .succes.pret {
+    border-left-color: #c9992e; cursor: pointer;
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  .succes.pret .succes-nom { color: var(--ivory); }
+  .succes.pret .succes-gain {
+    color: #1a1d29; font-weight: 600;
+    background: linear-gradient(160deg, #f3dfa4, #c9992e); border-color: #c9992e;
+  }
+  .succes.fait .succes-gain { color: #c9992e; border-color: #6a5520; }
+  .succes-prog {
+    display: block; margin-top: 5px; font-size: 11px;
+    color: var(--glass-dim); font-variant-numeric: tabular-nums;
+  }
+  .jauge {
+    height: 3px; background: var(--night-line); margin-top: 4px; position: relative;
+  }
+  .jauge span { position: absolute; inset: 0 auto 0 0; background: #c9992e; }
+
   /* --- fiche --- */
   .sheet {
     position: fixed; inset: 0; z-index: 20; background: rgba(8,10,17,.66);
@@ -399,6 +445,7 @@
     <button id="tab-open" class="tab is-active">Ouvrir</button>
     <button id="tab-coll" class="tab">Collection <span id="coll-count">(0)</span></button>
     <button id="tab-raid" class="tab">Raid</button>
+    <button id="tab-succes" class="tab">Succès <span id="succes-count"></span></button>
   </nav>
 </header>
 
@@ -444,6 +491,10 @@
   <div id="raid-body"></div>
 </main>
 
+<main id="view-succes" hidden>
+  <div id="succes-body"></div>
+</main>
+
 <div id="sheet" class="sheet" hidden>
   <div class="sheet-inner" id="sheet-inner"></div>
 </div>
@@ -478,8 +529,8 @@
 
   /* Medianes de reference, calees sur les articles de qualite francophones.
      C'est la logique WikiRank : chaque mesure est ramenee a ce niveau. */
-  var MEDIANES = { len: 60000, refs: 100, img: 15, sec: 20, reflen: 16.7 };
-  var POIDS    = { len: 0.25,  refs: 0.25, img: 0.20, sec: 0.20, reflen: 0.10 };
+  var MEDIANES = { len: 60000, refs: 100, img: 18, sec: 20, reflen: 16.7 };
+  var POIDS    = { len: 0.35,  refs: 0.30, img: 0.15, sec: 0.10, reflen: 0.10 };
 
   var el = function (id) { return document.getElementById(id); };
   var tierOf = function (name) {
@@ -560,13 +611,16 @@
       /* Repli si l'appel echoue : on ne garde que la longueur. */
       return norm(bytes, MEDIANES.len) * 100 * 0.55;
     }
+    var nlen = norm(bytes, MEDIANES.len);
     var reflen = q.refs / Math.max(0.1, bytes / 10000);
+    /* La densite de references sature des la premiere note dans une ebauche.
+       On la pondere par la longueur : bien sourcer n'a de valeur qu'avec du fond. */
     return 100 * (
-      POIDS.len    * norm(bytes,  MEDIANES.len)
+      POIDS.len    * nlen
     + POIDS.refs   * norm(q.refs, MEDIANES.refs)
     + POIDS.img    * norm(q.img,  MEDIANES.img)
     + POIDS.sec    * norm(q.sec,  MEDIANES.sec)
-    + POIDS.reflen * norm(reflen, MEDIANES.reflen)
+    + POIDS.reflen * norm(reflen, MEDIANES.reflen) * nlen
     );
   }
 
@@ -618,7 +672,7 @@
         rank: c.rank, count: 1
       };
     }
-    save(); refreshCount();
+    save(); refreshCount(); refreshSucces();
   }
   /* --- Reserve de paquets : dix au maximum, un de plus par minute. --- */
   var PKEY = 'wikigacha:paquets';
@@ -847,6 +901,7 @@
         el('flipper').classList.remove('is-open');
         showNext();
         refreshPacks();
+        refreshSucces();
       })
       .catch(function (err) {
         /* Le paquet n'a pas abouti : on le rend au joueur. */
@@ -917,6 +972,34 @@
   function closeSheet() {
     el('sheet').hidden = true;
     document.body.style.overflow = '';
+  }
+
+  /* ---------- statistiques durables ---------- */
+
+  var SKEY = 'wikigacha:stats';
+
+  function readStats() {
+    var d;
+    try { d = JSON.parse(localStorage.getItem(SKEY)); } catch (e) { d = null; }
+    if (!d) d = { boss: 0, coupMax: 0, jours: 1, dernier: null, reclames: [] };
+    d.reclames = d.reclames || [];
+    return d;
+  }
+  function writeStats(d) {
+    try { localStorage.setItem(SKEY, JSON.stringify(d)); } catch (e) {}
+  }
+
+  /* Serie de jours consecutifs, mise a jour au chargement. */
+  function pointerPresence() {
+    var st = readStats(), a = jour();
+    if (st.dernier === a) return st;
+    var h = new Date(); h.setDate(h.getDate() - 1);
+    var hier = h.getFullYear() + '-' + String(h.getMonth() + 1).padStart(2, '0')
+             + '-' + String(h.getDate()).padStart(2, '0');
+    st.jours = (st.dernier === hier) ? (st.jours || 1) + 1 : 1;
+    st.dernier = a;
+    writeStats(st);
+    return st;
   }
 
   /* ---------- raid du jour ----------
@@ -1142,6 +1225,7 @@
       var d = degats(c, b);
       etat.pv = Math.max(0, etat.pv - d);
       etat.utilisees.push(c.title);
+      noterCoup(d);
       totalDeg += d;
     });
     etat.journal.push('<b>' + dispo.length + ' cartes</b> infligent '
@@ -1165,7 +1249,17 @@
         etat.journal.push('<b>' + pl.nom + '</b> — récompense débloquée.');
       }
     });
-    if (etat.pv === 0) etat.vaincu = true;
+    if (etat.pv === 0 && !etat.vaincu) {
+      etat.vaincu = true;
+      var st = readStats();
+      st.boss = (st.boss || 0) + 1;
+      writeStats(st);
+    }
+  }
+
+  function noterCoup(d) {
+    var st = readStats();
+    if (d > (st.coupMax || 0)) { st.coupMax = d; writeStats(st); }
   }
 
   function reclamer(i) {
@@ -1205,11 +1299,143 @@
     var d = degats(c, etat.boss);
     etat.pv = Math.max(0, etat.pv - d);
     etat.utilisees.push(titre);
+    noterCoup(d);
     etat.journal.push('<b>' + esc(titre) + '</b> inflige ' + d + ' dégâts.');
 
     verifierPaliers(etat);
     writeRaid(etat);
     paintRaid(etat);
+  }
+
+  /* ---------- succes ---------- */
+
+  /* Chaque succes se lit : un objectif chiffre, une mesure, une recompense.
+     La progression est calculee a la volee depuis la collection et les stats,
+     donc rien a maintenir en double. */
+  function mesures() {
+    var items = Object.keys(collection).map(function (k) { return collection[k]; });
+    var st = readStats();
+    var pk = readPacks();
+    var parRang = {};
+    TIERS.forEach(function (t) { parRang[t.name] = 0; });
+    var octets = 0, vuesMax = 0, doublonMax = 0, sansImage = 0, muettes = 0;
+    var initiales = {};
+    items.forEach(function (c) {
+      parRang[c.rank] = (parRang[c.rank] || 0) + 1;
+      octets += (c.bytes || 0) * 1;
+      if ((c.views || 0) > vuesMax) vuesMax = c.views;
+      if ((c.views || 0) === 0) muettes += 1;
+      if (!c.thumb) sansImage += 1;
+      if (c.count > doublonMax) doublonMax = c.count;
+      initiales[c.title.charAt(0).toUpperCase()] = 1;
+    });
+    return {
+      distincts: items.length,
+      tirees: items.reduce(function (n, c) { return n + c.count; }, 0),
+      rang: parRang, octets: octets, vuesMax: vuesMax,
+      doublonMax: doublonMax, sansImage: sansImage, muettes: muettes,
+      initiales: Object.keys(initiales).length,
+      paquets: pk.ouverts || 0,
+      boss: st.boss || 0, coupMax: st.coupMax || 0, jours: st.jours || 1
+    };
+  }
+
+  var SUCCES = [
+    { g: 'Collection', id: 'c10',  n: 'Premiers rayons',    d: '10 articles distincts',  v: 10,   gain: 1, m: function (x) { return x.distincts; } },
+    { g: 'Collection', id: 'c50',  n: 'Rayonnage',          d: '50 articles distincts',  v: 50,   gain: 1, m: function (x) { return x.distincts; } },
+    { g: 'Collection', id: 'c150', n: 'Fonds documentaire', d: '150 articles distincts', v: 150,  gain: 2, m: function (x) { return x.distincts; } },
+    { g: 'Collection', id: 'c400', n: 'Bibliothèque',       d: '400 articles distincts', v: 400,  gain: 3, m: function (x) { return x.distincts; } },
+    { g: 'Collection', id: 'c800', n: 'Encyclopédiste',     d: '800 articles distincts', v: 800,  gain: 5, m: function (x) { return x.distincts; } },
+
+    { g: 'Raretés', id: 'r1',  n: 'Un peu de relief',   d: 'Une carte Rare',                v: 1, gain: 1, m: function (x) { return x.rang['Rare']; } },
+    { g: 'Raretés', id: 'sr1', n: 'Belle prise',        d: 'Une Super rare',                v: 1, gain: 1, m: function (x) { return x.rang['Super rare']; } },
+    { g: 'Raretés', id: 'ss1', n: 'Pièce de choix',     d: 'Une Super spéciale rare',       v: 1, gain: 2, m: function (x) { return x.rang['Super spéciale rare']; } },
+    { g: 'Raretés', id: 'ur1', n: 'Trouvaille',         d: 'Une Ultra rare',                v: 1, gain: 3, m: function (x) { return x.rang['Ultra rare']; } },
+    { g: 'Raretés', id: 'lr1', n: 'Légende',            d: 'Une Légende rare',              v: 1, gain: 5, m: function (x) { return x.rang['Légende rare']; } },
+    { g: 'Raretés', id: 'r10', n: 'Dix fois rare',      d: 'Dix cartes Rares',              v: 10, gain: 2, m: function (x) { return x.rang['Rare']; } },
+    { g: 'Raretés', id: 'sr5', n: 'Cinq beaux morceaux',d: 'Cinq Super rares',              v: 5,  gain: 3, m: function (x) { return x.rang['Super rare']; } },
+    { g: 'Raretés', id: 'ss3', n: 'Vitrine',            d: 'Trois Super spéciales rares',   v: 3,  gain: 4, m: function (x) { return x.rang['Super spéciale rare']; } },
+
+    { g: 'Paquets', id: 'p10',  n: 'La main dans le sac', d: '10 paquets ouverts',  v: 10,  gain: 1, m: function (x) { return x.paquets; } },
+    { g: 'Paquets', id: 'p50',  n: 'Habitué',             d: '50 paquets ouverts',  v: 50,  gain: 2, m: function (x) { return x.paquets; } },
+    { g: 'Paquets', id: 'p200', n: 'Ouvreur compulsif',   d: '200 paquets ouverts', v: 200, gain: 3, m: function (x) { return x.paquets; } },
+    { g: 'Paquets', id: 'd3',   n: 'Déjà vu',             d: 'Une carte en 3 exemplaires', v: 3, gain: 1, m: function (x) { return x.doublonMax; } },
+    { g: 'Paquets', id: 'd8',   n: 'Insistance',          d: 'Une carte en 8 exemplaires', v: 8, gain: 2, m: function (x) { return x.doublonMax; } },
+
+    { g: 'Raid', id: 'b1',   n: 'Premier tombé',   d: 'Vaincre un article du jour',      v: 1,    gain: 2, m: function (x) { return x.boss; } },
+    { g: 'Raid', id: 'b5',   n: 'Chasseur',        d: 'Vaincre cinq articles du jour',   v: 5,    gain: 3, m: function (x) { return x.boss; } },
+    { g: 'Raid', id: 'b20',  n: 'Fléau du jour',   d: 'Vaincre vingt articles du jour',  v: 20,   gain: 5, m: function (x) { return x.boss; } },
+    { g: 'Raid', id: 'k500', n: 'Coup de bélier',  d: '500 dégâts en une attaque',       v: 500,  gain: 2, m: function (x) { return x.coupMax; } },
+    { g: 'Raid', id: 'k1500',n: 'Coup de massue',  d: '1500 dégâts en une attaque',      v: 1500, gain: 4, m: function (x) { return x.coupMax; } },
+
+    { g: 'Curiosités', id: 'j3',   n: 'Trois jours de suite', d: 'Revenir trois jours consécutifs', v: 3,       gain: 2, m: function (x) { return x.jours; } },
+    { g: 'Curiosités', id: 'j7',   n: 'Une semaine',          d: 'Revenir sept jours consécutifs',  v: 7,       gain: 4, m: function (x) { return x.jours; } },
+    { g: 'Curiosités', id: 'mo1',  n: 'Un mégaoctet de savoir', d: 'Un million d’octets collectés', v: 1000000, gain: 3, m: function (x) { return x.octets; } },
+    { g: 'Curiosités', id: 'foule',n: 'La foule',             d: 'Une carte à 100 000 vues',        v: 100000,  gain: 3, m: function (x) { return x.vuesMax; } },
+    { g: 'Curiosités', id: 'ghost',n: 'Personne n’est venu',  d: 'Cinq articles à zéro vue',        v: 5,       gain: 2, m: function (x) { return x.muettes; } },
+    { g: 'Curiosités', id: 'noimg',n: 'Sans illustration',    d: 'Vingt cartes sans image',         v: 20,      gain: 2, m: function (x) { return x.sansImage; } },
+    { g: 'Curiosités', id: 'abc',  n: 'Tout l’alphabet',      d: 'Vingt initiales différentes',     v: 20,      gain: 3, m: function (x) { return x.initiales; } },
+    { g: 'Curiosités', id: 'stub', n: 'Éloge de l’ébauche',   d: 'Cent cartes Communes',            v: 100,     gain: 2, m: function (x) { return x.rang['Commune']; } }
+  ];
+
+  function reclamerSucces(id) {
+    var st = readStats();
+    var sc = SUCCES.filter(function (a) { return a.id === id; })[0];
+    if (!sc || st.reclames.indexOf(id) !== -1) return;
+    var x = mesures();
+    if ((sc.m(x) || 0) < sc.v) return;
+
+    var pk = readPacks();
+    if (pk.n >= MAX_PAQUETS) {
+      el('succes-msg').textContent = 'Réserve pleine. Ouvrez des paquets, puis revenez.';
+      return;
+    }
+    pk.n = Math.min(MAX_PAQUETS, pk.n + sc.gain);
+    writePacks(pk);
+    st.reclames.push(id);
+    writeStats(st);
+    refreshPacks();
+    showSucces();
+  }
+
+  function refreshSucces() {
+    var x = mesures(), st = readStats();
+    var faits = SUCCES.filter(function (a) { return (a.m(x) || 0) >= a.v; }).length;
+    var prets = SUCCES.filter(function (a) {
+      return (a.m(x) || 0) >= a.v && st.reclames.indexOf(a.id) === -1;
+    }).length;
+    el('succes-count').textContent = prets ? '(' + prets + ')' : '';
+    el('succes-count').style.color = prets ? '#c9992e' : '';
+    return { x: x, st: st, faits: faits };
+  }
+
+  function showSucces() {
+    var r = refreshSucces(), x = r.x, st = r.st;
+    var html = '<p class="succes-tete"><b>' + r.faits + '</b> succès sur <b>'
+      + SUCCES.length + '</b> · série de <b>' + x.jours + '</b> jour'
+      + (x.jours > 1 ? 's' : '') + '</p>'
+      + '<p class="recompense-msg" id="succes-msg"></p>';
+
+    var groupe = null;
+    SUCCES.forEach(function (a) {
+      if (a.g !== groupe) { groupe = a.g; html += '<p class="succes-groupe">' + groupe.toUpperCase() + '</p>'; }
+      var val = a.m(x) || 0;
+      var fait = val >= a.v;
+      var pris = st.reclames.indexOf(a.id) !== -1;
+      var cls = 'succes' + (pris ? ' fait' : (fait ? ' pret' : ''));
+      var pct = Math.min(100, val / a.v * 100);
+      html += '<' + (fait && !pris ? 'button' : 'div') + ' class="' + cls + '"'
+        + (fait && !pris ? ' data-succes="' + a.id + '"' : '') + '>'
+        + '<span class="succes-txt"><span class="succes-nom">' + esc(a.n) + '</span>'
+        + '<span class="succes-desc">' + esc(a.d) + '</span>'
+        + (fait ? '' : '<span class="succes-prog">'
+            + val.toLocaleString('fr-FR') + ' / ' + a.v.toLocaleString('fr-FR')
+            + '<span class="jauge"><span style="width:' + pct.toFixed(0) + '%"></span></span></span>')
+        + '</span>'
+        + '<span class="succes-gain">' + (pris ? 'reçu' : '+' + a.gain) + '</span>'
+        + '</' + (fait && !pris ? 'button' : 'div') + '>';
+    });
+    el('succes-body').innerHTML = html;
   }
 
   /* ---------- collection ---------- */
@@ -1238,12 +1464,13 @@
   }
 
   function switchTo(which) {
-    ['open', 'coll', 'raid'].forEach(function (v) {
+    ['open', 'coll', 'raid', 'succes'].forEach(function (v) {
       el('view-' + v).hidden = (v !== which);
       el('tab-' + v).classList.toggle('is-active', v === which);
     });
     if (which === 'coll') showCollection();
     if (which === 'raid') showRaid();
+    if (which === 'succes') showSucces();
   }
 
   el('pack').addEventListener('click', openPack);
@@ -1256,6 +1483,11 @@
   el('tab-open').addEventListener('click', function () { switchTo('open'); });
   el('tab-coll').addEventListener('click', function () { switchTo('coll'); });
   el('tab-raid').addEventListener('click', function () { switchTo('raid'); });
+  el('tab-succes').addEventListener('click', function () { switchTo('succes'); });
+  el('succes-body').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('[data-succes]') : null;
+    if (b) reclamerSucces(b.getAttribute('data-succes'));
+  });
   el('raid-body').addEventListener('click', function (e) {
     if (!e.target.closest) return;
     var cl = e.target.closest('[data-claim]');
@@ -1274,7 +1506,9 @@
   });
 
   load();
+  pointerPresence();
   refreshCount();
+  refreshSucces();
   refreshPacks();
   setInterval(refreshPacks, 1000);
 })();
