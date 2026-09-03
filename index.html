@@ -404,6 +404,25 @@
     font-variant-numeric: tabular-nums;
   }
   .verdict { flex: none; font-size: 13px; color: var(--glass-dim); }
+  .place {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+    padding: 9px 11px; background: var(--night-up);
+    border: 1px solid var(--night-line); border-left: 3px solid var(--night-line);
+  }
+  .place.ok { border-left-color: #4f8d72; }
+  .place.ko { border-left-color: #8d5050; }
+  .place-sel {
+    flex: 1 1 0; min-width: 0; padding: 8px;
+    background: #11141f; border: 1px solid var(--night-line);
+    color: var(--ivory); font: inherit; font-size: 12px;
+  }
+  .place-vs { flex: none; font-size: 13px; color: var(--glass-dim); }
+  .place.ok .place-vs { color: #4f8d72; }
+  .place.ko .place-vs { color: #8d5050; }
+  .place-lui { flex: 1 1 0; min-width: 0; text-align: right; }
+  .duel-note {
+    font-size: 11px; color: var(--glass-dim); line-height: 1.6; margin: 8px 0 0;
+  }
   .manche.ok .verdict { color: #4f8d72; }
   .manche.ko .verdict { color: #8d5050; }
 
@@ -1784,11 +1803,15 @@
     return r > 0 ? 1 : (r < 0 ? -1 : 0);
   }
 
+  /* Duel en deux temps : on decouvre l'adversaire, puis on place ses cartes
+     face a face. Le duel est decompte des la recherche, sinon on pourrait
+     relancer jusqu'a tomber sur une equipe faible. */
+  var duelCourant = null;
+
   function lancerDuel() {
     var d = readJour();
     if (d.duelsJoues >= DUELS_PAR_JOUR) return;
-    var mienne = equipeJoueur();
-    if (mienne.length < 5) return;
+    if (Object.keys(collection).length < 5) return;
 
     el('duel-body').innerHTML = '<p class="duel-titre">DUEL 5 CONTRE 5</p>'
       + '<p class="status">Recherche d’un adversaire…</p>';
@@ -1805,36 +1828,99 @@
           return (atkEff(b) + defEff(b) + rankIndex(b.rank) * 60)
                - (atkEff(a) + defEff(a) + rankIndex(a.rank) * 60);
         });
-        var manches = [], gagnees = 0;
-        for (var i = 0; i < 5; i++) {
-          var r = manche(mienne[i], adverse[i]);
-          if (r > 0) gagnees += 1;
-          manches.push({ moi: mienne[i], lui: adverse[i], r: r });
-        }
-        var gagne = gagnees >= 3;
-
         var j = readJour();
         j.duelsJoues += 1;
-        if (gagne) j.duels += 1;
         writeJour(j);
 
-        var recu = 0;
-        if (gagne) {
-          var pk = readPacks();
-          recu = GAIN_DUEL;   /* les recompenses peuvent depasser le plafond */
-          pk.n += recu;
-          writePacks(pk);
-          refreshPacks();
-        }
-        peindreDuel(manches, gagnees, gagne, recu);
-        showMissions();
-        refreshSucces();
+        /* Proposition de depart : les cinq meilleures, dans l'ordre. */
+        duelCourant = {
+          adverse: adverse,
+          choix: equipeJoueur().map(function (c) { return c.title; })
+        };
+        peindrePlacement();
       })
       .catch(function (err) {
         el('duel-body').innerHTML = '<p class="duel-titre">DUEL 5 CONTRE 5</p>'
           + '<p class="status error">Aucun adversaire trouvé (' + esc(err.message) + ').</p>'
           + boutonDuel();
       });
+  }
+
+  function peindrePlacement() {
+    var adverse = duelCourant.adverse, choix = duelCourant.choix;
+    var toutes = Object.keys(collection).map(function (k) { return collection[k]; })
+      .sort(function (a, b) { return a.title.localeCompare(b.title, 'fr'); });
+
+    var doublons = choix.filter(function (t, i) { return t && choix.indexOf(t) !== i; });
+    var complet = choix.filter(function (t) { return !!t; }).length === 5 && !doublons.length;
+
+    var prevu = 0;
+    var html = '<p class="duel-titre">PLACEZ VOS CARTES</p>'
+      + '<p class="duel-intro">Chaque ligne est une manche. Vous voyez l’adversaire : '
+      + 'à vous de décider qui affronte qui. Trois manches gagnées suffisent.</p>';
+
+    adverse.forEach(function (lui, i) {
+      var moi = choix[i] ? collection[choix[i]] : null;
+      var r = moi ? manche(moi, lui) : 0;
+      if (moi && r > 0) prevu += 1;
+      var tl = tierOf(lui.rank);
+      html += '<div class="place ' + (moi ? (r > 0 ? 'ok' : 'ko') : '') + '">'
+        + '<select class="place-sel" data-slot="' + i + '">'
+        + '<option value="">— choisir —</option>'
+        + toutes.map(function (c) {
+            var pris = choix.indexOf(c.title) !== -1 && choix[i] !== c.title;
+            return '<option value="' + esc(c.title) + '"'
+              + (choix[i] === c.title ? ' selected' : '')
+              + (pris ? ' disabled' : '') + '>'
+              + esc(c.title) + ' · ' + atkEff(c) + '/' + defEff(c)
+              + ' · ' + tierOf(c.rank).short + '</option>';
+          }).join('')
+        + '</select>'
+        + '<div class="place-vs">' + (moi ? (r > 0 ? '▲' : '▼') : '·') + '</div>'
+        + '<div class="place-lui"><span class="cote-nom" style="color:' + tl.color + '">'
+        + esc(lui.title) + '</span>'
+        + '<span class="cote-st">ATQ ' + atkEff(lui) + ' · DÉF ' + defEff(lui) + '</span></div>'
+        + '</div>';
+    });
+
+    html += '<p class="puissance">Manches gagnées d’avance : <b>' + prevu + '</b> sur 5'
+      + (doublons.length ? ' — une même carte est placée deux fois.' : '') + '</p>'
+      + '<button class="btn' + (complet ? ' btn-solid' : '') + '" '
+      + (complet ? 'data-duel-go="1"' : 'disabled') + '>'
+      + (complet ? 'Lancer le combat' : 'Placez vos cinq cartes') + '</button>';
+
+    el('duel-body').innerHTML = html;
+  }
+
+  function resoudreDuel() {
+    if (!duelCourant) return;
+    var adverse = duelCourant.adverse, choix = duelCourant.choix;
+    var manches = [], gagnees = 0;
+    for (var i = 0; i < 5; i++) {
+      var moi = collection[choix[i]];
+      if (!moi) return;
+      var r = manche(moi, adverse[i]);
+      if (r > 0) gagnees += 1;
+      manches.push({ moi: moi, lui: adverse[i], r: r });
+    }
+    var gagne = gagnees >= 3;
+
+    var j = readJour();
+    if (gagne) j.duels += 1;
+    writeJour(j);
+
+    var recu = 0;
+    if (gagne) {
+      var pk = readPacks();
+      recu = GAIN_DUEL;
+      pk.n += recu;
+      writePacks(pk);
+      refreshPacks();
+    }
+    duelCourant = null;
+    peindreDuel(manches, gagnees, gagne, recu);
+    showMissions();
+    refreshSucces();
   }
 
   function boutonDuel() {
@@ -1850,7 +1936,9 @@
         + ' duels du jour sont joués. Retour demain.</p>';
     }
     return '<button class="btn btn-solid" id="duel-lancer">Chercher un adversaire ('
-      + reste + ' duel' + (reste > 1 ? 's' : '') + ')</button>';
+      + reste + ' duel' + (reste > 1 ? 's' : '') + ')</button>'
+      + '<p class="duel-note">La recherche consomme un duel : pas de nouvel adversaire '
+      + 'tant que celui-ci n’est pas combattu.</p>';
   }
 
   function peindreDuel(manches, gagnees, gagne, recu) {
@@ -1867,11 +1955,11 @@
       html += '<div class="manche ' + (m.r > 0 ? 'ok' : (m.r < 0 ? 'ko' : 'nul')) + '">'
         + '<div class="cote"><span class="cote-nom" style="color:' + tm.color + '">'
         + esc(m.moi.title) + '</span>'
-        + '<span class="cote-st">ATQ ' + m.moi.atk + ' · DÉF ' + m.moi.def + '</span></div>'
+        + '<span class="cote-st">ATQ ' + atkEff(m.moi) + ' · DÉF ' + defEff(m.moi) + '</span></div>'
         + '<div class="verdict">' + (m.r > 0 ? '▲' : (m.r < 0 ? '▼' : '=')) + '</div>'
         + '<div class="cote droite"><span class="cote-nom" style="color:' + tl.color + '">'
         + esc(m.lui.title) + '</span>'
-        + '<span class="cote-st">ATQ ' + m.lui.atk + ' · DÉF ' + m.lui.def + '</span></div>'
+        + '<span class="cote-st">ATQ ' + atkEff(m.lui) + ' · DÉF ' + defEff(m.lui) + '</span></div>'
         + '</div>';
     });
 
@@ -2158,7 +2246,16 @@
     if (b) reclamerSucces(b.getAttribute('data-succes'));
   });
   el('duel-body').addEventListener('click', function (e) {
-    if (e.target.closest && e.target.closest('#duel-lancer')) lancerDuel();
+    if (!e.target.closest) return;
+    if (e.target.closest('#duel-lancer')) { lancerDuel(); return; }
+    if (e.target.closest('[data-duel-go]')) { resoudreDuel(); return; }
+  });
+  el('duel-body').addEventListener('change', function (e) {
+    var sel = e.target.closest ? e.target.closest('[data-slot]') : null;
+    if (!sel || !duelCourant) return;
+    var i = parseInt(sel.getAttribute('data-slot'), 10);
+    duelCourant.choix[i] = sel.value;
+    peindrePlacement();
   });
   el('missions').addEventListener('click', function (e) {
     var m = e.target.closest ? e.target.closest('[data-mission]') : null;
