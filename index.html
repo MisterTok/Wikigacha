@@ -63,6 +63,12 @@
   #coll-count { opacity: .7; font-variant-numeric: tabular-nums; }
 
   /* --- paquet --- */
+  .packs {
+    margin: 0 0 4px; padding-bottom: 12px; text-align: center;
+    font-size: 12px; color: var(--glass-dim);
+    border-bottom: 1px solid var(--night-line);
+    font-variant-numeric: tabular-nums;
+  }
   .pack-stage { text-align: center; padding: 30px 0 10px; }
   .pack {
     width: 176px; height: 248px; cursor: pointer; position: relative;
@@ -121,7 +127,7 @@
     padding: 10px;
   }
   .ribbon {
-    font-size: 10px; letter-spacing: .16em; text-align: center;
+    font-size: 10px; letter-spacing: .12em; text-align: center;
     padding: 5px 0; margin: -10px -10px 10px;
     background: var(--tier); color: #fff;
   }
@@ -303,6 +309,7 @@
 </header>
 
 <main id="view-open">
+  <p id="packs" class="packs"></p>
   <div id="pack-stage" class="pack-stage">
     <button id="pack" class="pack" aria-label="Ouvrir un paquet de cinq cartes">
       <span class="pack-w">W</span>
@@ -355,14 +362,26 @@
   var collection = {};
   var queue = [], qi = 0;
 
+  /* Sept paliers, calques sur ceux du jeu original.
+     Le seuil porte sur le score de qualite WikiRank (0-100). */
   var TIERS = [
-    { max: 0.72, name: 'Commun',     color: '#8d93a3', fx: '' },
-    { max: 0.95, name: 'Ordinaire',  color: '#4f8d72', fx: '' },
-    { max: 1.15, name: 'Rare',       color: '#3f79c4', fx: '' },
-    { max: 1.38, name: 'Épique',     color: '#8b5cc7', fx: 'foil' },
-    { max: 1.62, name: 'Légendaire', color: '#c9992e', fx: 'foil' },
-    { max: 99,   name: 'Mythique',   color: '#cc4c3f', fx: 'foil holo' }
+    { max: 12,  name: 'Commune',            short: 'C',   color: '#8d93a3', fx: '' },
+    { max: 20,  name: 'Peu commune',        short: 'PC',  color: '#4f8d72', fx: '' },
+    { max: 30,  name: 'Rare',               short: 'R',   color: '#3f79c4', fx: '' },
+    { max: 44,  name: 'Super rare',         short: 'SR',  color: '#8b5cc7', fx: 'foil' },
+    { max: 60,  name: 'Super spéciale rare',short: 'SSR', color: '#c46a2f', fx: 'foil' },
+    { max: 82,  name: 'Ultra rare',         short: 'UR',  color: '#c9992e', fx: 'foil' },
+    { max: 999, name: 'Légende rare',       short: 'LR',  color: '#cc4c3f', fx: 'foil holo' }
   ];
+  var PITIE = 3;          /* palier garanti : Super rare (indice 3) */
+  var PITIE_TOUS = 10;    /* ... une fois tous les dix paquets */
+  var MAX_PAQUETS = 10;
+  var REGEN_MS = 60000;
+
+  /* Medianes de reference, calees sur les articles de qualite francophones.
+     C'est la logique WikiRank : chaque mesure est ramenee a ce niveau. */
+  var MEDIANES = { len: 60000, refs: 100, img: 15, sec: 20, reflen: 16.7 };
+  var POIDS    = { len: 0.25,  refs: 0.25, img: 0.20, sec: 0.20, reflen: 0.10 };
 
   var el = function (id) { return document.getElementById(id); };
   var tierOf = function (name) {
@@ -418,6 +437,41 @@
       .catch(function () { return 0; });
   }
 
+  /* Les cinq mesures de qualite, en un appel par article. */
+  function fetchQuality(pageid) {
+    var url = 'https://' + WIKI + '.org/w/api.php'
+      + '?action=parse&format=json&origin=*&pageid=' + pageid
+      + '&prop=sections|externallinks|images';
+    return fetch(url)
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        var pr = d && d.parse;
+        if (!pr) return null;
+        return {
+          refs: (pr.externallinks || []).length,
+          img:  (pr.images || []).length,
+          sec:  (pr.sections || []).length
+        };
+      })
+      .catch(function () { return null; });
+  }
+
+  function qualityScore(bytes, q) {
+    var norm = function (v, m) { return Math.min(1, v / m); };
+    if (!q) {
+      /* Repli si l'appel echoue : on ne garde que la longueur. */
+      return norm(bytes, MEDIANES.len) * 100 * 0.55;
+    }
+    var reflen = q.refs / Math.max(0.1, bytes / 10000);
+    return 100 * (
+      POIDS.len    * norm(bytes,  MEDIANES.len)
+    + POIDS.refs   * norm(q.refs, MEDIANES.refs)
+    + POIDS.img    * norm(q.img,  MEDIANES.img)
+    + POIDS.sec    * norm(q.sec,  MEDIANES.sec)
+    + POIDS.reflen * norm(reflen, MEDIANES.reflen)
+    );
+  }
+
   function fetchSummary(title) {
     var url = 'https://' + WIKI + '.org/api/rest_v1/page/summary/'
       + encodeURIComponent(title.replace(/ /g, '_'));
@@ -427,11 +481,13 @@
     });
   }
 
-  function toCard(page, views) {
+  function toCard(page, views, q) {
     var bytes = page.length || 1;
-    var score = Math.log10(bytes + 1) / 5 + Math.log10(views + 1) / 6;
+    var score = qualityScore(bytes, q);
     var tier = TIERS.find(function (t) { return score < t.max; });
     return {
+      score: Math.round(score * 10) / 10,
+      refs: q ? q.refs : null, img: q ? q.img : null, sec: q ? q.sec : null,
       title: page.title,
       url: page.fullurl || ('https://' + WIKI + '.org/wiki/' + encodeURIComponent(page.title)),
       desc: page.description || '',
@@ -460,11 +516,50 @@
       collection[c.title] = {
         title: c.title, url: c.url, desc: c.desc, extract: c.extract, thumb: c.thumb,
         bytes: c.bytes, views: c.views, atk: c.atk, def: c.def,
+        score: c.score, refs: c.refs, img: c.img, sec: c.sec,
         rank: c.rank, count: 1
       };
     }
     save(); refreshCount();
   }
+  /* --- Reserve de paquets : dix au maximum, un de plus par minute. --- */
+  var PKEY = 'wikigacha:paquets';
+
+  function readPacks() {
+    var d;
+    try { d = JSON.parse(localStorage.getItem(PKEY)); } catch (e) { d = null; }
+    if (!d || typeof d.n !== 'number') d = { n: MAX_PAQUETS, ts: Date.now(), ouverts: 0 };
+    var gagnes = Math.floor((Date.now() - d.ts) / REGEN_MS);
+    if (gagnes > 0 && d.n < MAX_PAQUETS) {
+      d.n = Math.min(MAX_PAQUETS, d.n + gagnes);
+      d.ts = d.n >= MAX_PAQUETS ? Date.now() : d.ts + gagnes * REGEN_MS;
+    } else if (d.n >= MAX_PAQUETS) {
+      d.ts = Date.now();
+    }
+    return d;
+  }
+
+  function writePacks(d) {
+    try { localStorage.setItem(PKEY, JSON.stringify(d)); } catch (e) {}
+  }
+
+  function refreshPacks() {
+    var d = readPacks();
+    writePacks(d);
+    var txt = 'Paquets ' + d.n + ' / ' + MAX_PAQUETS;
+    if (d.n < MAX_PAQUETS) {
+      var reste = Math.max(0, REGEN_MS - (Date.now() - d.ts));
+      var sec = Math.ceil(reste / 1000);
+      txt += ' · prochain dans ' + Math.floor(sec / 60) + ':'
+           + String(sec % 60).padStart(2, '0');
+    }
+    var vers = PITIE_TOUS - (d.ouverts % PITIE_TOUS);
+    txt += ' · garantie dans ' + vers + (vers > 1 ? ' paquets' : ' paquet');
+    el('packs').textContent = txt;
+    el('pack').disabled = d.n < 1;
+    return d;
+  }
+
   function refreshCount() {
     el('coll-count').textContent = '(' + Object.keys(collection).length + ')';
   }
@@ -560,7 +655,7 @@
       + '<span>ATQ <b>' + c.atk + '</b></span>'
       + '<span>DÉF <b>' + c.def + '</b></span>'
       + (dupes > 1 ? '<span class="dupe">×' + dupes + '</span>' : '')
-      + '<span class="rank">' + esc(c.rank.toUpperCase()) + '</span></span></button>';
+      + '<span class="rank">' + esc(tierOf(c.rank).short) + '</span></span></button>';
   }
 
   function frontHTML(c) {
@@ -568,7 +663,8 @@
     var fig = c.thumb
       ? '<img src="' + esc(c.thumb) + '" alt="">'
       : artSVG(c.title, t.color);
-    return '<div class="ribbon">' + esc(c.rank.toUpperCase()) + '</div>'
+    return '<div class="ribbon">' + esc(c.rank.toUpperCase())
+      + (c.garantie ? ' · GARANTIE' : '') + '</div>'
       + '<div class="fig">' + fig + '</div>'
       + '<h2>' + esc(c.title) + '</h2>'
       + '<p>' + esc(blurb(c, 150)) + '</p>'
@@ -615,6 +711,17 @@
 
   function openPack() {
     var status = el('status');
+    var etat = readPacks();
+    if (etat.n < 1) {
+      status.hidden = false; status.className = 'status';
+      status.textContent = 'Plus de paquets. Un nouveau arrive dans moins d’une minute.';
+      return;
+    }
+    etat.n -= 1; etat.ouverts += 1;
+    if (etat.n === MAX_PAQUETS - 1) etat.ts = Date.now();
+    writePacks(etat);
+    var pitie = (etat.ouverts % PITIE_TOUS) === 0;
+
     el('pack').disabled = true;
     el('draw').innerHTML = '';
     el('again').hidden = true;
@@ -624,28 +731,37 @@
     fetchPack()
       .then(function (pages) {
         return Promise.all(pages.map(function (p) {
-          return fetchViews(p.title).then(function (v) { return toCard(p, v); });
+          return Promise.all([fetchViews(p.title), fetchQuality(p.pageid)])
+            .then(function (r) { return toCard(p, r[0], r[1]); });
         }));
       })
       .then(function (cards) {
         cards.sort(function (a, b) { return rankIndex(a.rank) - rankIndex(b.rank); });
+        if (pitie && rankIndex(cards[cards.length - 1].rank) < PITIE) {
+          var best = cards[cards.length - 1];
+          best.rank = TIERS[PITIE].name;
+          best.garantie = true;
+        }
         queue = cards; qi = 0;
         status.hidden = true;
         el('pack-stage').hidden = true;
         el('reveal').hidden = false;
         el('flipper').classList.remove('is-open');
         showNext();
+        refreshPacks();
       })
       .catch(function (err) {
+        /* Le paquet n'a pas abouti : on le rend au joueur. */
+        var e2 = readPacks(); e2.n = Math.min(MAX_PAQUETS, e2.n + 1);
+        e2.ouverts = Math.max(0, e2.ouverts - 1); writePacks(e2);
         status.className = 'status error';
         status.textContent = 'Wikipédia n’a pas répondu (' + err.message + '). Réessayez.';
-        el('pack').disabled = false;
+        refreshPacks();
       });
   }
 
   function resetPack() {
     el('pack-stage').hidden = false;
-    el('pack').disabled = false;
     el('reveal').hidden = true;
     el('draw').innerHTML = '';
     el('again').hidden = true;
@@ -670,7 +786,15 @@
       + '<div class="sheet-meta">ATQ <b>' + c.atk + '</b> — '
       + c.views.toLocaleString('fr-FR') + ' vues sur deux mois<br>'
       + 'DÉF <b>' + c.def + '</b> — '
-      + (Math.round(c.bytes / 102.4) / 10) + ' Ko d’article</div>'
+      + (Math.round(c.bytes / 102.4) / 10) + ' Ko d’article'
+      + (typeof c.score === 'number'
+          ? '<br>Qualité <b>' + c.score + '</b> / 100'
+            + (c.refs !== null && c.refs !== undefined
+                ? ' — ' + c.refs + ' références, ' + c.img + ' images, '
+                  + c.sec + ' sections'
+                : '')
+          : '')
+      + '</div>'
       + '<div class="sheet-actions">'
       + '<button class="btn" id="sheet-close">Fermer</button>'
       + '<a class="btn" href="' + esc(c.url) + '" target="_blank" rel="noopener">Lire l’article</a>'
@@ -751,6 +875,8 @@
 
   load();
   refreshCount();
+  refreshPacks();
+  setInterval(refreshPacks, 1000);
 })();
 </script>
 </body>
