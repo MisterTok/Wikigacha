@@ -287,6 +287,17 @@
     font-size: 12px; color: var(--glass-dim);
   }
   .boss-meta b { color: var(--ivory); font-variant-numeric: tabular-nums; }
+  .paliers { display: flex; gap: 6px; margin-top: 12px; }
+  .palier {
+    flex: 1; text-align: center; font-size: 10px; padding: 4px 2px;
+    color: var(--glass-dim); border: 1px solid var(--night-line);
+    font-variant-numeric: tabular-nums;
+  }
+  .palier.pris { color: #f0dda4; border-color: #c9992e; }
+  .puissance {
+    font-size: 12px; line-height: 1.6; color: var(--glass-dim); margin: 0 0 4px;
+  }
+  .puissance b { color: var(--ivory); font-variant-numeric: tabular-nums; }
   .raid-title {
     font-size: 12px; letter-spacing: .1em; color: var(--glass-dim);
     margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--night-line);
@@ -899,8 +910,15 @@
      chaque matin, choisi par les contributeurs et non par un tirage. */
 
   var RKEY = 'wikigacha:raid';
-  var MULT = [1, 1.25, 1.55, 1.9, 2.3, 2.8, 3.4];   /* multiplicateur par rarete */
-  var RECOMPENSE = 3;                                /* paquets gagnes a la victoire */
+  var MULT = [1, 1.3, 1.7, 2.2, 2.9, 3.7, 4.6];    /* multiplicateur par rarete */
+  var MAX_COMBATTANTS = 10;   /* dix cartes par jour : la qualite prime sur le nombre */
+  /* Paliers de degats : meme sans le vaincre, on progresse. */
+  var PALIERS = [
+    { seuil: 0.25, gain: 1, nom: 'Quart des PV' },
+    { seuil: 0.50, gain: 1, nom: 'Moitié des PV' },
+    { seuil: 0.75, gain: 1, nom: 'Trois quarts' },
+    { seuil: 1.00, gain: 3, nom: 'Adversaire vaincu' }
+  ];
 
   function jour() {
     var d = new Date();
@@ -941,7 +959,7 @@
 
   function degats(c, boss) {
     var m = MULT[rankIndex(c.rank)] || 1;
-    var reduction = 500 / (500 + boss.def);
+    var reduction = 900 / (900 + boss.def);
     return Math.max(1, Math.round(c.atk * m * reduction));
   }
 
@@ -986,7 +1004,7 @@
             score: Math.round(sc * 10) / 10,
             rank: tier.name
           };
-          var pv = Math.round(boss.def * 26);
+          var pv = Math.round(boss.def * 10);
           var etat2 = {
             date: jour(), boss: boss, pv: pv, pvMax: pv,
             utilisees: [], vaincu: false, journal: []
@@ -1017,8 +1035,7 @@
 
     if (etat.vaincu) {
       html += '<div class="win"><h3>Adversaire vaincu</h3>'
-        + '<p>' + RECOMPENSE + ' paquets bonus ajoutés à votre réserve. '
-        + 'Un nouvel article vous attend demain.</p></div>';
+        + '<p>Un nouvel article vous attend demain.</p></div>';
     }
 
     html += '<div class="boss" style="--tier:' + t.color + '">'
@@ -1032,6 +1049,11 @@
       + '<div class="boss-meta"><span>ATQ <b>' + b.atk + '</b></span>'
       + '<span>DÉF <b>' + b.def + '</b></span>'
       + '<span>Qualité <b>' + b.score + '</b></span></div>'
+      + '<div class="paliers">' + PALIERS.map(function (pl, i) {
+          var pris = (etat.paliers || []).indexOf(i) !== -1;
+          return '<span class="palier' + (pris ? ' pris' : '') + '">'
+            + Math.round(pl.seuil * 100) + '% · +' + pl.gain + '</span>';
+        }).join('') + '</div>'
       + '</div>';
 
     if (etat.journal.length) {
@@ -1041,15 +1063,30 @@
     }
 
     if (!etat.vaincu) {
-      html += '<p class="raid-title">VOS COMBATTANTS — une attaque par carte et par jour</p>';
-      if (!dispo.length) {
-        html += '<p class="status">'
-          + (Object.keys(collection).length
-              ? 'Toutes vos cartes ont déjà attaqué aujourd’hui. Ouvrez des paquets pour en recruter.'
-              : 'Votre collection est vide. Ouvrez un paquet pour recruter des combattants.')
-          + '</p>';
+      var places = MAX_COMBATTANTS - etat.utilisees.length;
+      html += '<p class="raid-title">VOS COMBATTANTS — ' + places + ' place'
+        + (places > 1 ? 's' : '') + ' sur ' + MAX_COMBATTANTS + ' aujourd’hui</p>';
+
+      if (places <= 0) {
+        html += '<p class="status">Vos ' + MAX_COMBATTANTS
+          + ' combattants du jour ont donné. Revenez demain — '
+          + 'seules vos meilleures cartes comptent, pas leur nombre.</p>';
+      } else if (!dispo.length) {
+        html += '<p class="status">Votre collection est vide. '
+          + 'Ouvrez un paquet pour recruter des combattants.</p>';
       } else {
-        html += dispo.slice(0, 40).map(function (c) {
+        var equipe = dispo.slice(0, places);
+        var total = equipe.reduce(function (n, c) { return n + degats(c, b); }, 0);
+        html += '<p class="puissance">Vos ' + equipe.length + ' meilleures cartes valent <b>'
+          + total.toLocaleString('fr-FR') + '</b> dégâts, sur '
+          + etat.pv.toLocaleString('fr-FR') + ' PV restants'
+          + (total >= etat.pv
+              ? ' — de quoi l’achever.'
+              : ' — il manque ' + (etat.pv - total).toLocaleString('fr-FR') + '.')
+          + '</p>'
+          + '<button class="btn btn-solid" data-allin="1">Envoyer les '
+          + equipe.length + ' meilleures</button>';
+        html += dispo.slice(0, 30).map(function (c) {
           var ct = tierOf(c.rank);
           return '<button class="fighter" style="--tier:' + ct.color + '" '
             + 'data-attack="' + esc(c.title) + '">'
@@ -1064,25 +1101,67 @@
     el('raid-body').innerHTML = html;
   }
 
+  function toutAttaquer() {
+    var etat = readRaid();
+    if (!etat || etat.vaincu) return;
+    var b = etat.boss;
+    var dispo = Object.keys(collection)
+      .map(function (k) { return collection[k]; })
+      .filter(function (c) { return etat.utilisees.indexOf(c.title) === -1; })
+      .sort(function (x, y) { return degats(y, b) - degats(x, b); });
+    dispo = dispo.slice(0, MAX_COMBATTANTS - etat.utilisees.length);
+    if (!dispo.length) return;
+
+    var totalDeg = 0;
+    dispo.forEach(function (c) {
+      if (etat.pv === 0) return;
+      var d = degats(c, b);
+      etat.pv = Math.max(0, etat.pv - d);
+      etat.utilisees.push(c.title);
+      totalDeg += d;
+    });
+    etat.journal.push('<b>' + dispo.length + ' cartes</b> infligent '
+      + totalDeg.toLocaleString('fr-FR') + ' dégâts.');
+    verifierPaliers(etat);
+    writeRaid(etat);
+    paintRaid(etat);
+  }
+
+  /* Verifie les paliers franchis et verse les paquets correspondants. */
+  function verifierPaliers(etat) {
+    var part = 1 - (etat.pv / etat.pvMax);
+    var gagnes = 0;
+    etat.paliers = etat.paliers || [];
+    PALIERS.forEach(function (pl, i) {
+      if (part + 1e-9 >= pl.seuil && etat.paliers.indexOf(i) === -1) {
+        etat.paliers.push(i);
+        gagnes += pl.gain;
+        etat.journal.push('<b>' + pl.nom + '</b> — ' + pl.gain
+          + (pl.gain > 1 ? ' paquets gagnés.' : ' paquet gagné.'));
+      }
+    });
+    if (etat.pv === 0) etat.vaincu = true;
+    if (gagnes) {
+      var pk = readPacks();
+      pk.n = Math.min(MAX_PAQUETS, pk.n + gagnes);
+      writePacks(pk);
+      refreshPacks();
+    }
+  }
+
   function attaquer(titre) {
     var etat = readRaid();
     var c = collection[titre];
     if (!etat || !c || etat.vaincu) return;
     if (etat.utilisees.indexOf(titre) !== -1) return;
+    if (etat.utilisees.length >= MAX_COMBATTANTS) return;
 
     var d = degats(c, etat.boss);
     etat.pv = Math.max(0, etat.pv - d);
     etat.utilisees.push(titre);
     etat.journal.push('<b>' + esc(titre) + '</b> inflige ' + d + ' dégâts.');
 
-    if (etat.pv === 0) {
-      etat.vaincu = true;
-      etat.journal.push('<b>Victoire.</b> ' + RECOMPENSE + ' paquets bonus.');
-      var pk = readPacks();
-      pk.n = Math.min(MAX_PAQUETS, pk.n + RECOMPENSE);
-      writePacks(pk);
-      refreshPacks();
-    }
+    verifierPaliers(etat);
     writeRaid(etat);
     paintRaid(etat);
   }
@@ -1132,7 +1211,9 @@
   el('tab-coll').addEventListener('click', function () { switchTo('coll'); });
   el('tab-raid').addEventListener('click', function () { switchTo('raid'); });
   el('raid-body').addEventListener('click', function (e) {
-    var f = e.target.closest ? e.target.closest('[data-attack]') : null;
+    if (!e.target.closest) return;
+    if (e.target.closest('[data-allin]')) { toutAttaquer(); return; }
+    var f = e.target.closest('[data-attack]');
     if (f) attaquer(f.getAttribute('data-attack'));
   });
   el('goto-open').addEventListener('click', function () { switchTo('open'); });
