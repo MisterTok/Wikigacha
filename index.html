@@ -115,7 +115,7 @@
   .face-back small { font-size: 10px; letter-spacing: .14em; color: var(--glass-dim); }
 
   .face-front {
-    transform: rotateY(180deg);
+    transform: rotateY(180deg); text-align: left;
     background: var(--ivory); color: var(--ink);
     border: 1px solid var(--tier, var(--t1));
     padding: 10px;
@@ -126,7 +126,7 @@
     background: var(--tier); color: #fff;
   }
   .fig {
-    flex: 1 1 auto; min-height: 84px; overflow: hidden;
+    flex: 1 1 auto; min-height: 60px; overflow: hidden;
     border: 1px solid var(--ivory-dim); background: #efe8d6;
     display: grid; place-items: center;
   }
@@ -138,14 +138,18 @@
   }
   .sheet-art .art { width: 100%; height: 100%; display: block; }
   .face-front h2 {
-    font-family: var(--display); font-weight: 600; font-size: 20px;
-    line-height: 1.15; margin: 10px 0 3px;
+    flex: 0 0 auto;
+    font-family: var(--display); font-weight: 600; font-size: 19px;
+    line-height: 1.15; margin: 10px 0 4px;
   }
   .face-front > p {
-    margin: 0; font-size: 12px; line-height: 1.5; color: var(--ink-soft);
-    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+    flex: 0 0 auto; margin: 0;
+    font-size: 12px; line-height: 1.45; color: var(--ink-soft);
+    max-height: 4.35em; overflow: hidden;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
   }
   .face-foot {
+    flex: 0 0 auto; align-items: center;
     display: flex; gap: 14px; margin-top: 9px; padding-top: 8px;
     border-top: 1px solid var(--ivory-dim); font-size: 12px; color: var(--ink-soft);
   }
@@ -567,7 +571,7 @@
     return '<div class="ribbon">' + esc(c.rank.toUpperCase()) + '</div>'
       + '<div class="fig">' + fig + '</div>'
       + '<h2>' + esc(c.title) + '</h2>'
-      + '<p>' + esc(blurb(c, 190)) + '</p>'
+      + '<p>' + esc(blurb(c, 150)) + '</p>'
       + '<div class="face-foot"><span>ATQ <b>' + c.atk + '</b></span>'
       + '<span>DÉF <b>' + c.def + '</b></span>'
       + '<button class="more" data-title="' + esc(c.title) + '">Fiche complète</button>'
