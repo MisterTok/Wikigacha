@@ -250,6 +250,74 @@
     border: 1px solid currentColor; opacity: .85;
   }
 
+  /* --- raid --- */
+  .boss {
+    background: var(--night-up); border: 1px solid var(--night-line);
+    border-top: 4px solid var(--tier, var(--t6)); padding: 16px; margin-bottom: 16px;
+  }
+  .boss-tag {
+    font-size: 10px; letter-spacing: .14em; color: var(--tier); margin: 0 0 6px;
+  }
+  .boss h2 {
+    font-family: var(--display); font-weight: 600; font-size: 23px;
+    line-height: 1.15; margin: 0 0 8px; color: var(--ivory);
+  }
+  .boss-img {
+    width: 100%; height: 130px; object-fit: cover;
+    border: 1px solid var(--night-line); margin-bottom: 12px;
+  }
+  .boss-art { height: 130px; overflow: hidden; border: 1px solid var(--night-line); margin-bottom: 12px; }
+  .boss-art .art { width: 100%; height: 100%; display: block; }
+  .boss p { margin: 0 0 12px; font-size: 13px; line-height: 1.6; color: var(--glass-dim); }
+  .bar {
+    height: 20px; background: #11141f; border: 1px solid var(--night-line);
+    position: relative; overflow: hidden;
+  }
+  .bar span {
+    position: absolute; inset: 0 auto 0 0; background: var(--tier);
+    transition: width .5s ease;
+  }
+  .bar b {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    font-size: 11px; color: #fff; font-variant-numeric: tabular-nums;
+    text-shadow: 0 1px 2px rgba(0,0,0,.6);
+  }
+  .boss-meta {
+    display: flex; gap: 16px; margin-top: 10px;
+    font-size: 12px; color: var(--glass-dim);
+  }
+  .boss-meta b { color: var(--ivory); font-variant-numeric: tabular-nums; }
+  .raid-title {
+    font-size: 12px; letter-spacing: .1em; color: var(--glass-dim);
+    margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--night-line);
+  }
+  .fighter {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 10px 12px; margin-bottom: 8px; cursor: pointer;
+    font: inherit; color: var(--glass); text-align: left;
+    background: var(--night-up); border: 1px solid var(--night-line);
+    border-left: 4px solid var(--tier);
+  }
+  .fighter:disabled { opacity: .4; cursor: default; }
+  .fighter-name {
+    flex: 1 1 auto; min-width: 0; font-family: var(--display); font-size: 15px;
+    color: var(--ivory); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .fighter-dmg { flex: none; font-size: 13px; color: var(--tier); font-variant-numeric: tabular-nums; }
+  .journal {
+    font-size: 12px; line-height: 1.8; color: var(--glass-dim);
+    border-top: 1px solid var(--night-line); padding-top: 10px; margin-top: 4px;
+  }
+  .journal b { color: var(--ivory); }
+  .win {
+    background: var(--night-up); border: 1px solid #c9992e;
+    padding: 16px; margin-bottom: 16px; text-align: center;
+  }
+  .win h3 {
+    font-family: var(--display); font-size: 20px; margin: 0 0 6px; color: #f0dda4;
+  }
+  .win p { margin: 0; font-size: 13px; color: var(--glass-dim); }
+
   /* --- fiche --- */
   .sheet {
     position: fixed; inset: 0; z-index: 20; background: rgba(8,10,17,.66);
@@ -305,6 +373,7 @@
   <nav class="tabs">
     <button id="tab-open" class="tab is-active">Ouvrir</button>
     <button id="tab-coll" class="tab">Collection <span id="coll-count">(0)</span></button>
+    <button id="tab-raid" class="tab">Raid</button>
   </nav>
 </header>
 
@@ -344,6 +413,10 @@
   </div>
   <div id="coll-stats" class="coll-stats" hidden></div>
   <div id="coll-grid" class="grid"></div>
+</main>
+
+<main id="view-raid" hidden>
+  <div id="raid-body"></div>
 </main>
 
 <div id="sheet" class="sheet" hidden>
@@ -821,6 +894,199 @@
     document.body.style.overflow = '';
   }
 
+  /* ---------- raid du jour ----------
+     Le boss est l'article du jour de Wikipedia : nouvel adversaire
+     chaque matin, choisi par les contributeurs et non par un tirage. */
+
+  var RKEY = 'wikigacha:raid';
+  var MULT = [1, 1.25, 1.55, 1.9, 2.3, 2.8, 3.4];   /* multiplicateur par rarete */
+  var RECOMPENSE = 3;                                /* paquets gagnes a la victoire */
+
+  function jour() {
+    var d = new Date();
+    return d.getFullYear() + '-'
+      + String(d.getMonth() + 1).padStart(2, '0') + '-'
+      + String(d.getDate()).padStart(2, '0');
+  }
+
+  function fetchBoss() {
+    var j = jour().split('-');
+    var url = 'https://' + WIKI + '.org/api/rest_v1/feed/featured/'
+      + j[0] + '/' + j[1] + '/' + j[2];
+    return fetch(url)
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        var a = d.tfa || (d.mostread && d.mostread.articles && d.mostread.articles[0]);
+        if (!a) throw new Error('pas d’article du jour');
+        return a;
+      });
+  }
+
+  function fetchInfo(pageid) {
+    var url = 'https://' + WIKI + '.org/w/api.php'
+      + '?action=query&format=json&origin=*&pageids=' + pageid
+      + '&prop=info|pageimages|description&inprop=url'
+      + '&piprop=thumbnail&pithumbsize=600';
+    return fetch(url)
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        var pg = d && d.query && d.query.pages;
+        return pg ? pg[Object.keys(pg)[0]] : null;
+      })
+      .catch(function () { return null; });
+  }
+
+  function degats(c, boss) {
+    var m = MULT[rankIndex(c.rank)] || 1;
+    var reduction = 500 / (500 + boss.def);
+    return Math.max(1, Math.round(c.atk * m * reduction));
+  }
+
+  function readRaid() {
+    var d;
+    try { d = JSON.parse(localStorage.getItem(RKEY)); } catch (e) { d = null; }
+    if (!d || d.date !== jour()) return null;
+    return d;
+  }
+  function writeRaid(d) {
+    try { localStorage.setItem(RKEY, JSON.stringify(d)); } catch (e) {}
+  }
+
+  function showRaid() {
+    var body = el('raid-body');
+    var etat = readRaid();
+    if (etat) { paintRaid(etat); return; }
+
+    body.innerHTML = '<p class="status">Recherche de l’adversaire du jour…</p>';
+    fetchBoss()
+      .then(function (a) {
+        return Promise.all([
+          fetchInfo(a.pageid),
+          fetchQuality(a.pageid),
+          fetchViews(a.title || a.titles.normalized)
+        ]).then(function (r) {
+          var page = r[0] || {};
+          var titre = (a.titles && a.titles.normalized) || a.title || page.title;
+          var bytes = page.length || 40000;
+          var sc = qualityScore(bytes, r[1]);
+          var tier = TIERS.find(function (t) { return sc < t.max; });
+          var boss = {
+            title: titre,
+            url: page.fullurl || ('https://' + WIKI + '.org/wiki/'
+                 + encodeURIComponent(titre.replace(/ /g, '_'))),
+            extract: (a.extract || page.description || '').trim().slice(0, 400),
+            thumb: (page.thumbnail && page.thumbnail.source)
+                   || (a.thumbnail && a.thumbnail.source) || '',
+            bytes: bytes, views: r[2],
+            atk: Math.max(1, Math.round(Math.log10(r[2] + 1) * 90)),
+            def: Math.max(1, Math.round(Math.log10(bytes + 1) * 90)),
+            score: Math.round(sc * 10) / 10,
+            rank: tier.name
+          };
+          var pv = Math.round(boss.def * 26);
+          var etat2 = {
+            date: jour(), boss: boss, pv: pv, pvMax: pv,
+            utilisees: [], vaincu: false, journal: []
+          };
+          writeRaid(etat2);
+          paintRaid(etat2);
+        });
+      })
+      .catch(function (err) {
+        body.innerHTML = '<p class="status error">Adversaire du jour introuvable ('
+          + esc(err.message) + '). Réessayez plus tard.</p>';
+      });
+  }
+
+  function paintRaid(etat) {
+    var b = etat.boss, t = tierOf(b.rank);
+    var pct = Math.max(0, etat.pv / etat.pvMax * 100);
+    var visuel = b.thumb
+      ? '<img class="boss-img" src="' + esc(b.thumb) + '" alt="">'
+      : '<div class="boss-art">' + artSVG(b.title, t.color) + '</div>';
+
+    var dispo = Object.keys(collection)
+      .map(function (k) { return collection[k]; })
+      .filter(function (c) { return etat.utilisees.indexOf(c.title) === -1; })
+      .sort(function (x, y) { return degats(y, b) - degats(x, b); });
+
+    var html = '';
+
+    if (etat.vaincu) {
+      html += '<div class="win"><h3>Adversaire vaincu</h3>'
+        + '<p>' + RECOMPENSE + ' paquets bonus ajoutés à votre réserve. '
+        + 'Un nouvel article vous attend demain.</p></div>';
+    }
+
+    html += '<div class="boss" style="--tier:' + t.color + '">'
+      + '<p class="boss-tag">ARTICLE DU JOUR · ' + esc(b.rank.toUpperCase()) + '</p>'
+      + '<h2>' + esc(b.title) + '</h2>'
+      + visuel
+      + '<p>' + esc(b.extract || 'Aucun résumé disponible.') + '</p>'
+      + '<div class="bar"><span style="width:' + pct.toFixed(1) + '%"></span>'
+      + '<b>' + etat.pv.toLocaleString('fr-FR') + ' / '
+      + etat.pvMax.toLocaleString('fr-FR') + ' PV</b></div>'
+      + '<div class="boss-meta"><span>ATQ <b>' + b.atk + '</b></span>'
+      + '<span>DÉF <b>' + b.def + '</b></span>'
+      + '<span>Qualité <b>' + b.score + '</b></span></div>'
+      + '</div>';
+
+    if (etat.journal.length) {
+      html += '<div class="journal">' + etat.journal.slice(-6).map(function (l) {
+        return '<div>' + l + '</div>';
+      }).join('') + '</div>';
+    }
+
+    if (!etat.vaincu) {
+      html += '<p class="raid-title">VOS COMBATTANTS — une attaque par carte et par jour</p>';
+      if (!dispo.length) {
+        html += '<p class="status">'
+          + (Object.keys(collection).length
+              ? 'Toutes vos cartes ont déjà attaqué aujourd’hui. Ouvrez des paquets pour en recruter.'
+              : 'Votre collection est vide. Ouvrez un paquet pour recruter des combattants.')
+          + '</p>';
+      } else {
+        html += dispo.slice(0, 40).map(function (c) {
+          var ct = tierOf(c.rank);
+          return '<button class="fighter" style="--tier:' + ct.color + '" '
+            + 'data-attack="' + esc(c.title) + '">'
+            + '<span class="fighter-name">' + esc(c.title) + '</span>'
+            + '<span class="rank" style="color:' + ct.color + '">' + ct.short + '</span>'
+            + '<span class="fighter-dmg">−' + degats(c, b) + '</span>'
+            + '</button>';
+        }).join('');
+      }
+    }
+
+    el('raid-body').innerHTML = html;
+  }
+
+  function attaquer(titre) {
+    var etat = readRaid();
+    var c = collection[titre];
+    if (!etat || !c || etat.vaincu) return;
+    if (etat.utilisees.indexOf(titre) !== -1) return;
+
+    var d = degats(c, etat.boss);
+    etat.pv = Math.max(0, etat.pv - d);
+    etat.utilisees.push(titre);
+    etat.journal.push('<b>' + esc(titre) + '</b> inflige ' + d + ' dégâts.');
+
+    if (etat.pv === 0) {
+      etat.vaincu = true;
+      etat.journal.push('<b>Victoire.</b> ' + RECOMPENSE + ' paquets bonus.');
+      var pk = readPacks();
+      pk.n = Math.min(MAX_PAQUETS, pk.n + RECOMPENSE);
+      writePacks(pk);
+      refreshPacks();
+    }
+    writeRaid(etat);
+    paintRaid(etat);
+  }
+
   /* ---------- collection ---------- */
 
   function showCollection() {
@@ -847,12 +1113,12 @@
   }
 
   function switchTo(which) {
-    var isOpen = which === 'open';
-    el('view-open').hidden = !isOpen;
-    el('view-coll').hidden = isOpen;
-    el('tab-open').classList.toggle('is-active', isOpen);
-    el('tab-coll').classList.toggle('is-active', !isOpen);
-    if (!isOpen) showCollection();
+    ['open', 'coll', 'raid'].forEach(function (v) {
+      el('view-' + v).hidden = (v !== which);
+      el('tab-' + v).classList.toggle('is-active', v === which);
+    });
+    if (which === 'coll') showCollection();
+    if (which === 'raid') showRaid();
   }
 
   el('pack').addEventListener('click', openPack);
@@ -864,6 +1130,11 @@
   });
   el('tab-open').addEventListener('click', function () { switchTo('open'); });
   el('tab-coll').addEventListener('click', function () { switchTo('coll'); });
+  el('tab-raid').addEventListener('click', function () { switchTo('raid'); });
+  el('raid-body').addEventListener('click', function (e) {
+    var f = e.target.closest ? e.target.closest('[data-attack]') : null;
+    if (f) attaquer(f.getAttribute('data-attack'));
+  });
   el('goto-open').addEventListener('click', function () { switchTo('open'); });
   el('sheet').addEventListener('click', function (e) {
     if (e.target === el('sheet')) closeSheet();
