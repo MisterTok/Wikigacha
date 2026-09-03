@@ -431,6 +431,36 @@
     font-size: 12px; line-height: 1.5; word-break: break-all; resize: vertical;
   }
 
+  /* --- outils de collection --- */
+  .outils { margin-bottom: 16px; }
+  .outils .code-champ { width: 100%; margin-bottom: 8px; }
+  .outils-ligne { display: flex; gap: 8px; }
+  .tri {
+    flex: 1 1 auto; min-width: 0; padding: 10px;
+    background: var(--night-up); border: 1px solid var(--night-line);
+    color: var(--ivory); font: inherit; font-size: 13px;
+  }
+  .tri-btn {
+    flex: none; padding: 10px 14px; font: inherit; font-size: 13px;
+    background: var(--night-up); border: 1px solid var(--night-line);
+    color: var(--glass-dim); cursor: pointer;
+  }
+  .tri-btn.actif { color: #1a1d29; background: linear-gradient(160deg, #f3dfa4, #c9992e); border-color: #c9992e; }
+
+  .card-wrap { position: relative; }
+  .fav {
+    position: absolute; top: 6px; right: 6px; z-index: 2;
+    width: 34px; height: 34px; padding: 0; line-height: 1;
+    font-size: 15px; cursor: pointer;
+    background: transparent; border: 0; color: var(--night-line);
+  }
+  .fav.on { color: #c9992e; }
+  .card-wrap .card { padding-right: 42px; }
+
+  .raz { margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--night-line); }
+  .raz .btn { color: #b06a6a; border-color: var(--night-line); font-size: 13px; }
+  .raz-mot { font-size: 12px; color: var(--glass-dim); margin: 0 0 8px; line-height: 1.6; }
+
   /* --- succes --- */
   .succes-tete {
     font-size: 12px; color: var(--glass-dim); line-height: 1.7;
@@ -586,7 +616,24 @@
     <button id="goto-open" class="btn btn-solid">Ouvrir un premier paquet</button>
   </div>
   <div id="coll-stats" class="coll-stats" hidden></div>
+  <div id="coll-outils" class="outils" hidden>
+    <input id="coll-q" class="code-champ" type="text" placeholder="Rechercher un titre…"
+           autocomplete="off" spellcheck="false">
+    <div class="outils-ligne">
+      <select id="coll-tri" class="tri">
+        <option value="rarete">Rareté</option>
+        <option value="qualite">Score de qualité</option>
+        <option value="atk">Attaque</option>
+        <option value="def">Défense</option>
+        <option value="nom">Nom</option>
+        <option value="dupes">Exemplaires</option>
+      </select>
+      <button id="coll-favonly" class="tri-btn">★ Favoris</button>
+    </div>
+  </div>
   <div id="coll-grid" class="grid"></div>
+  <div id="coll-vide-filtre"></div>
+  <div id="coll-zone-raz"></div>
 </main>
 
 <main id="view-raid" hidden>
@@ -904,7 +951,10 @@
     var visual = c.thumb
       ? '<img class="card-thumb" src="' + esc(c.thumb) + '" alt="" loading="lazy">'
       : '<span class="card-thumb-alt">' + artSVG(c.title, t.color) + '</span>';
-    return '<button class="card" style="--tier:' + t.color + '" data-title="' + esc(c.title) + '">'
+    return '<div class="card-wrap">'
+      + '<button class="fav' + (c.fav ? ' on' : '') + '" data-fav="' + esc(c.title) + '"'
+      + ' aria-label="Favori">' + (c.fav ? '★' : '☆') + '</button>'
+      + '<button class="card" style="--tier:' + t.color + '" data-title="' + esc(c.title) + '">'
       + '<span class="card-head">' + visual
       + '<span><span class="card-title">' + esc(c.title) + '</span>'
       + '<span class="card-desc">' + esc(blurb(c, 120)) + '</span></span></span>'
@@ -912,7 +962,7 @@
       + '<span>ATQ <b>' + c.atk + '</b></span>'
       + '<span>DÉF <b>' + c.def + '</b></span>'
       + (dupes > 1 ? '<span class="dupe">×' + dupes + '</span>' : '')
-      + '<span class="rank">' + esc(tierOf(c.rank).short) + '</span></span></button>';
+      + '<span class="rank">' + esc(tierOf(c.rank).short) + '</span></span></button></div>';
   }
 
   function frontHTML(c) {
@@ -1890,10 +1940,47 @@
 
   /* ---------- collection ---------- */
 
+  /* Etat d'affichage : tri, recherche, filtre favoris. */
+  var VKEY = 'wikigacha:vue';
+  var vue = { tri: 'rarete', q: '', favOnly: false };
+  try {
+    var vs = JSON.parse(localStorage.getItem(VKEY));
+    if (vs) { vue.tri = vs.tri || 'rarete'; vue.favOnly = !!vs.favOnly; }
+  } catch (e) {}
+  function saveVue() {
+    try { localStorage.setItem(VKEY, JSON.stringify({ tri: vue.tri, favOnly: vue.favOnly })); }
+    catch (e) {}
+  }
+
+  function sansAccent(t) {
+    return t.normalize ? t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+                       : t.toLowerCase();
+  }
+
+  var TRIS = {
+    rarete:  function (a, b) { return rankIndex(b.rank) - rankIndex(a.rank); },
+    qualite: function (a, b) { return (b.score || 0) - (a.score || 0); },
+    atk:     function (a, b) { return b.atk - a.atk; },
+    def:     function (a, b) { return b.def - a.def; },
+    dupes:   function (a, b) { return b.count - a.count; },
+    nom:     function (a, b) { return a.title.localeCompare(b.title, 'fr'); }
+  };
+
+  function basculerFavori(titre) {
+    var c = collection[titre];
+    if (!c) return;
+    c.fav = !c.fav;
+    save();
+    showCollection();
+  }
+
   function showCollection() {
     var items = Object.keys(collection).map(function (k) { return collection[k]; });
     el('coll-empty').hidden = items.length > 0;
     el('coll-stats').hidden = items.length === 0;
+    el('coll-outils').hidden = items.length < 6;
+    el('coll-tri').value = vue.tri;
+    el('coll-favonly').classList.toggle('actif', vue.favOnly);
 
     if (items.length) {
       var total = items.reduce(function (s, c) { return s + c.count; }, 0);
@@ -1906,11 +1993,47 @@
         + total + '</b> cartes tirées<div class="ladder">' + pips + '</div>';
     }
 
-    items.sort(function (a, b) {
-      var d = rankIndex(b.rank) - rankIndex(a.rank);
+    /* Filtres, puis tri : les favoris remontent toujours en tete. */
+    var vus = items;
+    if (vue.favOnly) vus = vus.filter(function (c) { return c.fav; });
+    if (vue.q) {
+      var q = sansAccent(vue.q);
+      vus = vus.filter(function (c) { return sansAccent(c.title).indexOf(q) !== -1; });
+    }
+    var cmp = TRIS[vue.tri] || TRIS.rarete;
+    vus.sort(function (a, b) {
+      if (!!a.fav !== !!b.fav) return a.fav ? -1 : 1;
+      var d = cmp(a, b);
       return d !== 0 ? d : a.title.localeCompare(b.title, 'fr');
     });
-    el('coll-grid').innerHTML = items.map(function (c) { return cardHTML(c, c.count); }).join('');
+
+    el('coll-grid').innerHTML = vus.map(function (c) { return cardHTML(c, c.count); }).join('');
+    el('coll-vide-filtre').innerHTML = (items.length && !vus.length)
+      ? '<p class="status">Aucune carte ne correspond'
+        + (vue.favOnly ? ' (filtre favoris actif)' : '') + '.</p>' : '';
+    el('coll-zone-raz').innerHTML = items.length
+      ? '<div class="raz"><p class="raz-mot">Tout effacer supprime définitivement '
+        + 'votre collection, vos succès et votre progression.</p>'
+        + '<button class="btn" data-raz="1">Repartir de zéro</button></div>' : '';
+  }
+
+  function demanderRaz(etape) {
+    if (etape === '1') {
+      el('coll-zone-raz').innerHTML = '<div class="raz">'
+        + '<p class="raz-mot">Sûr ? Il n’y a pas de retour possible.</p>'
+        + '<button class="btn" data-raz="annule">Annuler</button>'
+        + '<button class="btn" data-raz="oui">Oui, tout effacer</button></div>';
+      return;
+    }
+    if (etape === 'annule') { showCollection(); return; }
+    [KEY, PKEY, RKEY, SKEY, JKEY, CKEY, VKEY].forEach(function (k) {
+      try { localStorage.removeItem(k); } catch (e) {}
+    });
+    collection = {};
+    vue = { tri: 'rarete', q: '', favOnly: false };
+    el('coll-q').value = '';
+    refreshCount(); refreshPacks(); refreshSucces(); showMissions();
+    showCollection();
   }
 
   function switchTo(which) {
@@ -1966,8 +2089,22 @@
     if (e.target === el('sheet')) closeSheet();
   });
   document.addEventListener('click', function (e) {
-    var card = e.target.closest ? e.target.closest('.card') : null;
+    if (!e.target.closest) return;
+    var f = e.target.closest('[data-fav]');
+    if (f) { basculerFavori(f.getAttribute('data-fav')); return; }
+    var r = e.target.closest('[data-raz]');
+    if (r) { demanderRaz(r.getAttribute('data-raz')); return; }
+    var card = e.target.closest('.card');
     if (card) openSheet(card.getAttribute('data-title'));
+  });
+  el('coll-tri').addEventListener('change', function () {
+    vue.tri = el('coll-tri').value; saveVue(); showCollection();
+  });
+  el('coll-favonly').addEventListener('click', function () {
+    vue.favOnly = !vue.favOnly; saveVue(); showCollection();
+  });
+  el('coll-q').addEventListener('input', function () {
+    vue.q = el('coll-q').value; showCollection();
   });
 
   load();
