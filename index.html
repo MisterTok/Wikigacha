@@ -675,6 +675,8 @@
         <option value="def">Défense</option>
         <option value="nom">Nom</option>
         <option value="dupes">Exemplaires</option>
+        <option value="recent">Plus récentes d’abord</option>
+        <option value="ancien">Plus anciennes d’abord</option>
       </select>
       <button id="coll-favonly" class="tri-btn">★ Favoris</button>
     </div>
@@ -886,9 +888,14 @@
     catch (e) { collection = {}; }
     /* Migration : cartes tirees sous l'ancienne echelle a sept paliers. */
     var migre = false;
-    Object.keys(collection).forEach(function (k) {
+    /* On date les anciennes cartes sans horodatage, en preservant leur ordre :
+       les premieres cles recoivent les timestamps les plus anciens. */
+    var cles = Object.keys(collection);
+    var base = Date.now() - cles.length * 1000;
+    cles.forEach(function (k, i) {
       var c = collection[k];
       if (ANCIENS_RANGS[c.rank]) { c.rank = ANCIENS_RANGS[c.rank]; migre = true; }
+      if (typeof c.obtenu !== 'number') { c.obtenu = base + i * 1000; migre = true; }
     });
     if (migre) save();
   }
@@ -905,7 +912,7 @@
         title: c.title, url: c.url, desc: c.desc, extract: c.extract, thumb: c.thumb,
         bytes: c.bytes, views: c.views, atk: c.atk, def: c.def,
         score: c.score, refs: c.refs, img: c.img, sec: c.sec,
-        rank: c.rank, count: 1
+        rank: c.rank, count: 1, obtenu: Date.now()
       };
     }
     save(); refreshCount(); refreshSucces();
@@ -1816,7 +1823,7 @@
       desc: '', extract: '', thumb: '',
       bytes: o.b || 1, views: o.v || 0,
       atk: o.a || 1, def: o.d || 1, score: o.s,
-      rank: tier.name, count: 1
+      rank: tier.name, count: 1, obtenu: Date.now()
     };
     var e = collection[o.t];
     if (e) { e.count += 1; } else { collection[o.t] = carte; }
@@ -2189,7 +2196,9 @@
     atk:     function (a, b) { return b.atk - a.atk; },
     def:     function (a, b) { return b.def - a.def; },
     dupes:   function (a, b) { return b.count - a.count; },
-    nom:     function (a, b) { return a.title.localeCompare(b.title, 'fr'); }
+    nom:     function (a, b) { return a.title.localeCompare(b.title, 'fr'); },
+    recent:  function (a, b) { return (b.obtenu || 0) - (a.obtenu || 0); },
+    ancien:  function (a, b) { return (a.obtenu || 0) - (b.obtenu || 0); }
   };
 
   function basculerFavori(titre) {
@@ -2230,7 +2239,8 @@
     vus.sort(function (a, b) {
       if (!!a.fav !== !!b.fav) return a.fav ? -1 : 1;
       var d = cmp(a, b);
-      return d !== 0 ? d : a.title.localeCompare(b.title, 'fr');
+      if (d !== 0) return d;
+      return (b.obtenu || 0) - (a.obtenu || 0);   /* egalite : plus recent d'abord */
     });
 
     el('coll-grid').innerHTML = vus.map(function (c) { return cardHTML(c, c.count); }).join('');
