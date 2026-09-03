@@ -553,7 +553,13 @@
     width: 100%; max-height: 210px; object-fit: cover;
     border: 1px solid var(--ivory-dim); margin-bottom: 15px;
   }
-  .sheet-text { font-size: 15px; line-height: 1.68; margin: 0 0 16px; }
+  .sheet-text { font-size: 15px; line-height: 1.68; margin: 0 0 14px; }
+  .ambiance {
+    font-family: var(--display); font-style: italic; font-size: 14px;
+    line-height: 1.55; color: var(--tier, var(--ink-soft));
+    border-left: 3px solid var(--tier, var(--ivory-dim));
+    padding-left: 12px; margin: 0 0 16px;
+  }
   .sheet-meta {
     font-size: 12px; color: var(--ink-soft); line-height: 1.9;
     border-top: 1px solid var(--ivory-dim); padding-top: 11px; margin-bottom: 16px;
@@ -706,15 +712,26 @@
   /* Sept paliers, calques sur ceux du jeu original.
      Le seuil porte sur le score de qualite WikiRank (0-100). */
   var TIERS = [
-    { max: 12,  name: 'Commune',            short: 'C',   color: '#8d93a3', fx: '' },
-    { max: 20,  name: 'Peu commune',        short: 'PC',  color: '#4f8d72', fx: '' },
-    { max: 30,  name: 'Rare',               short: 'R',   color: '#3f79c4', fx: '' },
-    { max: 44,  name: 'Super rare',         short: 'SR',  color: '#8b5cc7', fx: 'foil' },
-    { max: 60,  name: 'Super spéciale rare',short: 'SSR', color: '#c46a2f', fx: 'foil' },
-    { max: 82,  name: 'Ultra rare',         short: 'UR',  color: '#c9992e', fx: 'foil' },
-    { max: 999, name: 'Légende rare',       short: 'LR',  color: '#cc4c3f', fx: 'foil holo' }
+    { max: 12,  name: 'Commune',    short: 'C',  color: '#8d93a3', fx: '' },
+    { max: 22,  name: 'Peu commune',short: 'PC', color: '#4f8d72', fx: '' },
+    { max: 34,  name: 'Rare',       short: 'R',  color: '#3f79c4', fx: '' },
+    { max: 52,  name: 'Épique',     short: 'E',  color: '#8b5cc7', fx: 'foil' },
+    { max: 74,  name: 'Légendaire', short: 'L',  color: '#c9992e', fx: 'foil' },
+    { max: 999, name: 'Mythique',   short: 'M',  color: '#cc4c3f', fx: 'foil holo' }
   ];
-  var PITIE = 3;          /* palier garanti : Super rare (indice 3) */
+
+  /* Conversion des cartes tirees sous l'ancienne echelle a sept paliers. */
+  var ANCIENS_RANGS = {
+    'Super rare': 'Épique',
+    'Super spéciale rare': 'Épique',
+    'Ultra rare': 'Légendaire',
+    'Légende rare': 'Mythique'
+  };
+  function normaliserRang(nom) {
+    if (ANCIENS_RANGS[nom]) return ANCIENS_RANGS[nom];
+    return tierOf(nom).name;   /* renvoie Commune si inconnu */
+  }
+  var PITIE = 3;          /* palier garanti : Épique (indice 3) */
   var PITIE_TOUS = 10;    /* ... une fois tous les dix paquets */
   var MAX_PAQUETS = 10;
   var REGEN_MS = 60000;
@@ -867,6 +884,13 @@
   function load() {
     try { collection = JSON.parse(localStorage.getItem(KEY)) || {}; }
     catch (e) { collection = {}; }
+    /* Migration : cartes tirees sous l'ancienne echelle a sept paliers. */
+    var migre = false;
+    Object.keys(collection).forEach(function (k) {
+      var c = collection[k];
+      if (ANCIENS_RANGS[c.rank]) { c.rank = ANCIENS_RANGS[c.rank]; migre = true; }
+    });
+    if (migre) save();
   }
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(collection)); } catch (e) {}
@@ -1148,6 +1172,41 @@
 
   /* ---------- fiche ---------- */
 
+  /* Texte d'ambiance pour les hautes raretes (Épique et au-dessus).
+     Deterministe : la meme carte a toujours la meme phrase. Le ton s'appuie
+     sur des faits reels de l'article (poids, vues, references) pour rester
+     ancre dans le concept plutot que purement decoratif. */
+  var AMBIANCE = {
+    'Épique': [
+      'Un article que peu de mains ont enrichi, mais que celles-là ont bien nourri.',
+      'Nourri de {refs} références, il tient debout tout seul dans son coin de l’encyclopédie.',
+      'Assez dense pour qu’on s’y perde, assez clair pour qu’on y revienne.',
+      'Ni oublié ni célèbre : le genre d’article que les contributeurs relisent le soir.'
+    ],
+    'Légendaire': [
+      '{views} regards s’y sont posés. L’article les a tous soutenus.',
+      'Une entrée que l’on cite sans la vérifier, tant elle a fait ses preuves.',
+      'Bâti section après section jusqu’à devenir une référence du domaine.',
+      'De ceux qui gardent une page de discussion aussi longue que l’article lui-même.'
+    ],
+    'Mythique': [
+      'Un sommet de l’encyclopédie : {refs} références, {sec} sections, et pas une de trop.',
+      'L’article que l’on montre pour dire : voilà ce que Wikipédia peut être.',
+      'Des années de contributions condensées en une page que rien ne semble pouvoir améliorer.',
+      'Une pièce maîtresse. Le genre d’article qui décroche une étoile et ne la lâche plus.'
+    ]
+  };
+
+  function ambiance(c) {
+    var jeu = AMBIANCE[c.rank];
+    if (!jeu) return '';
+    var idx = seedOf(c.title) % jeu.length;
+    return jeu[idx]
+      .replace('{refs}', (c.refs != null ? c.refs : 'plusieurs'))
+      .replace('{sec}', (c.sec != null ? c.sec : 'plusieurs'))
+      .replace('{views}', (c.views || 0).toLocaleString('fr-FR'));
+  }
+
   function openSheet(title) {
     var c = collection[title];
     if (!c) return;
@@ -1163,6 +1222,7 @@
           : '<div class="sheet-art">' + artSVG(c.title, t.color) + '</div>')
       + '<p class="sheet-text" id="sheet-text">'
       + esc(c.extract || 'Chargement du résumé…') + '</p>'
+      + (ambiance(c) ? '<p class="ambiance">« ' + esc(ambiance(c)) + ' »</p>' : '')
       + '<div class="sheet-meta">ATQ <b>' + atkEff(c) + '</b>'
       + (niveau(c) > 1 ? ' (base ' + c.atk + ')' : '') + ' — '
       + c.views.toLocaleString('fr-FR') + ' vues sur deux mois<br>'
@@ -1276,7 +1336,7 @@
      chaque matin, choisi par les contributeurs et non par un tirage. */
 
   var RKEY = 'wikigacha:raid';
-  var MULT = [1, 1.3, 1.7, 2.2, 2.9, 3.7, 4.6];    /* multiplicateur par rarete */
+  var MULT = [1, 1.35, 1.85, 2.5, 3.4, 4.6];    /* multiplicateur par rarete (6 paliers) */
   var MAX_COMBATTANTS = 10;   /* dix cartes par jour : la qualite prime sur le nombre */
   /* Paliers de degats : meme sans le vaincre, on progresse. */
   var PALIERS = [
@@ -1604,7 +1664,7 @@
     { id: 'm-n5',  n: 'Découvrir 5 nouveaux articles', v: 5,  gain: 2, c: 'nouvelles' },
     { id: 'm-n12', n: 'Découvrir 12 nouveaux articles', v: 12, gain: 3, c: 'nouvelles' },
     { id: 'm-r2',  n: 'Tirer une carte Rare ou mieux', v: 2,  gain: 1, c: 'rarete' },
-    { id: 'm-r3',  n: 'Tirer une Super rare ou mieux', v: 3,  gain: 3, c: 'rarete' },
+    { id: 'm-r3',  n: 'Tirer une Épique ou mieux',      v: 3,  gain: 3, c: 'rarete' },
     { id: 'm-d800',n: 'Infliger 800 dégâts en raid',  v: 800, gain: 2, c: 'degats' },
     { id: 'm-d2500',n:'Infliger 2500 dégâts en raid', v: 2500,gain: 3, c: 'degats' },
     { id: 'm-v1',  n: 'Gagner un duel',               v: 1,   gain: 2, c: 'duels' },
@@ -2016,14 +2076,13 @@
     { g: 'Collection', id: 'c400', n: 'Bibliothèque',       d: '400 articles distincts', v: 400,  gain: 3, m: function (x) { return x.distincts; } },
     { g: 'Collection', id: 'c800', n: 'Encyclopédiste',     d: '800 articles distincts', v: 800,  gain: 5, m: function (x) { return x.distincts; } },
 
-    { g: 'Raretés', id: 'r1',  n: 'Un peu de relief',   d: 'Une carte Rare',                v: 1, gain: 1, m: function (x) { return x.rang['Rare']; } },
-    { g: 'Raretés', id: 'sr1', n: 'Belle prise',        d: 'Une Super rare',                v: 1, gain: 1, m: function (x) { return x.rang['Super rare']; } },
-    { g: 'Raretés', id: 'ss1', n: 'Pièce de choix',     d: 'Une Super spéciale rare',       v: 1, gain: 2, m: function (x) { return x.rang['Super spéciale rare']; } },
-    { g: 'Raretés', id: 'ur1', n: 'Trouvaille',         d: 'Une Ultra rare',                v: 1, gain: 3, m: function (x) { return x.rang['Ultra rare']; } },
-    { g: 'Raretés', id: 'lr1', n: 'Légende',            d: 'Une Légende rare',              v: 1, gain: 5, m: function (x) { return x.rang['Légende rare']; } },
-    { g: 'Raretés', id: 'r10', n: 'Dix fois rare',      d: 'Dix cartes Rares',              v: 10, gain: 2, m: function (x) { return x.rang['Rare']; } },
-    { g: 'Raretés', id: 'sr5', n: 'Cinq beaux morceaux',d: 'Cinq Super rares',              v: 5,  gain: 3, m: function (x) { return x.rang['Super rare']; } },
-    { g: 'Raretés', id: 'ss3', n: 'Vitrine',            d: 'Trois Super spéciales rares',   v: 3,  gain: 4, m: function (x) { return x.rang['Super spéciale rare']; } },
+    { g: 'Raretés', id: 'r1',  n: 'Un peu de relief',   d: 'Une carte Rare',        v: 1,  gain: 1, m: function (x) { return x.rang['Rare']; } },
+    { g: 'Raretés', id: 'e1',  n: 'Belle prise',        d: 'Une Épique',            v: 1,  gain: 2, m: function (x) { return x.rang['Épique']; } },
+    { g: 'Raretés', id: 'l1',  n: 'Trouvaille',         d: 'Une Légendaire',        v: 1,  gain: 3, m: function (x) { return x.rang['Légendaire']; } },
+    { g: 'Raretés', id: 'my1', n: 'Mythe vivant',       d: 'Une Mythique',          v: 1,  gain: 5, m: function (x) { return x.rang['Mythique']; } },
+    { g: 'Raretés', id: 'r10', n: 'Dix fois rare',      d: 'Dix cartes Rares',      v: 10, gain: 2, m: function (x) { return x.rang['Rare']; } },
+    { g: 'Raretés', id: 'e5',  n: 'Cinq beaux morceaux',d: 'Cinq Épiques',          v: 5,  gain: 3, m: function (x) { return x.rang['Épique']; } },
+    { g: 'Raretés', id: 'l3',  n: 'Vitrine',            d: 'Trois Légendaires',     v: 3,  gain: 4, m: function (x) { return x.rang['Légendaire']; } },
 
     { g: 'Paquets', id: 'p10',  n: 'La main dans le sac', d: '10 paquets ouverts',  v: 10,  gain: 1, m: function (x) { return x.paquets; } },
     { g: 'Paquets', id: 'p50',  n: 'Habitué',             d: '50 paquets ouverts',  v: 50,  gain: 2, m: function (x) { return x.paquets; } },
