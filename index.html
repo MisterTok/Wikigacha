@@ -606,7 +606,12 @@
   .niv-nom { display: block; font-family: var(--display); font-size: 15px; color: var(--ivory); }
   .niv-def { display: block; font-size: 11px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
   .niveau { display: block; }
-  .adv-tete { display: flex; align-items: flex-start; gap: 11px; }
+  .adv-tete {
+    display: flex; align-items: flex-start; gap: 11px; width: 100%;
+    text-align: left; background: none; border: 0; padding: 0; cursor: pointer;
+    font: inherit; color: inherit;
+  }
+  .adv-loupe { font-size: 12px; color: var(--glass-dim); }
   .adv-img {
     width: 52px; height: 52px; flex: none; object-fit: cover;
     border: 1px solid var(--night-line); background: #262c40;
@@ -2384,7 +2389,8 @@
         .then(function (d) {
           bossCache[titre] = {
             desc: (d.description || '').trim(),
-            extrait: (d.extract || '').trim().slice(0, 160),
+            extrait: (d.extract || '').trim().slice(0, 700),
+            url: (d.content_urls && d.content_urls.desktop && d.content_urls.desktop.page) || '',
             thumb: (d.thumbnail && d.thumbnail.source) || ''
           };
         })
@@ -2490,17 +2496,17 @@
         : '<div class="adv-img adv-alt">' + esc(niv.art.charAt(0)) + '</div>';
       var cls = 'niveau' + (franchi ? ' franchi' : (actuel ? ' actuel' : ' verrou'));
       html += '<div class="' + cls + '">'
-        + '<div class="adv-tete">' + visuel
-        + '<div class="adv-txt"><span class="niv-nom">'
-        + (niv.boss ? '★ ' : '') + esc(niv.art) + '</span>'
+        + '<button class="adv-tete" data-adv="' + esc(niv.art) + '">' + visuel
+        + '<span class="adv-txt"><span class="niv-nom">'
+        + (niv.boss ? '★ ' : '') + esc(niv.art) + ' <span class="adv-loupe">ⓘ</span></span>'
         + '<span class="adv-desc">' + esc(info.desc || info.extrait
             || (niv.boss ? 'Boss du chapitre' : 'Adversaire')) + '</span>'
         + '<span class="niv-def">Défense ' + niv.def
         + (actuel ? ' · votre force ' + Math.round(force) : '') + '</span>'
-        + '</div>'
+        + '</span>'
         + (franchi ? '<span class="niv-etat">✓</span>'
            : (!actuel ? '<span class="niv-etat">🔒</span>' : ''))
-        + '</div>'
+        + '</button>'
         + (actuel
             ? '<button class="btn' + (gagne ? ' btn-solid' : '') + '" '
               + (gagne ? 'data-hist-go="' + ch.id + '"' : 'disabled') + '>'
@@ -2513,6 +2519,29 @@
         + '<p>Vous avez dompté « ' + esc(ch.niveaux[ch.niveaux.length - 1].art) + ' ».</p></div>';
     }
     return html;
+  }
+
+  function ficheAdversaire(titre) {
+    var info = bossCache[titre] || {};
+    var inner = el('sheet-inner');
+    inner.style.setProperty('--tier', '#3f79c4');
+    inner.innerHTML = '<h2>' + esc(titre) + '</h2>'
+      + '<p class="sheet-sub">' + esc((info.desc || 'Article Wikipédia').toUpperCase()) + '</p>'
+      + (info.thumb
+          ? '<img class="sheet-img" src="' + esc(info.thumb) + '" alt="">'
+          : '')
+      + '<p class="sheet-text">' + esc(info.extrait || 'Chargement…') + '</p>'
+      + '<div class="sheet-actions">'
+      + '<button class="btn" id="sheet-close">Fermer</button>'
+      + (info.url
+          ? '<a class="btn" href="' + esc(info.url) + '" target="_blank" rel="noopener">Lire l’article</a>'
+          : '<a class="btn" href="https://' + WIKI + '.org/wiki/'
+            + encodeURIComponent(titre.replace(/ /g, '_'))
+            + '" target="_blank" rel="noopener">Lire l’article</a>')
+      + '</div>';
+    el('sheet').hidden = false;
+    document.body.style.overflow = 'hidden';
+    el('sheet-close').addEventListener('click', closeSheet);
   }
 
   function combattreHist(chapId) {
@@ -2867,6 +2896,8 @@
     if (e.target.closest('[data-hist-retour]')) { histChapOuvert = null; showHistoire(); return; }
     var go = e.target.closest('[data-hist-go]');
     if (go) { combattreHist(go.getAttribute('data-hist-go')); return; }
+    var adv = e.target.closest('[data-adv]');
+    if (adv) { ficheAdversaire(adv.getAttribute('data-adv')); return; }
     var ch = e.target.closest('[data-chap]');
     if (ch) { histChapOuvert = ch.getAttribute('data-chap'); peindreChapitre(histChapOuvert); }
   });
