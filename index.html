@@ -880,7 +880,7 @@
       + '?action=query&format=json&origin=*'
       + '&generator=random&grnnamespace=0&grnlimit=5'
       + '&prop=info|pageimages|description|extracts'
-      + '&inprop=url&piprop=thumbnail&pithumbsize=500'
+      + '&inprop=url&piprop=thumbnail&pithumbsize=500&pilicense=any'
       + '&exintro=1&explaintext=1&exlimit=max';
     return fetch(url).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -1149,49 +1149,87 @@
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
       return seed / 4294967296;
     };
-    var mode = Math.floor(rnd() * 3);
+    var mode = Math.floor(rnd() * 6);
     var body = '';
-    var i, n;
+    var i, n, id = 'g' + (seed % 100000);
 
-    if (mode === 0) {
+    /* Fond en degrade doux, teinte a la couleur de rarete. */
+    var defs = '<defs><linearGradient id="' + id + '" x1="0" y1="0" x2="1" y2="1">'
+      + '<stop offset="0" stop-color="#f6f1e4"/>'
+      + '<stop offset="1" stop-color="' + color + '" stop-opacity=".22"/>'
+      + '</linearGradient></defs>';
+
+    if (mode === 0) {                 /* cercles concentriques */
       n = 4 + Math.floor(rnd() * 4);
       var cx = 25 + rnd() * 50, cy = 25 + rnd() * 50;
       for (i = n; i > 0; i--) {
         body += '<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1)
           + '" r="' + (i * (8 + rnd() * 4)).toFixed(1)
           + '" fill="none" stroke="' + color
-          + '" stroke-opacity="' + (0.10 + i * 0.045).toFixed(2)
+          + '" stroke-opacity="' + (0.10 + i * 0.05).toFixed(2)
           + '" stroke-width="' + (1 + rnd() * 2).toFixed(1) + '"/>';
       }
-    } else if (mode === 1) {
+    } else if (mode === 1) {          /* bandes diagonales */
       var x = -40;
       while (x < 140) {
         var w = 3 + rnd() * 12;
         body += '<rect x="' + x.toFixed(1) + '" y="-30" width="' + w.toFixed(1)
           + '" height="160" fill="' + color
-          + '" fill-opacity="' + (0.06 + rnd() * 0.26).toFixed(2)
+          + '" fill-opacity="' + (0.06 + rnd() * 0.24).toFixed(2)
           + '" transform="rotate(-24 50 50)"/>';
         x += w + 2 + rnd() * 7;
       }
-    } else {
+    } else if (mode === 2) {          /* damier clairseme */
       n = 4 + Math.floor(rnd() * 3);
       var step = 100 / n;
       for (i = 0; i < n * n; i++) {
-        if (rnd() < 0.42) continue;
+        if (rnd() < 0.5) continue;
         body += '<rect x="' + ((i % n) * step).toFixed(1)
           + '" y="' + (Math.floor(i / n) * step).toFixed(1)
           + '" width="' + step.toFixed(1) + '" height="' + step.toFixed(1)
-          + '" fill="' + color
-          + '" fill-opacity="' + (0.05 + rnd() * 0.28).toFixed(2) + '"/>';
+          + '" fill="' + color + '" fill-opacity="' + (0.05 + rnd() * 0.24).toFixed(2) + '"/>';
+      }
+    } else if (mode === 3) {          /* rayons depuis un coin */
+      var ox = rnd() < 0.5 ? 0 : 100, oy = rnd() < 0.5 ? 0 : 100;
+      for (i = 0; i < 12; i++) {
+        var a = (i / 12) * Math.PI * 2;
+        body += '<line x1="' + ox + '" y1="' + oy
+          + '" x2="' + (ox + Math.cos(a) * 150).toFixed(1)
+          + '" y2="' + (oy + Math.sin(a) * 150).toFixed(1)
+          + '" stroke="' + color + '" stroke-opacity="'
+          + (0.05 + rnd() * 0.14).toFixed(2) + '" stroke-width="'
+          + (2 + rnd() * 5).toFixed(1) + '"/>';
+      }
+    } else if (mode === 4) {          /* vagues horizontales */
+      for (i = 0; i < 6; i++) {
+        var y = 12 + i * 16 + rnd() * 6;
+        var c1 = (rnd() * 100).toFixed(0), c2 = (rnd() * 100).toFixed(0);
+        body += '<path d="M-5 ' + y.toFixed(1) + ' Q 25 ' + c1 + ' 50 '
+          + y.toFixed(1) + ' T 105 ' + y.toFixed(1)
+          + '" fill="none" stroke="' + color + '" stroke-opacity="'
+          + (0.10 + rnd() * 0.16).toFixed(2) + '" stroke-width="'
+          + (1 + rnd() * 2).toFixed(1) + '"/>';
+      }
+    } else {                          /* triangles disperses */
+      for (i = 0; i < 7; i++) {
+        var px = rnd() * 100, py = rnd() * 100, sz = 8 + rnd() * 22;
+        body += '<polygon points="' + px.toFixed(1) + ',' + py.toFixed(1)
+          + ' ' + (px + sz).toFixed(1) + ',' + py.toFixed(1)
+          + ' ' + (px + sz / 2).toFixed(1) + ',' + (py - sz).toFixed(1)
+          + '" fill="' + color + '" fill-opacity="'
+          + (0.06 + rnd() * 0.2).toFixed(2) + '"/>';
       }
     }
 
     return '<svg class="art" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice"'
-      + ' xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
-      + '<rect width="100" height="100" fill="#efe8d6"/>' + body
-      + '<text x="50" y="50" text-anchor="middle" dominant-baseline="central"'
-      + ' font-family="Fraunces, Georgia, serif" font-size="46" font-weight="600"'
-      + ' fill="#262119" fill-opacity=".72">' + esc(title.charAt(0).toUpperCase())
+      + ' xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' + defs
+      + '<rect width="100" height="100" fill="url(#' + id + ')"/>' + body
+      + '<text x="50" y="52" text-anchor="middle" dominant-baseline="central"'
+      + ' font-family="Fraunces, Georgia, serif" font-size="44" font-weight="600"'
+      + ' fill="#262119" fill-opacity=".14">' + esc(title.charAt(0).toUpperCase()) + '</text>'
+      + '<text x="49" y="51" text-anchor="middle" dominant-baseline="central"'
+      + ' font-family="Fraunces, Georgia, serif" font-size="44" font-weight="600"'
+      + ' fill="' + color + '" fill-opacity=".85">' + esc(title.charAt(0).toUpperCase())
       + '</text></svg>';
   }
 
@@ -1202,7 +1240,7 @@
       : '<span class="card-thumb-alt">' + artSVG(c.title, t.color) + '</span>';
     return '<div class="card-wrap">'
       + '<button class="fav' + (c.fav ? ' on' : '') + '" data-fav="' + esc(c.title) + '"'
-      + ' aria-label="Favori">' + (c.fav ? '★' : '☆') + '</button>'
+      + ' aria-label="Favori">' + (c.fav ? '\u2605' : '\u2606') + '</button>'
       + '<button class="card" style="--tier:' + t.color + '" data-title="' + esc(c.title) + '">'
       + '<span class="card-head">' + visual
       + '<span><span class="card-title">' + esc(c.title) + '</span>'
@@ -1211,7 +1249,7 @@
       + '<span>ATQ <b>' + atkEff(c) + '</b></span>'
       + '<span>DÉF <b>' + defEff(c) + '</b></span>'
       + (niveau(c) > 1 ? '<span class="stars">' + etoiles(niveau(c)) + '</span>' : '')
-      + (dupes > 1 ? '<span class="dupe">×' + dupes + '</span>' : '')
+      + (dupes > 1 ? '<span class="dupe">\u00d7' + dupes + '</span>' : '')
       + '<span class="rank">' + esc(tierOf(c.rank).short) + '</span></span></button></div>';
   }
 
@@ -1379,9 +1417,9 @@
       + '<p class="sheet-sub">' + esc(c.rank.toUpperCase())
       + ' · ' + etoiles(niveau(c))
       + (c.count > 1 ? ' · ' + c.count + ' EXEMPLAIRES' : '') + '</p>'
-      + (c.thumb
+      + '<div id="sheet-visuel">' + (c.thumb
           ? '<img class="sheet-img" src="' + esc(c.thumb) + '" alt="">'
-          : '<div class="sheet-art">' + artSVG(c.title, t.color) + '</div>')
+          : '<div class="sheet-art">' + artSVG(c.title, t.color) + '</div>') + '</div>'
       + '<p class="sheet-text" id="sheet-text">'
       + esc(c.extract || 'Chargement du résumé…') + '</p>'
       + (ambiance(c) ? '<p class="ambiance">« ' + esc(ambiance(c)) + ' »</p>' : '')
@@ -1411,15 +1449,32 @@
     document.body.style.overflow = 'hidden';
     el('sheet-close').addEventListener('click', closeSheet);
 
-    if (!c.extract) {
+    /* Rattrapage : si le resume ou l'image manquent, on interroge Wikipedia
+       une fois et on garde ce qu'on trouve. c.imgVerif evite de reessayer
+       indefiniment sur un article qui n'a vraiment aucune image. */
+    if (!c.extract || (!c.thumb && !c.imgVerif)) {
       fetchSummary(c.title)
         .then(function (d) {
-          c.extract = (d.extract || '').trim().slice(0, 1400);
+          if (!c.extract) {
+            c.extract = (d.extract || '').trim().slice(0, 1400);
+            if (el('sheet-text'))
+              el('sheet-text').textContent = c.extract || 'Cet article n’a pas de résumé.';
+          }
+          if (!c.thumb) {
+            var img = (d.thumbnail && d.thumbnail.source)
+                   || (d.originalimage && d.originalimage.source) || '';
+            c.imgVerif = true;
+            if (img) {
+              c.thumb = img;
+              var z = el('sheet-visuel');
+              if (z) z.innerHTML = '<img class="sheet-img" src="' + esc(img) + '" alt="">';
+            }
+          }
           save();
-          el('sheet-text').textContent = c.extract || 'Cet article n’a pas de résumé.';
         })
         .catch(function () {
-          el('sheet-text').textContent = 'Résumé indisponible.';
+          if (!c.extract && el('sheet-text'))
+            el('sheet-text').textContent = 'Résumé indisponible.';
         });
     }
   }
