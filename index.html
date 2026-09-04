@@ -424,6 +424,26 @@
     font-variant-numeric: tabular-nums;
   }
   .place-st.vide { color: var(--glass-dim); font-style: italic; }
+  .place-moi {
+    flex: 1 1 0; min-width: 0; text-align: left; cursor: pointer;
+    background: #11141f; border: 1px solid var(--night-line);
+    color: var(--ivory); font: inherit; padding: 8px 10px;
+  }
+  .place-nom {
+    display: block; font-family: var(--display); font-size: 14px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .place-nom.vide { color: var(--glass-dim); font-family: var(--sans); font-size: 13px; }
+  .sel-liste { max-height: 60vh; overflow-y: auto; margin-bottom: 14px; }
+  .sel-carte {
+    display: block; width: 100%; text-align: left; cursor: pointer;
+    background: #fff; border: 1px solid var(--ivory-dim); border-left: 3px solid var(--ivory-dim);
+    padding: 9px 12px; margin-bottom: 6px; font: inherit;
+  }
+  .sel-carte.sel-actif { border-left-color: var(--ink); }
+  .sel-carte.sel-pris { opacity: .4; }
+  .sel-nom { display: block; font-family: var(--display); font-size: 15px; }
+  .sel-st { display: block; font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
   .place-vs { flex: none; font-size: 14px; color: var(--glass-dim); }
   .place.ok .place-vs { color: #4f8d72; }
   .place.ko .place-vs { color: #8d5050; }
@@ -585,8 +605,23 @@
   .niv-info { flex: 1 1 auto; min-width: 0; }
   .niv-nom { display: block; font-family: var(--display); font-size: 15px; color: var(--ivory); }
   .niv-def { display: block; font-size: 11px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
-  .niveau .btn { margin: 0; width: auto; flex: none; padding: 9px 14px; font-size: 13px; }
-  .niv-etat { flex: none; font-size: 15px; color: #4f8d72; }
+  .niveau { display: block; }
+  .adv-tete { display: flex; align-items: flex-start; gap: 11px; }
+  .adv-img {
+    width: 52px; height: 52px; flex: none; object-fit: cover;
+    border: 1px solid var(--night-line); background: #262c40;
+  }
+  .adv-alt {
+    display: grid; place-items: center;
+    font-family: var(--display); font-size: 24px; color: var(--glass-dim);
+  }
+  .adv-txt { flex: 1 1 auto; min-width: 0; }
+  .adv-desc {
+    display: block; font-size: 12px; color: var(--glass-dim); margin: 2px 0 3px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .niveau .btn { margin: 10px 0 0; width: 100%; padding: 10px; font-size: 14px; }
+  .niv-etat { flex: none; font-size: 16px; color: #4f8d72; align-self: center; }
   .niveau.verrou .niv-etat { color: var(--glass-dim); }
 
   /* --- fiche --- */
@@ -2033,18 +2068,47 @@
       });
   }
 
+  /* Placement automatique : chaque adversaire recoit la carte la plus juste
+     (celle qui gagne avec la plus petite marge, pour economiser les fortes). */
+  function placementAuto() {
+    var adverse = duelCourant.adverse;
+    var dispo = Object.keys(collection).map(function (k) { return collection[k]; });
+    var choix = [null, null, null, null, null];
+    var pris = {};
+    /* On traite les adversaires du plus coriace au plus faible. */
+    var ordre = adverse.map(function (l, i) { return i; })
+      .sort(function (a, b) { return defEff(adverse[b]) - defEff(adverse[a]); });
+    ordre.forEach(function (i) {
+      var lui = adverse[i], best = null, bestMarge = Infinity;
+      dispo.forEach(function (c) {
+        if (pris[c.title]) return;
+        var marge = (atkEff(c) - defEff(lui));
+        if (manche(c, lui) > 0) {
+          if (marge < bestMarge) { bestMarge = marge; best = c; }
+        }
+      });
+      if (!best) {   /* aucune gagnante : on met la plus forte restante */
+        dispo.forEach(function (c) {
+          if (pris[c.title]) return;
+          if (!best || atkEff(c) > atkEff(best)) best = c;
+        });
+      }
+      if (best) { choix[i] = best.title; pris[best.title] = 1; }
+    });
+    duelCourant.choix = choix;
+    peindrePlacement();
+  }
+
   function peindrePlacement() {
     var adverse = duelCourant.adverse, choix = duelCourant.choix;
-    var toutes = Object.keys(collection).map(function (k) { return collection[k]; })
-      .sort(function (a, b) { return a.title.localeCompare(b.title, 'fr'); });
-
     var doublons = choix.filter(function (t, i) { return t && choix.indexOf(t) !== i; });
     var complet = choix.filter(function (t) { return !!t; }).length === 5 && !doublons.length;
 
     var prevu = 0;
     var html = '<p class="duel-titre">PLACEZ VOS CARTES</p>'
-      + '<p class="duel-intro">Chaque ligne est une manche. Vous voyez l’adversaire : '
-      + 'à vous de décider qui affronte qui. Trois manches gagnées suffisent.</p>';
+      + '<p class="duel-intro">Touchez un emplacement pour choisir votre carte, '
+      + 'ou laissez le placement automatique. Trois manches gagnées suffisent.</p>'
+      + '<button class="btn" data-duel-auto="1">Placement automatique</button>';
 
     adverse.forEach(function (lui, i) {
       var moi = choix[i] ? collection[choix[i]] : null;
@@ -2053,22 +2117,13 @@
       var tl = tierOf(lui.rank);
       var tm = moi ? tierOf(moi.rank) : null;
       html += '<div class="place ' + (moi ? (r > 0 ? 'ok' : 'ko') : '') + '">'
-        + '<div class="place-moi">'
-        + '<select class="place-sel" data-slot="' + i + '">'
-        + '<option value="">— choisir une carte —</option>'
-        + toutes.map(function (c) {
-            var pris = choix.indexOf(c.title) !== -1 && choix[i] !== c.title;
-            return '<option value="' + esc(c.title) + '"'
-              + (choix[i] === c.title ? ' selected' : '')
-              + (pris ? ' disabled' : '') + '>'
-              + esc(c.title) + '</option>';
-          }).join('')
-        + '</select>'
+        + '<button class="place-moi" data-slot="' + i + '">'
         + (moi
-            ? '<span class="place-st" style="color:' + tm.color + '">ATQ ' + atkEff(moi)
-              + ' · DÉF ' + defEff(moi) + ' · ' + tm.short + '</span>'
-            : '<span class="place-st vide">non placée</span>')
-        + '</div>'
+            ? '<span class="place-nom" style="color:' + tm.color + '">' + esc(moi.title) + '</span>'
+              + '<span class="place-st">ATQ ' + atkEff(moi) + ' · DÉF ' + defEff(moi)
+              + ' · ' + tm.short + '</span>'
+            : '<span class="place-nom vide">Choisir une carte ›</span>')
+        + '</button>'
         + '<div class="place-vs">' + (moi ? (r > 0 ? '▲' : '▼') : '·') + '</div>'
         + '<div class="place-lui"><span class="cote-nom" style="color:' + tl.color + '">'
         + esc(lui.title) + '</span>'
@@ -2083,6 +2138,40 @@
       + (complet ? 'Lancer le combat' : 'Placez vos cinq cartes') + '</button>';
 
     el('duel-body').innerHTML = html;
+  }
+
+  /* Selecteur de carte en panneau, pour un emplacement donne. */
+  function ouvrirSelecteur(slot) {
+    var choix = duelCourant.choix;
+    var lui = duelCourant.adverse[slot];
+    var toutes = Object.keys(collection).map(function (k) { return collection[k]; })
+      .sort(function (a, b) {
+        return (atkEff(b) + defEff(b)) - (atkEff(a) + defEff(a));
+      });
+    var inner = el('sheet-inner');
+    inner.style.setProperty('--tier', tierOf(lui.rank).color);
+    inner.innerHTML = '<h2>Face à ' + esc(lui.title) + '</h2>'
+      + '<p class="sheet-sub">DÉF ' + defEff(lui) + ' — choisissez votre carte</p>'
+      + '<div class="sel-liste">'
+      + toutes.map(function (c) {
+          var dejaAilleurs = choix.indexOf(c.title) !== -1 && choix[slot] !== c.title;
+          var gagne = manche(c, lui) > 0;
+          var t = tierOf(c.rank);
+          return '<button class="sel-carte' + (dejaAilleurs ? ' sel-pris' : '')
+            + (choix[slot] === c.title ? ' sel-actif' : '') + '" '
+            + 'data-sel-slot="' + slot + '" data-sel-titre="' + esc(c.title) + '"'
+            + (dejaAilleurs ? ' disabled' : '') + '>'
+            + '<span class="sel-nom" style="color:' + t.color + '">' + esc(c.title) + '</span>'
+            + '<span class="sel-st">' + (gagne ? '▲ ' : '▼ ') + 'ATQ ' + atkEff(c)
+            + ' · DÉF ' + defEff(c) + ' · ' + t.short
+            + (dejaAilleurs ? ' · déjà placée' : '') + '</span>'
+            + '</button>';
+        }).join('')
+      + '</div>'
+      + '<button class="btn" id="sheet-close">Fermer</button>';
+    el('sheet').hidden = false;
+    document.body.style.overflow = 'hidden';
+    el('sheet-close').addEventListener('click', closeSheet);
   }
 
   function resoudreDuel() {
@@ -2177,54 +2266,76 @@
 
   var CHAPITRES = [
     { id: 'geo', domaine: 'geo', nom: 'Le tour du monde',
-      boss: 'Les grands espaces', intro: 'Rassemblez des cartes de géographie pour arpenter la planète.',
+      intro: 'Rassemblez des cartes de géographie pour arpenter la planète.',
       niveaux: [
-        { nom: 'Premiers pas', def: 300 },
-        { nom: 'Terres lointaines', def: 360 },
-        { nom: 'Sommets et océans', def: 430 },
-        { nom: 'Boss : les grands espaces', def: 520, boss: true }
+        { art: 'Rome',        def: 300 },
+        { art: 'Sahara',      def: 360 },
+        { art: 'Himalaya',    def: 430 },
+        { art: 'Océan Pacifique', def: 520, boss: true }
       ] },
     { id: 'hist', domaine: 'hist', nom: 'Les âges sombres',
-      boss: 'Le poids des siècles', intro: 'Convoquez l’Histoire, de l’Antiquité aux révolutions.',
+      intro: 'Convoquez l’Histoire, de l’Antiquité aux révolutions.',
       niveaux: [
-        { nom: 'Vestiges anciens', def: 320 },
-        { nom: 'Empires et batailles', def: 390 },
-        { nom: 'Bascule du monde', def: 460 },
-        { nom: 'Boss : le poids des siècles', def: 550, boss: true }
+        { art: 'Jules César',        def: 320 },
+        { art: 'Charlemagne',        def: 390 },
+        { art: 'Révolution française', def: 460 },
+        { art: 'Empire romain',      def: 550, boss: true }
       ] },
     { id: 'sci', domaine: 'sci', nom: 'La marche du savoir',
-      boss: 'Le grand inconnu', intro: 'Les sciences, du vivant à l’infiniment grand.',
+      intro: 'Les sciences, du vivant à l’infiniment grand.',
       niveaux: [
-        { nom: 'Premières lois', def: 340 },
-        { nom: 'Le vivant', def: 410 },
-        { nom: 'Aux confins', def: 480 },
-        { nom: 'Boss : le grand inconnu', def: 570, boss: true }
+        { art: 'Cellule (biologie)', def: 340 },
+        { art: 'Évolution (biologie)', def: 410 },
+        { art: 'Théorie de la relativité', def: 480 },
+        { art: 'Univers',            def: 570, boss: true }
       ] },
     { id: 'art', domaine: 'art', nom: 'Le cabinet des muses',
-      boss: 'L’œuvre totale', intro: 'Arts et culture, de la toile à la scène.',
+      intro: 'Arts et culture, de la toile à la scène.',
       niveaux: [
-        { nom: 'Premiers traits', def: 350 },
-        { nom: 'Chefs-d’œuvre', def: 420 },
-        { nom: 'Avant-gardes', def: 500 },
-        { nom: 'Boss : l’œuvre totale', def: 590, boss: true }
+        { art: 'Renaissance (période historique)', def: 350 },
+        { art: 'Impressionnisme', def: 420 },
+        { art: 'Ludwig van Beethoven', def: 500 },
+        { art: 'La Joconde',     def: 590, boss: true }
       ] },
     { id: 'sport', domaine: 'sport', nom: 'L’arène',
-      boss: 'Le titre suprême', intro: 'Le sport, des terrains aux podiums.',
+      intro: 'Le sport, des terrains aux podiums.',
       niveaux: [
-        { nom: 'Échauffement', def: 330 },
-        { nom: 'Compétition', def: 400 },
-        { nom: 'Finale', def: 480 },
-        { nom: 'Boss : le titre suprême', def: 560, boss: true }
+        { art: 'Marathon (sport)', def: 330 },
+        { art: 'Tour de France',   def: 400 },
+        { art: 'Coupe du monde de football', def: 480 },
+        { art: 'Jeux olympiques',  def: 560, boss: true }
       ] },
     { id: 'soc', domaine: 'soc', nom: 'Le grand théâtre',
-      boss: 'L’édifice commun', intro: 'La société, ses pouvoirs et ses idées.',
+      intro: 'La société, ses pouvoirs et ses idées.',
       niveaux: [
-        { nom: 'Fondations', def: 340 },
-        { nom: 'Institutions', def: 410 },
-        { nom: 'Le pouvoir', def: 490 },
-        { nom: 'Boss : l’édifice commun', def: 580, boss: true }
+        { art: 'Démocratie',   def: 340 },
+        { art: 'Philosophie',  def: 410 },
+        { art: 'Économie',     def: 490 },
+        { art: 'Organisation des Nations unies', def: 580, boss: true }
       ] }
   ];
+
+  /* Cache des fiches d'adversaires (image + description), rempli a l'ouverture
+     d'un chapitre. Cle = titre de l'article. */
+  var bossCache = {};
+
+  function chargerAdversaires(ch) {
+    var manquants = ch.niveaux
+      .map(function (n) { return n.art; })
+      .filter(function (t) { return !bossCache[t]; });
+    if (!manquants.length) return Promise.resolve();
+    return Promise.all(manquants.map(function (titre) {
+      return fetchSummary(titre)
+        .then(function (d) {
+          bossCache[titre] = {
+            desc: (d.description || '').trim(),
+            extrait: (d.extract || '').trim().slice(0, 160),
+            thumb: (d.thumbnail && d.thumbnail.source) || ''
+          };
+        })
+        .catch(function () { bossCache[titre] = { desc: '', extrait: '', thumb: '' }; });
+    }));
+  };
 
   function readHist() {
     var d;
@@ -2289,44 +2400,64 @@
     var fait = prog[ch.id] || 0;
     var cartes = cartesDomaine(ch.domaine);
 
-    var html = '<button class="hist-retour" data-hist-retour="1">‹ Tous les chapitres</button>'
+    var entete = '<button class="hist-retour" data-hist-retour="1">‹ Tous les chapitres</button>'
       + '<p class="hist-titre">' + esc(ch.nom.toUpperCase()) + '</p>'
       + '<p class="duel-intro">' + esc(ch.intro) + ' Vos trois meilleures cartes de '
       + esc(domaineNom(ch.domaine).toLowerCase()) + ' mènent l’assaut.</p>';
 
     if (cartes.length < 3) {
-      html += '<p class="status">Il vous faut au moins trois cartes de '
+      el('histoire-body').innerHTML = entete
+        + '<p class="status">Il vous faut au moins trois cartes de '
         + esc(domaineNom(ch.domaine).toLowerCase()) + ' pour ce chapitre. '
         + 'Vous en avez ' + cartes.length + '. Ouvrez des paquets pour en trouver.</p>';
-      el('histoire-body').innerHTML = html;
       return;
     }
 
+    /* On affiche d'abord, puis on complete avec les images une fois chargees. */
+    el('histoire-body').innerHTML = entete + corpsNiveaux(ch, fait, cartes);
+    chargerAdversaires(ch).then(function () {
+      if (histChapOuvert === chapId) {
+        el('histoire-body').innerHTML = entete + corpsNiveaux(ch, fait, cartes);
+      }
+    });
+  }
+
+  function corpsNiveaux(ch, fait, cartes) {
+    var html = '';
     ch.niveaux.forEach(function (niv, i) {
       var franchi = i < fait;
       var actuel = i === fait;
-      var verrou = i > fait;
       var force = forceEquipe(cartes, niv.def);
       var gagne = force >= niv.def;
+      var info = bossCache[niv.art] || {};
+      var visuel = info.thumb
+        ? '<img class="adv-img" src="' + esc(info.thumb) + '" alt="">'
+        : '<div class="adv-img adv-alt">' + esc(niv.art.charAt(0)) + '</div>';
       var cls = 'niveau' + (franchi ? ' franchi' : (actuel ? ' actuel' : ' verrou'));
       html += '<div class="' + cls + '">'
-        + '<div class="niv-info"><span class="niv-nom">'
-        + (niv.boss ? '★ ' : '') + esc(niv.nom) + '</span>'
-        + '<span class="niv-def">Défense ' + niv.def + '</span></div>'
+        + '<div class="adv-tete">' + visuel
+        + '<div class="adv-txt"><span class="niv-nom">'
+        + (niv.boss ? '★ ' : '') + esc(niv.art) + '</span>'
+        + '<span class="adv-desc">' + esc(info.desc || info.extrait
+            || (niv.boss ? 'Boss du chapitre' : 'Adversaire')) + '</span>'
+        + '<span class="niv-def">Défense ' + niv.def
+        + (actuel ? ' · votre force ' + Math.round(force) : '') + '</span>'
+        + '</div>'
         + (franchi ? '<span class="niv-etat">✓</span>'
-           : actuel ? '<button class="btn' + (gagne ? ' btn-solid' : '') + '" '
-               + (gagne ? 'data-hist-go="' + ch.id + '"' : 'disabled') + '>'
-               + (gagne ? 'Combattre' : 'Trop puissant (votre force : '
-                   + Math.round(force) + ')') + '</button>'
-           : '<span class="niv-etat">🔒</span>')
+           : (!actuel ? '<span class="niv-etat">🔒</span>' : ''))
+        + '</div>'
+        + (actuel
+            ? '<button class="btn' + (gagne ? ' btn-solid' : '') + '" '
+              + (gagne ? 'data-hist-go="' + ch.id + '"' : 'disabled') + '>'
+              + (gagne ? 'Combattre' : 'Trop puissant pour vos cartes') + '</button>'
+            : '')
         + '</div>';
     });
-
     if (fait >= ch.niveaux.length) {
       html += '<div class="win"><h3>Chapitre terminé</h3>'
-        + '<p>Vous avez dompté « ' + esc(ch.boss) + ' ».</p></div>';
+        + '<p>Vous avez dompté « ' + esc(ch.niveaux[ch.niveaux.length - 1].art) + ' ».</p></div>';
     }
-    el('histoire-body').innerHTML = html;
+    return html;
   }
 
   function combattreHist(chapId) {
@@ -2646,12 +2777,17 @@
     if (!e.target.closest) return;
     if (e.target.closest('#duel-lancer')) { lancerDuel(); return; }
     if (e.target.closest('[data-duel-go]')) { resoudreDuel(); return; }
+    if (e.target.closest('[data-duel-auto]')) { placementAuto(); return; }
+    var slot = e.target.closest('[data-slot]');
+    if (slot && duelCourant) { ouvrirSelecteur(parseInt(slot.getAttribute('data-slot'), 10)); }
   });
-  el('duel-body').addEventListener('change', function (e) {
-    var sel = e.target.closest ? e.target.closest('[data-slot]') : null;
-    if (!sel || !duelCourant) return;
-    var i = parseInt(sel.getAttribute('data-slot'), 10);
-    duelCourant.choix[i] = sel.value;
+  /* Selection d'une carte depuis le panneau. */
+  el('sheet-inner').addEventListener('click', function (e) {
+    var sc = e.target.closest ? e.target.closest('[data-sel-titre]') : null;
+    if (!sc || !duelCourant) return;
+    var slot = parseInt(sc.getAttribute('data-sel-slot'), 10);
+    duelCourant.choix[slot] = sc.getAttribute('data-sel-titre');
+    closeSheet();
     peindrePlacement();
   });
   var sousCombat = 'raid';
