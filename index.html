@@ -514,6 +514,11 @@
 
   .raz { margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--night-line); }
   .raz .btn { color: #b06a6a; border-color: var(--night-line); font-size: 13px; }
+  .sauvegarde {
+    margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--night-line);
+  }
+  .sauve-ligne { display: flex; gap: 8px; }
+  .sauve-ligne .btn { margin: 0; font-size: 13px; }
   .raz-mot { font-size: 12px; color: var(--glass-dim); margin: 0 0 8px; line-height: 1.6; }
 
   /* --- succes --- */
@@ -781,6 +786,7 @@
   </div>
   <div id="coll-grid" class="grid"></div>
   <div id="coll-vide-filtre"></div>
+  <div id="coll-zone-sauvegarde"></div>
   <div id="coll-zone-raz"></div>
 </main>
 
@@ -2790,10 +2796,87 @@
     el('coll-vide-filtre').innerHTML = (items.length && !vus.length)
       ? '<p class="status">Aucune carte ne correspond'
         + (vue.favOnly ? ' (filtre favoris actif)' : '') + '.</p>' : '';
+    montrerSauvegarde();
     el('coll-zone-raz').innerHTML = items.length
       ? '<div class="raz"><p class="raz-mot">Tout effacer supprime définitivement '
         + 'votre collection, vos succès et votre progression.</p>'
         + '<button class="btn" data-raz="1">Repartir de zéro</button></div>' : '';
+  }
+
+  var TOUTES_CLES = [KEY, PKEY, RKEY, SKEY, JKEY, CKEY, VKEY, HKEY];
+
+  /* Rassemble tout l'etat du jeu en un objet unique. */
+  function exporterTout() {
+    var data = { v: 1, date: new Date().toISOString() };
+    TOUTES_CLES.forEach(function (k) {
+      var brut = null;
+      try { brut = localStorage.getItem(k); } catch (e) {}
+      if (brut !== null) { try { data[k] = JSON.parse(brut); } catch (e) {} }
+    });
+    return data;
+  }
+
+  function telechargerSauvegarde() {
+    var data = exporterTout();
+    var texte = JSON.stringify(data);
+    var blob = new Blob([texte], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var d = new Date();
+    a.href = url;
+    a.download = 'wikigacha-sauvegarde-'
+      + d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0')
+      + String(d.getDate()).padStart(2, '0') + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+
+  function importerSauvegarde(texte) {
+    var data;
+    try { data = JSON.parse(texte); } catch (e) { return { ok: false, msg: 'Fichier illisible.' }; }
+    if (!data || typeof data !== 'object' || !data[KEY]) {
+      return { ok: false, msg: 'Ce n’est pas une sauvegarde Wikigacha.' };
+    }
+    TOUTES_CLES.forEach(function (k) {
+      if (data[k] !== undefined) {
+        try { localStorage.setItem(k, JSON.stringify(data[k])); } catch (e) {}
+      }
+    });
+    return { ok: true };
+  }
+
+  function montrerSauvegarde(msg) {
+    el('coll-zone-sauvegarde').innerHTML =
+      '<div class="sauvegarde"><p class="raz-mot">Sauvegardez votre progression '
+      + 'dans un fichier, ou restaurez-la sur un autre appareil.</p>'
+      + '<div class="sauve-ligne">'
+      + '<button class="btn" data-sauve="export">Télécharger ma sauvegarde</button>'
+      + '<button class="btn" data-sauve="import">Restaurer un fichier</button>'
+      + '</div>'
+      + '<input type="file" id="fichier-import" accept="application/json,.json" hidden>'
+      + (msg ? '<p class="recompense-msg">' + esc(msg) + '</p>' : '')
+      + '</div>';
+    var champ = el('fichier-import');
+    if (champ) {
+      champ.addEventListener('change', function () {
+        var f = champ.files && champ.files[0];
+        if (!f) return;
+        var lecteur = new FileReader();
+        lecteur.onload = function () {
+          var r = importerSauvegarde(String(lecteur.result));
+          if (r.ok) {
+            load(); refreshCount(); refreshPacks(); refreshSucces(); showMissions();
+            showCollection();
+            montrerSauvegarde('Sauvegarde restaurée.');
+          } else {
+            montrerSauvegarde(r.msg);
+          }
+        };
+        lecteur.readAsText(f);
+      });
+    }
   }
 
   function demanderRaz(etape) {
@@ -2923,6 +3006,13 @@
     if (f) { basculerFavori(f.getAttribute('data-fav')); return; }
     var r = e.target.closest('[data-raz]');
     if (r) { demanderRaz(r.getAttribute('data-raz')); return; }
+    var sv = e.target.closest('[data-sauve]');
+    if (sv) {
+      var quoi = sv.getAttribute('data-sauve');
+      if (quoi === 'export') telechargerSauvegarde();
+      else if (quoi === 'import') { var f = el('fichier-import'); if (f) f.click(); }
+      return;
+    }
     var card = e.target.closest('.card');
     if (card) openSheet(card.getAttribute('data-title'));
   });
