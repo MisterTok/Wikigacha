@@ -373,7 +373,7 @@
   }
 
   /* --- duel --- */
-  #duel-body { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--night-line); }
+  #duel-body { margin-top: 0; }
   .duel-titre {
     font-size: 12px; letter-spacing: .1em; color: var(--glass-dim); margin: 0 0 10px;
   }
@@ -405,21 +405,32 @@
   }
   .verdict { flex: none; font-size: 13px; color: var(--glass-dim); }
   .place {
-    display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
-    padding: 9px 11px; background: var(--night-up);
+    display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px;
+    padding: 10px 11px; background: var(--night-up);
     border: 1px solid var(--night-line); border-left: 3px solid var(--night-line);
   }
+  .place-vs { margin-top: 6px; }
+  .place-lui { margin-top: 2px; }
   .place.ok { border-left-color: #4f8d72; }
   .place.ko { border-left-color: #8d5050; }
+  .place-moi { flex: 1 1 0; min-width: 0; }
   .place-sel {
-    flex: 1 1 0; min-width: 0; padding: 8px;
-    background: #11141f; border: 1px solid var(--night-line);
-    color: var(--ivory); font: inherit; font-size: 12px;
+    width: 100%; padding: 8px; background: #11141f;
+    border: 1px solid var(--night-line);
+    color: var(--ivory); font: inherit; font-size: 13px;
   }
-  .place-vs { flex: none; font-size: 13px; color: var(--glass-dim); }
+  .place-st {
+    display: block; font-size: 11px; margin-top: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .place-st.vide { color: var(--glass-dim); font-style: italic; }
+  .place-vs { flex: none; font-size: 14px; color: var(--glass-dim); }
   .place.ok .place-vs { color: #4f8d72; }
   .place.ko .place-vs { color: #8d5050; }
   .place-lui { flex: 1 1 0; min-width: 0; text-align: right; }
+  .place-lui .cote-nom {
+    display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   .duel-note {
     font-size: 11px; color: var(--glass-dim); line-height: 1.6; margin: 8px 0 0;
   }
@@ -531,8 +542,16 @@
   }
   .jauge span { position: absolute; inset: 0 auto 0 0; background: #c9992e; }
 
+  .sous-tabs { display: flex; gap: 6px; margin-bottom: 20px; }
+  .sous-tab {
+    flex: 1; padding: 9px 6px; font: inherit; font-size: 13px;
+    background: transparent; color: var(--glass-dim);
+    border: 1px solid var(--night-line); cursor: pointer;
+  }
+  .sous-tab.is-active { background: var(--night-up); color: var(--ivory); border-color: var(--glass-dim); }
+
   /* --- mode histoire --- */
-  #histoire-body { margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--night-line); }
+  #histoire-body { margin-top: 0; }
   .hist-titre { font-size: 12px; letter-spacing: .1em; color: var(--glass-dim); margin: 0 0 10px; }
   .chapitre {
     display: block; width: 100%; text-align: left; cursor: pointer;
@@ -726,9 +745,14 @@
 </main>
 
 <main id="view-raid" hidden>
+  <nav class="sous-tabs">
+    <button id="sub-raid" class="sous-tab is-active">Raid</button>
+    <button id="sub-duel" class="sous-tab">Duel</button>
+    <button id="sub-hist" class="sous-tab">Histoire</button>
+  </nav>
   <div id="raid-body"></div>
-  <div id="duel-body"></div>
-  <div id="histoire-body"></div>
+  <div id="duel-body" hidden></div>
+  <div id="histoire-body" hidden></div>
 </main>
 
 <main id="view-succes" hidden>
@@ -2027,18 +2051,24 @@
       var r = moi ? manche(moi, lui) : 0;
       if (moi && r > 0) prevu += 1;
       var tl = tierOf(lui.rank);
+      var tm = moi ? tierOf(moi.rank) : null;
       html += '<div class="place ' + (moi ? (r > 0 ? 'ok' : 'ko') : '') + '">'
+        + '<div class="place-moi">'
         + '<select class="place-sel" data-slot="' + i + '">'
-        + '<option value="">— choisir —</option>'
+        + '<option value="">— choisir une carte —</option>'
         + toutes.map(function (c) {
             var pris = choix.indexOf(c.title) !== -1 && choix[i] !== c.title;
             return '<option value="' + esc(c.title) + '"'
               + (choix[i] === c.title ? ' selected' : '')
               + (pris ? ' disabled' : '') + '>'
-              + esc(c.title) + ' · ' + atkEff(c) + '/' + defEff(c)
-              + ' · ' + tierOf(c.rank).short + '</option>';
+              + esc(c.title) + '</option>';
           }).join('')
         + '</select>'
+        + (moi
+            ? '<span class="place-st" style="color:' + tm.color + '">ATQ ' + atkEff(moi)
+              + ' · DÉF ' + defEff(moi) + ' · ' + tm.short + '</span>'
+            : '<span class="place-st vide">non placée</span>')
+        + '</div>'
         + '<div class="place-vs">' + (moi ? (r > 0 ? '▲' : '▼') : '·') + '</div>'
         + '<div class="place-lui"><span class="cote-nom" style="color:' + tl.color + '">'
         + esc(lui.title) + '</span>'
@@ -2576,7 +2606,7 @@
       el('tab-' + v).classList.toggle('is-active', v === which);
     });
     if (which === 'coll') showCollection();
-    if (which === 'raid') { showRaid(); showDuel(); showHistoire(); }
+    if (which === 'raid') montrerCombat(sousCombat);
     if (which === 'succes') showSucces();
   }
 
@@ -2624,6 +2654,23 @@
     duelCourant.choix[i] = sel.value;
     peindrePlacement();
   });
+  var sousCombat = 'raid';
+  function montrerCombat(quoi) {
+    sousCombat = quoi;
+    el('raid-body').hidden = quoi !== 'raid';
+    el('duel-body').hidden = quoi !== 'duel';
+    el('histoire-body').hidden = quoi !== 'hist';
+    el('sub-raid').classList.toggle('is-active', quoi === 'raid');
+    el('sub-duel').classList.toggle('is-active', quoi === 'duel');
+    el('sub-hist').classList.toggle('is-active', quoi === 'hist');
+    if (quoi === 'raid') showRaid();
+    if (quoi === 'duel') showDuel();
+    if (quoi === 'hist') showHistoire();
+  }
+  el('sub-raid').addEventListener('click', function () { montrerCombat('raid'); });
+  el('sub-duel').addEventListener('click', function () { montrerCombat('duel'); });
+  el('sub-hist').addEventListener('click', function () { montrerCombat('hist'); });
+
   el('histoire-body').addEventListener('click', function (e) {
     if (!e.target.closest) return;
     if (e.target.closest('[data-hist-retour]')) { histChapOuvert = null; showHistoire(); return; }
