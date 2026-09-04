@@ -575,6 +575,36 @@
   }
   .sous-tab.is-active { background: var(--night-up); color: var(--ivory); border-color: var(--glass-dim); }
 
+  /* --- albums (series) --- */
+  #albums-count { font-variant-numeric: tabular-nums; }
+  .album {
+    background: var(--night-up); border: 1px solid var(--night-line);
+    border-left: 4px solid var(--glass-dim); padding: 13px 14px; margin-bottom: 12px;
+  }
+  .album-plein { border-left-color: #c9992e; }
+  .album-tete { display: flex; justify-content: space-between; align-items: baseline; }
+  .album-nom { font-family: var(--display); font-size: 17px; color: var(--ivory); }
+  .album-prog { font-size: 12px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
+  .album-plein .album-prog { color: #c9992e; }
+  .album-desc { font-size: 12px; color: var(--glass-dim); margin: 4px 0 10px; line-height: 1.5; }
+  .album-cases {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+    gap: 6px; margin-bottom: 10px;
+  }
+  .album-case {
+    aspect-ratio: 3 / 4; padding: 0; border: 1px solid var(--night-line);
+    overflow: hidden; background: #11141f;
+  }
+  .album-case.pris { cursor: pointer; border-color: var(--glass-dim); }
+  .album-case img, .album-case .art { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .album-case.vide { display: grid; place-items: center; }
+  .album-case.vide span {
+    font-family: var(--display); font-size: 20px; color: var(--night-line);
+  }
+  .album-fait { font-size: 12px; color: #c9992e; margin: 0; }
+  .album-manque { font-size: 12px; color: var(--glass-dim); margin: 0; }
+  .album .btn { margin: 0; }
+
   /* --- mode histoire --- */
   #histoire-body { margin-top: 0; }
   .hist-titre { font-size: 12px; letter-spacing: .1em; color: var(--glass-dim); margin: 0 0 10px; }
@@ -748,6 +778,11 @@
 </main>
 
 <main id="view-coll" hidden>
+  <nav class="sous-tabs">
+    <button id="sub-cartes" class="sous-tab is-active">Cartes</button>
+    <button id="sub-albums" class="sous-tab">Albums <span id="albums-count"></span></button>
+  </nav>
+  <div id="coll-cartes">
   <button id="echange-plier" class="echange-lien">
     Recevoir une carte offerte par un ami
   </button>
@@ -788,6 +823,8 @@
   <div id="coll-vide-filtre"></div>
   <div id="coll-zone-sauvegarde"></div>
   <div id="coll-zone-raz"></div>
+  </div>
+  <div id="coll-albums" hidden></div>
 </main>
 
 <main id="view-raid" hidden>
@@ -997,6 +1034,58 @@
     return d ? d.nom : 'Divers';
   }
 
+  /* ---------- series thematiques (albums) ----------
+     Chaque serie est une liste d'articles a completer. Une carte tiree qui
+     correspond a l'un d'eux se range dans l'album. Completer un album donne
+     une recompense. La correspondance se fait sur le titre exact (insensible
+     a la casse et aux accents), calculee au tirage et stockee sur la carte. */
+
+  var SERIES = [
+    { id: 'merveilles', nom: 'Les sept merveilles', gain: 5,
+      desc: 'Les grandes merveilles du monde antique et moderne.',
+      articles: ['Grande Pyramide de Gizeh', 'Colisée', 'Tour Eiffel',
+        'Grande Muraille', 'Taj Mahal', 'Statue de la Liberté', 'Machu Picchu'] },
+    { id: 'planetes', nom: 'Le système solaire', gain: 5,
+      desc: 'Les huit planètes qui tournent autour du Soleil.',
+      articles: ['Mercure (planète)', 'Vénus (planète)', 'Terre', 'Mars (planète)',
+        'Jupiter (planète)', 'Saturne (planète)', 'Uranus (planète)', 'Neptune (planète)'] },
+    { id: 'peintres', nom: 'Maîtres de la peinture', gain: 4,
+      desc: 'Les grands noms qui ont marqué l’histoire de l’art.',
+      articles: ['Léonard de Vinci', 'Vincent van Gogh', 'Pablo Picasso',
+        'Claude Monet', 'Rembrandt', 'Salvador Dalí'] },
+    { id: 'oceans', nom: 'Mers et océans', gain: 4,
+      desc: 'Les grandes étendues d’eau du globe.',
+      articles: ['Océan Pacifique', 'Océan Atlantique', 'Océan Indien',
+        'Océan Arctique', 'Océan Austral', 'Mer Méditerranée'] },
+    { id: 'philosophes', nom: 'L’école des sages', gain: 4,
+      desc: 'Les penseurs qui ont façonné notre vision du monde.',
+      articles: ['Socrate', 'Platon', 'Aristote', 'René Descartes',
+        'Emmanuel Kant', 'Friedrich Nietzsche'] },
+    { id: 'capitales', nom: 'Capitales du monde', gain: 5,
+      desc: 'Quelques-unes des plus grandes capitales.',
+      articles: ['Paris', 'Londres', 'Tokyo', 'Washington (district de Columbia)',
+        'Moscou', 'Pékin', 'Le Caire', 'Brasilia'] }
+  ];
+
+  function cleTitre(t) {
+    return (t || '').normalize
+      ? t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+      : (t || '').toLowerCase().trim();
+  }
+
+  /* Index titre-normalise -> id de serie, construit une seule fois. */
+  var INDEX_SERIE = (function () {
+    var idx = {};
+    SERIES.forEach(function (s) {
+      s.articles.forEach(function (a) { idx[cleTitre(a)] = s.id; });
+    });
+    return idx;
+  })();
+
+  function detecterSerie(titre) {
+    return INDEX_SERIE[cleTitre(titre)] || null;
+  }
+
   function qualityScore(bytes, q) {
     var norm = function (v, m) { return Math.min(1, v / m); };
     if (!q) {
@@ -1033,6 +1122,7 @@
       score: Math.round(score * 10) / 10,
       refs: q ? q.refs : null, img: q ? q.img : null, sec: q ? q.sec : null,
       domaine: q ? detecterDomaine(q.cats) : null,
+      serie: detecterSerie(page.title),
       title: page.title,
       url: page.fullurl || ('https://' + WIKI + '.org/wiki/' + encodeURIComponent(page.title)),
       desc: page.description || '',
@@ -1076,7 +1166,7 @@
         title: c.title, url: c.url, desc: c.desc, extract: c.extract, thumb: c.thumb,
         bytes: c.bytes, views: c.views, atk: c.atk, def: c.def,
         score: c.score, refs: c.refs, img: c.img, sec: c.sec,
-        domaine: c.domaine,
+        domaine: c.domaine, serie: c.serie,
         rank: c.rank, count: 1, obtenu: Date.now()
       };
     }
@@ -1361,6 +1451,7 @@
         refreshPacks();
         refreshSucces();
         showMissions();
+        refreshAlbums();
         if (!el('view-raid').hidden) showHistoire();
       })
       .catch(function (err) {
@@ -2603,6 +2694,13 @@
       initiales: Object.keys(initiales).length,
       etoileMax: items.reduce(function (m, c) { return Math.max(m, niveau(c)); }, 1),
       cartes5: items.filter(function (c) { return niveau(c) >= 5; }).length,
+      albums: (function () {
+        return SERIES.filter(function (se) {
+          var poss = {};
+          items.forEach(function (c) { if (c.serie === se.id) poss[cleTitre(c.title)] = 1; });
+          return se.articles.every(function (a) { return poss[cleTitre(a)]; });
+        }).length;
+      })(),
       chapitres: (function () {
         var h = readHist(), n = 0;
         CHAPITRES.forEach(function (ch) {
@@ -2661,7 +2759,10 @@
     { g: 'Histoire', id: 'h1', n: 'Premier parcours', d: 'Terminer un chapitre',        v: 1, gain: 2, m: function (x) { return x.chapitres; } },
     { g: 'Histoire', id: 'h3', n: 'Érudit',           d: 'Terminer trois chapitres',    v: 3, gain: 4, m: function (x) { return x.chapitres; } },
     { g: 'Histoire', id: 'h6', n: 'Encyclopédie vivante', d: 'Terminer les six chapitres', v: 6, gain: 6, m: function (x) { return x.chapitres; } },
-    { g: 'Histoire', id: 'hd', n: 'Touche-à-tout',    d: 'Des cartes de six domaines',  v: 6, gain: 3, m: function (x) { return x.domaines; } }
+    { g: 'Histoire', id: 'hd', n: 'Touche-à-tout',    d: 'Des cartes de six domaines',  v: 6, gain: 3, m: function (x) { return x.domaines; } },
+
+    { g: 'Albums', id: 'a1', n: 'Collectionneur',   d: 'Compléter une série',      v: 1, gain: 3, m: function (x) { return x.albums; } },
+    { g: 'Albums', id: 'a3', n: 'Conservateur',     d: 'Compléter trois séries',   v: 3, gain: 5, m: function (x) { return x.albums; } }
   ];
 
   function reclamerSucces(id) {
@@ -2756,6 +2857,105 @@
     c.fav = !c.fav;
     save();
     showCollection();
+  }
+
+  /* ---------- albums (series) ---------- */
+
+  var AKEY = 'wikigacha:albums';   /* series dont la recompense a ete reclamee */
+
+  function albumsReclames() {
+    try { return JSON.parse(localStorage.getItem(AKEY)) || []; } catch (e) { return []; }
+  }
+  function marquerAlbum(id) {
+    var l = albumsReclames();
+    if (l.indexOf(id) === -1) { l.push(id); }
+    try { localStorage.setItem(AKEY, JSON.stringify(l)); } catch (e) {}
+  }
+
+  /* Pour une serie : quels articles sont possedes. */
+  function etatSerie(serie) {
+    var possede = {};
+    Object.keys(collection).forEach(function (k) {
+      var c = collection[k];
+      if (c.serie === serie.id) possede[cleTitre(c.title)] = c;
+    });
+    var trouves = serie.articles.filter(function (a) { return possede[cleTitre(a)]; });
+    return { possede: possede, trouves: trouves.length, total: serie.articles.length };
+  }
+
+  function refreshAlbums() {
+    var reclames = albumsReclames();
+    var prets = SERIES.filter(function (s) {
+      var e = etatSerie(s);
+      return e.trouves >= e.total && reclames.indexOf(s.id) === -1;
+    }).length;
+    var el2 = el('albums-count');
+    if (el2) {
+      el2.textContent = prets ? '(' + prets + ')' : '';
+      el2.style.color = prets ? '#c9992e' : '';
+    }
+  }
+
+  function showAlbums() {
+    var reclames = albumsReclames();
+    var html = '<p class="coll-stats" style="border:0;padding:0">Complétez des séries '
+      + 'd’articles en ouvrant des paquets. Chaque série complète offre des paquets bonus.</p>';
+
+    SERIES.forEach(function (s) {
+      var e = etatSerie(s);
+      var complet = e.trouves >= e.total;
+      var pris = reclames.indexOf(s.id) !== -1;
+      html += '<div class="album' + (complet ? ' album-plein' : '') + '">'
+        + '<div class="album-tete"><span class="album-nom">' + esc(s.nom) + '</span>'
+        + '<span class="album-prog">' + e.trouves + ' / ' + e.total
+        + (complet ? ' ✓' : '') + '</span></div>'
+        + '<p class="album-desc">' + esc(s.desc) + '</p>'
+        + '<div class="album-cases">'
+        + s.articles.map(function (a) {
+            var c = e.possede[cleTitre(a)];
+            if (c) {
+              var visuel = c.thumb
+                ? '<img src="' + esc(c.thumb) + '" alt="">'
+                : artSVG(a, tierOf(c.rank).color);
+              return '<button class="album-case pris" data-album-carte="' + esc(c.title) + '" '
+                + 'title="' + esc(a) + '">' + visuel + '</button>';
+            }
+            return '<div class="album-case vide" title="' + esc(a) + '">'
+              + '<span>' + esc(a.charAt(0)) + '</span></div>';
+          }).join('')
+        + '</div>'
+        + (complet
+            ? (pris
+                ? '<p class="album-fait">Série complète · récompense reçue</p>'
+                : '<button class="btn btn-solid" data-album-go="' + s.id + '">'
+                  + 'Réclamer ' + s.gain + ' paquets</button>')
+            : '<p class="album-manque">Encore ' + (e.total - e.trouves)
+              + ' article' + (e.total - e.trouves > 1 ? 's' : '') + ' à trouver</p>')
+        + '</div>';
+    });
+    el('coll-albums').innerHTML = html;
+  }
+
+  function reclamerAlbum(id) {
+    var s = SERIES.filter(function (x) { return x.id === id; })[0];
+    if (!s || albumsReclames().indexOf(id) !== -1) return;
+    var e = etatSerie(s);
+    if (e.trouves < e.total) return;
+    var pk = readPacks();
+    pk.n += s.gain;
+    writePacks(pk);
+    marquerAlbum(id);
+    refreshPacks(); refreshAlbums(); refreshSucces();
+    showAlbums();
+  }
+
+  function basculerColl(quoi) {
+    el('coll-cartes').hidden = quoi !== 'cartes';
+    el('coll-albums').hidden = quoi !== 'albums';
+    el('sub-cartes').classList.toggle('is-active', quoi === 'cartes');
+    el('sub-albums').classList.toggle('is-active', quoi === 'albums');
+    if (quoi === 'albums') showAlbums();
+    else showCollection();
   }
 
   function showCollection() {
@@ -2903,7 +3103,7 @@
       el('view-' + v).hidden = (v !== which);
       el('tab-' + v).classList.toggle('is-active', v === which);
     });
-    if (which === 'coll') showCollection();
+    if (which === 'coll') { showCollection(); refreshAlbums(); }
     if (which === 'raid') montrerCombat(sousCombat);
     if (which === 'succes') showSucces();
   }
@@ -2936,6 +3136,15 @@
   el('tab-coll').addEventListener('click', function () { switchTo('coll'); });
   el('tab-raid').addEventListener('click', function () { switchTo('raid'); });
   el('tab-succes').addEventListener('click', function () { switchTo('succes'); });
+  el('sub-cartes').addEventListener('click', function () { basculerColl('cartes'); });
+  el('sub-albums').addEventListener('click', function () { basculerColl('albums'); });
+  el('coll-albums').addEventListener('click', function (e) {
+    if (!e.target.closest) return;
+    var go = e.target.closest('[data-album-go]');
+    if (go) { reclamerAlbum(go.getAttribute('data-album-go')); return; }
+    var c = e.target.closest('[data-album-carte]');
+    if (c) { openSheet(c.getAttribute('data-album-carte')); }
+  });
   el('succes-body').addEventListener('click', function (e) {
     var b = e.target.closest ? e.target.closest('[data-succes]') : null;
     if (b) reclamerSucces(b.getAttribute('data-succes'));
@@ -3029,6 +3238,7 @@
   load();
   pointerPresence();
   showMissions();
+  refreshAlbums();
   refreshCount();
   refreshSucces();
   refreshPacks();
