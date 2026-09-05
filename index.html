@@ -666,6 +666,13 @@
   /* --- mode histoire --- */
   #histoire-body { margin-top: 0; }
   .hist-titre { font-size: 12px; letter-spacing: .1em; color: var(--glass-dim); margin: 0 0 10px; }
+  .hist-diff { display: flex; gap: 8px; margin-bottom: 14px; }
+  .hist-diff-btn {
+    flex: 1; padding: 9px 6px; font: inherit; font-size: 13px;
+    background: transparent; color: var(--glass-dim);
+    border: 1px solid var(--night-line); cursor: pointer;
+  }
+  .hist-diff-btn.actif { background: var(--night-up); color: var(--ivory); border-color: #c9992e; }
   .chapitre {
     display: block; width: 100%; text-align: left; cursor: pointer;
     font: inherit; color: var(--glass);
@@ -2382,7 +2389,7 @@
      plus l'emporte. Trois manches gagnees suffisent. */
 
   var DUELS_PAR_JOUR = 5;
-  var GAIN_DUEL = 2;
+  var GAIN_DUEL = 40;   /* Wikigold par duel gagné */
 
   function equipeJoueur() {
     return Object.keys(collection)
@@ -2570,11 +2577,8 @@
 
     var recu = 0;
     if (gagne) {
-      var pk = readPacks();
-      recu = Math.min(GAIN_DUEL, MAX_PAQUETS - pk.n);
-      pk.n += recu;
-      writePacks(pk);
-      refreshPacks();
+      recu = GAIN_DUEL;
+      ajouterGold(recu);
     }
     duelCourant = null;
     peindreDuel(manches, gagnees, gagne, recu);
@@ -2605,8 +2609,7 @@
       + '<div class="duel-verdict ' + (gagne ? 'gagne' : 'perdu') + '">'
       + '<b>' + (gagne ? 'Victoire' : 'Défaite') + '</b> — ' + gagnees + ' manche'
       + (gagnees > 1 ? 's' : '') + ' sur 5'
-      + (gagne ? ' · ' + recu + ' paquet' + (recu > 1 ? 's' : '') + ' gagné'
-                    + (recu > 1 ? 's' : '') : '')
+      + (gagne ? ' · ' + recu + ' Wikigold gagnés' : '')
       + '</div>';
 
     manches.forEach(function (m) {
@@ -2645,50 +2648,50 @@
     { id: 'geo', domaine: 'geo', nom: 'Le tour du monde',
       intro: 'Rassemblez des cartes de géographie pour arpenter la planète.',
       niveaux: [
-        { art: 'Rome',        def: 300 },
-        { art: 'Sahara',      def: 360 },
-        { art: 'Himalaya',    def: 430 },
-        { art: 'Océan Pacifique', def: 520, boss: true }
+        { art: 'Rome',        def: 500 },
+        { art: 'Sahara',      def: 720 },
+        { art: 'Himalaya',    def: 1000 },
+        { art: 'Océan Pacifique', def: 1400, boss: true }
       ] },
     { id: 'hist', domaine: 'hist', nom: 'Les âges sombres',
       intro: 'Convoquez l’Histoire, de l’Antiquité aux révolutions.',
       niveaux: [
-        { art: 'Jules César',        def: 320 },
-        { art: 'Charlemagne',        def: 390 },
-        { art: 'Révolution française', def: 460 },
-        { art: 'Empire romain',      def: 550, boss: true }
+        { art: 'Jules César',        def: 520 },
+        { art: 'Charlemagne',        def: 760 },
+        { art: 'Révolution française', def: 1050 },
+        { art: 'Empire romain',      def: 1450, boss: true }
       ] },
     { id: 'sci', domaine: 'sci', nom: 'La marche du savoir',
       intro: 'Les sciences, du vivant à l’infiniment grand.',
       niveaux: [
-        { art: 'Cellule (biologie)', def: 340 },
-        { art: 'Évolution (biologie)', def: 410 },
-        { art: 'Théorie de la relativité', def: 480 },
-        { art: 'Univers',            def: 570, boss: true }
+        { art: 'Cellule (biologie)', def: 540 },
+        { art: 'Évolution (biologie)', def: 780 },
+        { art: 'Théorie de la relativité', def: 1080 },
+        { art: 'Univers',            def: 1500, boss: true }
       ] },
     { id: 'art', domaine: 'art', nom: 'Le cabinet des muses',
       intro: 'Arts et culture, de la toile à la scène.',
       niveaux: [
-        { art: 'Renaissance (période historique)', def: 350 },
-        { art: 'Impressionnisme', def: 420 },
-        { art: 'Ludwig van Beethoven', def: 500 },
-        { art: 'La Joconde',     def: 590, boss: true }
+        { art: 'Renaissance (période historique)', def: 550 },
+        { art: 'Impressionnisme', def: 800 },
+        { art: 'Ludwig van Beethoven', def: 1100 },
+        { art: 'La Joconde',     def: 1550, boss: true }
       ] },
     { id: 'sport', domaine: 'sport', nom: 'L’arène',
       intro: 'Le sport, des terrains aux podiums.',
       niveaux: [
-        { art: 'Marathon (sport)', def: 330 },
-        { art: 'Tour de France',   def: 400 },
-        { art: 'Coupe du monde de football', def: 480 },
-        { art: 'Jeux olympiques',  def: 560, boss: true }
+        { art: 'Marathon (sport)', def: 530 },
+        { art: 'Tour de France',   def: 770 },
+        { art: 'Coupe du monde de football', def: 1080 },
+        { art: 'Jeux olympiques',  def: 1480, boss: true }
       ] },
     { id: 'soc', domaine: 'soc', nom: 'Le grand théâtre',
       intro: 'La société, ses pouvoirs et ses idées.',
       niveaux: [
-        { art: 'Démocratie',   def: 340 },
-        { art: 'Philosophie',  def: 410 },
-        { art: 'Économie',     def: 490 },
-        { art: 'Organisation des Nations unies', def: 580, boss: true }
+        { art: 'Démocratie',   def: 540 },
+        { art: 'Philosophie',  def: 790 },
+        { art: 'Économie',     def: 1090 },
+        { art: 'Organisation des Nations unies', def: 1500, boss: true }
       ] }
   ];
 
@@ -2745,13 +2748,54 @@
   }
 
   var histChapOuvert = null;
+  var histDiff = 'normal';        /* 'normal' ou 'difficile' */
+  var DIFF_MULT = 2;              /* les defenses sont doublees en difficile */
+
+  /* Progression : clefs distinctes par difficulte. En normal on garde HKEY
+     pour ne pas perdre l'avancee existante ; le difficile a son propre suffixe. */
+  function progKey() { return histDiff === 'difficile'; }
+  function readProg() {
+    var h = readHist();
+    return histDiff === 'difficile' ? (h.__diff || {}) : h;
+  }
+  function writeProg(prog) {
+    if (histDiff === 'difficile') {
+      var h = readHist(); h.__diff = prog; writeHist(h);
+    } else {
+      prog.__diff = readHist().__diff;   /* on preserve la sous-cle difficile */
+      writeHist(prog);
+    }
+  }
+  function defNiv(niv) {
+    return histDiff === 'difficile' ? Math.round(niv.def * DIFF_MULT) : niv.def;
+  }
+  function toutFiniNormal() {
+    var h = readHist();
+    return CHAPITRES.every(function (ch) { return (h[ch.id] || 0) >= ch.niveaux.length; });
+  }
 
   function showHistoire() {
     if (histChapOuvert) { peindreChapitre(histChapOuvert); return; }
-    var prog = readHist();
-    var html = '<p class="hist-titre">MODE HISTOIRE</p>'
-      + '<p class="duel-intro">Six parcours à travers Wikipédia. Chaque chapitre '
-      + 'se joue avec les cartes de son domaine — collectionnez pour progresser.</p>';
+    var prog = readProg();
+    var difficileDispo = toutFiniNormal();
+
+    var html = '<p class="hist-titre">MODE HISTOIRE</p>';
+
+    /* Selecteur de difficulte, visible une fois le mode normal termine. */
+    if (difficileDispo) {
+      html += '<div class="hist-diff">'
+        + '<button class="hist-diff-btn' + (histDiff === 'normal' ? ' actif' : '') + '" '
+        + 'data-diff="normal">Normal</button>'
+        + '<button class="hist-diff-btn' + (histDiff === 'difficile' ? ' actif' : '') + '" '
+        + 'data-diff="difficile">Difficile ★</button>'
+        + '</div>';
+    }
+
+    html += '<p class="duel-intro">'
+      + (histDiff === 'difficile'
+          ? 'Mode difficile : les mêmes parcours, mais des adversaires bien plus coriaces. Récompenses en Wikigold.'
+          : 'Six parcours à travers Wikipédia. Chaque chapitre se joue avec les cartes de son domaine.')
+      + '</p>';
 
     CHAPITRES.forEach(function (ch) {
       var fait = prog[ch.id] || 0;
@@ -2774,7 +2818,7 @@
   function peindreChapitre(chapId) {
     var ch = CHAPITRES.filter(function (c) { return c.id === chapId; })[0];
     if (!ch) { histChapOuvert = null; showHistoire(); return; }
-    var prog = readHist();
+    var prog = readProg();
     var fait = prog[ch.id] || 0;
     var cartes = cartesDomaine(ch.domaine);
 
@@ -2805,8 +2849,9 @@
     ch.niveaux.forEach(function (niv, i) {
       var franchi = i < fait;
       var actuel = i === fait;
-      var force = forceEquipe(cartes, niv.def);
-      var gagne = force >= niv.def;
+      var dfn = defNiv(niv);
+      var force = forceEquipe(cartes, dfn);
+      var gagne = force >= dfn;
       var info = bossCache[niv.art] || {};
       var visuel = info.thumb
         ? '<img class="adv-img" src="' + esc(info.thumb) + '" alt="">'
@@ -2818,7 +2863,7 @@
         + (niv.boss ? '★ ' : '') + esc(niv.art) + ' <span class="adv-loupe">ⓘ</span></span>'
         + '<span class="adv-desc">' + esc(info.desc || info.extrait
             || (niv.boss ? 'Boss du chapitre' : 'Adversaire')) + '</span>'
-        + '<span class="niv-def">Défense ' + niv.def
+        + '<span class="niv-def">Défense ' + dfn
         + (actuel ? ' · votre force ' + Math.round(force) : '') + '</span>'
         + '</span>'
         + (franchi ? '<span class="niv-etat">✓</span>'
@@ -2864,23 +2909,29 @@
   function combattreHist(chapId) {
     var ch = CHAPITRES.filter(function (c) { return c.id === chapId; })[0];
     if (!ch) return;
-    var prog = readHist();
+    var prog = readProg();
     var fait = prog[ch.id] || 0;
     if (fait >= ch.niveaux.length) return;
     var niv = ch.niveaux[fait];
+    var dfn = defNiv(niv);
     var cartes = cartesDomaine(ch.domaine);
-    if (forceEquipe(cartes, niv.def) < niv.def) return;
+    if (forceEquipe(cartes, dfn) < dfn) return;
 
     prog[ch.id] = fait + 1;
-    writeHist(prog);
+    writeProg(prog);
 
-    /* Recompense : un paquet par niveau, trois pour le boss final. */
-    var gain = niv.boss ? 2 : 1;
-    var pk = readPacks();
-    gain = Math.min(gain, MAX_PAQUETS - pk.n);
-    pk.n += gain;
-    writePacks(pk);
-    refreshPacks();
+    if (histDiff === 'difficile') {
+      /* Mode difficile : recompense en Wikigold, plus genereuse au boss. */
+      ajouterGold(niv.boss ? 120 : 40);
+    } else {
+      /* Mode normal : paquets, plafonnes a la reserve. */
+      var gain = niv.boss ? 2 : 1;
+      var pk = readPacks();
+      gain = Math.min(gain, MAX_PAQUETS - pk.n);
+      pk.n += gain;
+      writePacks(pk);
+      refreshPacks();
+    }
     refreshSucces();
     peindreChapitre(chapId);
   }
@@ -3688,6 +3739,8 @@
   el('histoire-body').addEventListener('click', function (e) {
     if (!e.target.closest) return;
     if (e.target.closest('[data-hist-retour]')) { histChapOuvert = null; showHistoire(); return; }
+    var dif = e.target.closest('[data-diff]');
+    if (dif) { histDiff = dif.getAttribute('data-diff'); histChapOuvert = null; showHistoire(); return; }
     var go = e.target.closest('[data-hist-go]');
     if (go) { combattreHist(go.getAttribute('data-hist-go')); return; }
     var adv = e.target.closest('[data-adv]');
