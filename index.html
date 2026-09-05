@@ -75,68 +75,64 @@
   }
   .gold-bandeau b { color: #f0dda4; font-variant-numeric: tabular-nums; }
   .pack-stage { text-align: center; padding: 30px 0 10px; }
+  /* Sachet scelle : un corps sombre + une languette doree en haut qu'on
+     tire vers le bas pour l'ouvrir. La variable --tear (0 a 1) suit le doigt. */
   .pack {
-    width: 176px; height: 248px; cursor: pointer; position: relative;
-    border: 1px solid #3a4260;
-    background:
-      repeating-linear-gradient(135deg, transparent 0 9px, rgba(255,255,255,.022) 9px 18px),
-      linear-gradient(165deg, #2b3149 0%, #191d2c 100%);
+    --tear: 0;
+    width: 184px; height: 256px; position: relative;
+    touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
+    border-radius: 4px; overflow: hidden;
+    box-shadow: 0 14px 34px rgba(0,0,0,.5);
+  }
+  .pack:active { cursor: grabbing; }
+  .pack-corps {
+    position: absolute; inset: 0; z-index: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
     color: var(--ivory);
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
-    box-shadow: 0 14px 34px rgba(0,0,0,.5), inset 0 0 0 6px rgba(201,153,46,.13);
-    transition: transform .2s ease, box-shadow .2s ease;
-  }
-  .pack:active { transform: translateY(3px) scale(.985); box-shadow: 0 8px 20px rgba(0,0,0,.5); }
-  .pack-contenu {
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
-    position: relative; z-index: 2;
-  }
-  /* Les deux moitiés qui se déchirent, cachées au repos. */
-  .pack-moitie {
-    position: absolute; left: -1px; right: -1px; z-index: 3;
+    border: 1px solid #3a4260; border-radius: 4px;
     background:
-      repeating-linear-gradient(135deg, transparent 0 9px, rgba(255,255,255,.022) 9px 18px),
-      linear-gradient(165deg, #2b3149 0%, #191d2c 100%);
-    border: 1px solid #3a4260;
-    opacity: 0; pointer-events: none;
+      repeating-linear-gradient(135deg, transparent 0 9px, rgba(255,255,255,.03) 9px 18px),
+      linear-gradient(165deg, #323a57 0%, #1a1f30 100%);
+    box-shadow: inset 0 0 0 6px rgba(201,153,46,.16), inset 0 40px 60px rgba(0,0,0,.35);
   }
-  .pack-haut { top: -1px; height: 50%;
-    border-bottom: 2px dashed rgba(201,153,46,.4);
-    clip-path: polygon(0 0, 100% 0, 100% 88%, 90% 100%, 78% 90%, 66% 100%, 54% 90%, 42% 100%, 30% 90%, 18% 100%, 8% 90%, 0 100%);
+  /* La languette doree en haut, qui descend avec --tear. */
+  .pack-bande {
+    position: absolute; left: 0; right: 0; top: 0; height: 46px; z-index: 3;
+    display: flex; align-items: center; justify-content: center;
+    color: #1a1d29;
+    background: linear-gradient(180deg, #f3dfa4, #c9992e);
+    border-bottom: 2px dashed rgba(26,29,41,.5);
+    box-shadow: 0 3px 10px rgba(0,0,0,.4);
+    transform: translateY(calc(var(--tear) * 210px)) rotate(calc(var(--tear) * -4deg));
+    transition: transform .05s linear;
   }
-  .pack-bas { bottom: -1px; height: 50%;
-    border-top: 2px dashed rgba(201,153,46,.4);
-    clip-path: polygon(0 12%, 8% 2%, 18% 12%, 30% 2%, 42% 12%, 54% 2%, 66% 12%, 78% 2%, 90% 12%, 100% 2%, 100% 100%, 0 100%);
+  .pack.ouvert .pack-bande {
+    transform: translateY(280px) rotate(-10deg); opacity: 0;
+    transition: transform .4s ease-in, opacity .4s ease-in;
+  }
+  .pack-fil {
+    position: absolute; left: 8%; right: 8%; bottom: 4px; height: 2px;
+    background: repeating-linear-gradient(90deg, rgba(26,29,41,.6) 0 5px, transparent 5px 10px);
+  }
+  .pack-fleche {
+    font-size: 20px; line-height: 1; margin-top: -4px;
+    animation: flecheBat 1.4s ease-in-out infinite;
+  }
+  @keyframes flecheBat { 0%,100%{transform:translateY(0);} 50%{transform:translateY(3px);} }
+  /* Le corps se devoile a mesure : un liseré clair sous la languette. */
+  .pack-bande::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 3px;
+    background: rgba(240,221,164,.7);
   }
   .pack-eclat {
-    position: absolute; inset: 0; z-index: 1; opacity: 0; pointer-events: none;
-    background: radial-gradient(circle at 50% 50%, rgba(240,221,164,.9), transparent 60%);
+    position: absolute; inset: 0; z-index: 2; opacity: 0; pointer-events: none;
+    background: radial-gradient(circle at 50% 35%, rgba(240,221,164,.9), transparent 60%);
   }
-  /* Animation declenchee par la classe .dechire */
-  .pack.dechire { pointer-events: none; }
-  .pack.dechire .pack-contenu { animation: packFade .3s ease forwards; }
-  .pack.dechire .pack-haut { opacity: 1; animation: dechireHaut .6s ease-in forwards; }
-  .pack.dechire .pack-bas { opacity: 1; animation: dechireBas .6s ease-in forwards; }
-  .pack.dechire .pack-eclat { animation: packEclat .6s ease-out forwards; }
-  @keyframes packFade { to { opacity: 0; } }
-  @keyframes dechireHaut {
-    0% { transform: translateY(0) rotate(0); }
-    30% { transform: translateY(-3px) rotate(-1deg); }
-    100% { transform: translateY(-140%) rotate(-8deg); opacity: 0; }
-  }
-  @keyframes dechireBas {
-    0% { transform: translateY(0) rotate(0); }
-    30% { transform: translateY(3px) rotate(1deg); }
-    100% { transform: translateY(140%) rotate(8deg); opacity: 0; }
-  }
+  .pack.ouvert .pack-eclat { animation: packEclat .5s ease-out forwards; }
   @keyframes packEclat {
     0% { opacity: 0; transform: scale(.5); }
-    40% { opacity: 1; transform: scale(1.1); }
-    100% { opacity: 0; transform: scale(1.4); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .pack.dechire .pack-haut, .pack.dechire .pack-bas,
-    .pack.dechire .pack-eclat, .pack.dechire .pack-contenu { animation: none; }
+    45% { opacity: 1; transform: scale(1.05); }
+    100% { opacity: 0; transform: scale(1.35); }
   }
   .pack-w {
     font-family: var(--display); font-size: 78px; line-height: 1;
@@ -144,8 +140,12 @@
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
   .pack-label { font-size: 11px; letter-spacing: .12em; color: var(--glass-dim); }
-  .pack[disabled] { opacity: .4; }
+  .pack.inerte { opacity: .4; pointer-events: none; }
   .hint { font-size: 12px; color: var(--glass-dim); margin: 16px 0 0; }
+  @media (prefers-reduced-motion: reduce) {
+    .pack-fleche { animation: none; }
+    .pack.ouvert .pack-eclat { animation: none; }
+  }
 
   /* --- révélation --- */
   .reveal { padding: 18px 0 8px; text-align: center; }
@@ -874,16 +874,19 @@
   <p class="gold-bandeau">Wikigold : <b id="gold-compteur">0</b></p>
   <div id="missions"></div>
   <div id="pack-stage" class="pack-stage">
-    <button id="pack" class="pack" aria-label="Ouvrir un paquet de cinq cartes">
-      <span class="pack-moitie pack-haut"></span>
-      <span class="pack-moitie pack-bas"></span>
-      <span class="pack-contenu">
+    <div id="pack" class="pack" role="button" tabindex="0"
+         aria-label="Ouvrir un paquet de cinq cartes">
+      <div class="pack-corps">
         <span class="pack-w">W</span>
         <span class="pack-label">5 CARTES</span>
-      </span>
-      <span class="pack-eclat"></span>
-    </button>
-    <p class="hint" id="hint">Touchez le paquet</p>
+      </div>
+      <div class="pack-bande" id="pack-bande">
+        <span class="pack-fil"></span>
+        <span class="pack-fleche">⌄</span>
+      </div>
+      <div class="pack-eclat" id="pack-eclat"></div>
+    </div>
+    <p class="hint" id="hint">Glissez la languette vers le bas</p>
   </div>
 
   <div id="reveal" class="reveal" hidden>
@@ -892,7 +895,6 @@
       <div class="flip-inner">
         <div class="face face-back">
           <span class="pack-w">W</span>
-          <small>ARTICLE INCONNU</small>
         </div>
         <div class="face face-front" id="front"></div>
       </div>
@@ -1434,7 +1436,7 @@
     var vers = PITIE_TOUS - (d.ouverts % PITIE_TOUS);
     txt += ' · garantie dans ' + vers + (vers > 1 ? ' paquets' : ' paquet');
     el('packs').textContent = txt;
-    el('pack').disabled = d.n < 1;
+    el('pack').classList.toggle('inerte', d.n < 1);
     return d;
   }
 
@@ -1670,27 +1672,15 @@
 
   var tirageEnCours = false;
 
-  function openPack() {
+  /* Le paquet a deja ete decompte par le geste d'ouverture ; openPack ne fait
+     que charger les cartes. 'pitie' indique si ce tirage garantit une carte. */
+  function openPack(pitie) {
     if (tirageEnCours) return;   /* verrou : un seul tirage a la fois */
-    var status = el('status');
-    var etat = readPacks();
-    if (etat.n < 1) {
-      status.hidden = false; status.className = 'status';
-      status.textContent = 'Plus de paquets. Un nouveau arrive dans moins d’une minute.';
-      return;
-    }
     tirageEnCours = true;
-    etat.n -= 1; etat.ouverts += 1;
-    noterJour('paquets', 1);
-    if (etat.n === MAX_PAQUETS - 1) etat.ts = Date.now();
-    writePacks(etat);
-    var pitie = (etat.ouverts % PITIE_TOUS) === 0;
+    var status = el('status');
 
-    /* Animation de dechirure : le paquet se fend avant de laisser place aux
-       cartes. Il reste visible (mais inerte) pendant l'anim, le temps que le
-       reseau reponde. */
-    el('pack').disabled = true;
-    el('pack').classList.add('dechire');
+    /* Le geste d'ouverture a deja lance l'animation ('ouvert'). On charge
+       les cartes en arriere-plan pendant ce temps. */
     el('draw').innerHTML = '';
     status.hidden = true;
     var tirageDebut = Date.now();
@@ -1715,7 +1705,8 @@
            lent que l'anim. */
         var revele = function () {
           tirageEnCours = false;
-          el('pack').classList.remove('dechire');
+          el('pack').classList.remove('ouvert');
+          el('pack').style.setProperty('--tear', 0);
           el('pack-stage').hidden = true;
           el('reveal').hidden = false;
           el('flipper').classList.remove('is-open');
@@ -1736,9 +1727,10 @@
         var e2 = readPacks(); e2.n = Math.min(MAX_PAQUETS, e2.n + 1);
         e2.ouverts = Math.max(0, e2.ouverts - 1); writePacks(e2);
         tirageEnCours = false;
-        el('pack').classList.remove('dechire');
+        el('pack').classList.remove('ouvert');
+        el('pack').style.setProperty('--tear', 0);
         el('pack-stage').hidden = false;
-        el('pack').disabled = false;
+        el('pack').classList.remove('inerte');
         status.hidden = false;
         status.className = 'status error';
         status.textContent = 'Wikipédia n’a pas répondu (' + err.message + '). Réessayez.';
@@ -1748,7 +1740,8 @@
 
   function resetPack() {
     el('pack-stage').hidden = false;
-    el('pack').disabled = false;
+    el('pack').classList.remove('inerte', 'ouvert');
+    el('pack').style.setProperty('--tear', 0);
     el('reveal').hidden = true;
     el('draw').innerHTML = '';
     el('hint').textContent = 'Touchez le paquet';
@@ -3668,7 +3661,8 @@
        l'ecran vide. */
     if (quoi === 'ouvrir' && !tirageEnCours && el('reveal').hidden) {
       el('pack-stage').hidden = false;
-      el('pack').disabled = false;
+      el('pack').classList.remove('inerte', 'ouvert');
+      el('pack').style.setProperty('--tear', 0);
       el('status').hidden = true;
     }
   }
@@ -3825,7 +3819,67 @@
     if (which === 'succes') showSucces();
   }
 
-  el('pack').addEventListener('click', openPack);
+  /* Ouverture par glissement : on tire la languette vers le bas. La variable
+     --tear (0 a 1) suit le doigt ; passe un seuil, le paquet s'ouvre. */
+  (function () {
+    var pack = el('pack');
+    var y0 = null, ouvre = false;
+    var COURSE = 150;   /* px de glissement pour ouvrir completement */
+    var SEUIL = 0.55;   /* fraction a partir de laquelle ca s'ouvre au relacher */
+
+    function pret() {
+      return !tirageEnCours && !pack.classList.contains('inerte')
+             && !pack.classList.contains('ouvert') && readPacks().n >= 1;
+    }
+    function setTear(v) { pack.style.setProperty('--tear', Math.max(0, Math.min(1, v))); }
+
+    function debut(clientY) {
+      if (!pret()) return;
+      y0 = clientY; ouvre = false;
+    }
+    function bouge(clientY, e) {
+      if (y0 === null) return;
+      if (e && e.cancelable) e.preventDefault();
+      var d = (clientY - y0) / COURSE;
+      setTear(d);
+      ouvre = d >= SEUIL;
+    }
+    function fin() {
+      if (y0 === null) return;
+      y0 = null;
+      if (ouvre) { declencher(); }
+      else { setTear(0); }   /* pas assez tire : la languette remonte */
+    }
+    function declencher() {
+      if (!pret()) return;
+      pack.classList.add('ouvert');
+      setTear(1);
+      /* On decompte le paquet et on lance le tirage. */
+      var etat = readPacks();
+      etat.n -= 1; etat.ouverts += 1;
+      noterJour('paquets', 1);
+      if (etat.n === MAX_PAQUETS - 1) etat.ts = Date.now();
+      writePacks(etat);
+      openPack(etat.ouverts % PITIE_TOUS === 0);
+    }
+
+    pack.addEventListener('touchstart', function (e) {
+      debut(e.touches[0].clientY);
+    }, { passive: true });
+    pack.addEventListener('touchmove', function (e) {
+      bouge(e.touches[0].clientY, e);
+    }, { passive: false });
+    pack.addEventListener('touchend', fin);
+    pack.addEventListener('touchcancel', fin);
+    /* Souris (test PC) : glisser en maintenant le bouton. */
+    pack.addEventListener('mousedown', function (e) { debut(e.clientY); });
+    window.addEventListener('mousemove', function (e) { if (y0 !== null) bouge(e.clientY, e); });
+    window.addEventListener('mouseup', fin);
+    /* Accessibilite : Entree/Espace ouvre directement. */
+    pack.addEventListener('keydown', function (e) {
+      if ((e.key === 'Enter' || e.key === ' ') && pret()) { e.preventDefault(); declencher(); }
+    });
+  })();
   el('sheet-inner').addEventListener('click', function (e) {
     e.stopPropagation();
     var fu = e.target.closest ? e.target.closest('[data-fusion]') : null;
