@@ -1532,6 +1532,41 @@
       + '</div>';
   }
 
+  /* Va chercher une image pour une carte qui n'en a pas, en arriere-plan.
+     Si la carte est justement affichee au reveal quand l'image arrive, on
+     rafraichit le visuel. Chaque carte n'est tentee qu'une fois (imgVerif). */
+  function rattraperImageCarte(c) {
+    if (c.thumb || c.imgVerif) return;
+    fetchSummary(c.title)
+      .then(function (d) {
+        var img = (d.thumbnail && d.thumbnail.source)
+               || (d.originalimage && d.originalimage.source) || '';
+        if (img) { appliquerImage(c, img); return; }
+        return fetchImageCorps(c.title).then(function (img2) {
+          if (img2) appliquerImage(c, img2);
+          else { c.imgVerif = true; majCarteCollection(c); }
+        });
+      })
+      .catch(function () {});
+  }
+
+  function appliquerImage(c, img) {
+    c.thumb = img; c.imgVerif = true;
+    majCarteCollection(c);
+    /* Si cette carte est affichee en ce moment au reveal, on rafraichit. */
+    if (!el('reveal').hidden && queue[qi] && queue[qi].title === c.title
+        && el('flipper').classList.contains('is-open')) {
+      var fig = el('front').querySelector('.fig');
+      if (fig) fig.innerHTML = '<img src="' + esc(img) + '" alt="">';
+    }
+  }
+
+  /* Recopie thumb/imgVerif dans la collection stockee, si la carte y est. */
+  function majCarteCollection(c) {
+    var e = collection[c.title];
+    if (e) { e.thumb = c.thumb; e.imgVerif = c.imgVerif; save(); }
+  }
+
   /* ---------- révélation ---------- */
 
   function showNext() {
@@ -1616,6 +1651,7 @@
         el('reveal').hidden = false;
         el('flipper').classList.remove('is-open');
         showNext();
+        cards.forEach(rattraperImageCarte);
         refreshPacks();
         refreshSucces();
         showMissions();
@@ -3362,6 +3398,14 @@
     el('sub-albums').classList.toggle('is-active', quoi === 'albums');
     if (quoi === 'collec') showCollection();
     if (quoi === 'albums') showAlbums();
+    /* En revenant sur "Ouvrir" hors tirage/reveal, on s'assure que le paquet
+       est bien visible : sinon un changement d'onglet en plein reveal laissait
+       l'ecran vide. */
+    if (quoi === 'ouvrir' && !tirageEnCours && el('reveal').hidden) {
+      el('pack-stage').hidden = false;
+      el('pack').disabled = false;
+      el('status').hidden = true;
+    }
   }
 
   function showCollection() {
