@@ -87,6 +87,57 @@
     transition: transform .2s ease, box-shadow .2s ease;
   }
   .pack:active { transform: translateY(3px) scale(.985); box-shadow: 0 8px 20px rgba(0,0,0,.5); }
+  .pack-contenu {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    position: relative; z-index: 2;
+  }
+  /* Les deux moitiés qui se déchirent, cachées au repos. */
+  .pack-moitie {
+    position: absolute; left: -1px; right: -1px; z-index: 3;
+    background:
+      repeating-linear-gradient(135deg, transparent 0 9px, rgba(255,255,255,.022) 9px 18px),
+      linear-gradient(165deg, #2b3149 0%, #191d2c 100%);
+    border: 1px solid #3a4260;
+    opacity: 0; pointer-events: none;
+  }
+  .pack-haut { top: -1px; height: 50%;
+    border-bottom: 2px dashed rgba(201,153,46,.4);
+    clip-path: polygon(0 0, 100% 0, 100% 88%, 90% 100%, 78% 90%, 66% 100%, 54% 90%, 42% 100%, 30% 90%, 18% 100%, 8% 90%, 0 100%);
+  }
+  .pack-bas { bottom: -1px; height: 50%;
+    border-top: 2px dashed rgba(201,153,46,.4);
+    clip-path: polygon(0 12%, 8% 2%, 18% 12%, 30% 2%, 42% 12%, 54% 2%, 66% 12%, 78% 2%, 90% 12%, 100% 2%, 100% 100%, 0 100%);
+  }
+  .pack-eclat {
+    position: absolute; inset: 0; z-index: 1; opacity: 0; pointer-events: none;
+    background: radial-gradient(circle at 50% 50%, rgba(240,221,164,.9), transparent 60%);
+  }
+  /* Animation declenchee par la classe .dechire */
+  .pack.dechire { pointer-events: none; }
+  .pack.dechire .pack-contenu { animation: packFade .3s ease forwards; }
+  .pack.dechire .pack-haut { opacity: 1; animation: dechireHaut .6s ease-in forwards; }
+  .pack.dechire .pack-bas { opacity: 1; animation: dechireBas .6s ease-in forwards; }
+  .pack.dechire .pack-eclat { animation: packEclat .6s ease-out forwards; }
+  @keyframes packFade { to { opacity: 0; } }
+  @keyframes dechireHaut {
+    0% { transform: translateY(0) rotate(0); }
+    30% { transform: translateY(-3px) rotate(-1deg); }
+    100% { transform: translateY(-140%) rotate(-8deg); opacity: 0; }
+  }
+  @keyframes dechireBas {
+    0% { transform: translateY(0) rotate(0); }
+    30% { transform: translateY(3px) rotate(1deg); }
+    100% { transform: translateY(140%) rotate(8deg); opacity: 0; }
+  }
+  @keyframes packEclat {
+    0% { opacity: 0; transform: scale(.5); }
+    40% { opacity: 1; transform: scale(1.1); }
+    100% { opacity: 0; transform: scale(1.4); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pack.dechire .pack-haut, .pack.dechire .pack-bas,
+    .pack.dechire .pack-eclat, .pack.dechire .pack-contenu { animation: none; }
+  }
   .pack-w {
     font-family: var(--display); font-size: 78px; line-height: 1;
     background: linear-gradient(160deg, #f3dfa4, #c9992e 55%, #f6ecc9);
@@ -824,8 +875,13 @@
   <div id="missions"></div>
   <div id="pack-stage" class="pack-stage">
     <button id="pack" class="pack" aria-label="Ouvrir un paquet de cinq cartes">
-      <span class="pack-w">W</span>
-      <span class="pack-label">5 CARTES</span>
+      <span class="pack-moitie pack-haut"></span>
+      <span class="pack-moitie pack-bas"></span>
+      <span class="pack-contenu">
+        <span class="pack-w">W</span>
+        <span class="pack-label">5 CARTES</span>
+      </span>
+      <span class="pack-eclat"></span>
     </button>
     <p class="hint" id="hint">Touchez le paquet</p>
   </div>
@@ -1630,12 +1686,14 @@
     writePacks(etat);
     var pitie = (etat.ouverts % PITIE_TOUS) === 0;
 
-    /* On masque le paquet tout de suite pour qu'un second tap ne relance rien. */
+    /* Animation de dechirure : le paquet se fend avant de laisser place aux
+       cartes. Il reste visible (mais inerte) pendant l'anim, le temps que le
+       reseau reponde. */
     el('pack').disabled = true;
-    el('pack-stage').hidden = true;
+    el('pack').classList.add('dechire');
     el('draw').innerHTML = '';
-    status.hidden = false; status.className = 'status';
-    status.textContent = 'Tirage de cinq articles…';
+    status.hidden = true;
+    var tirageDebut = Date.now();
 
     fetchPack()
       .then(function (pages) {
@@ -1652,26 +1710,36 @@
           best.garantie = true;
         }
         queue = cards; qi = 0;
-        tirageEnCours = false;
-        status.hidden = true;
-        el('pack-stage').hidden = true;
-        el('reveal').hidden = false;
-        el('flipper').classList.remove('is-open');
-        showNext();
-        cards.forEach(rattraperImageCarte);
-        refreshPacks();
-        refreshSucces();
-        showMissions();
-        refreshAlbums();
-        if (!el('view-raid').hidden) showHistoire();
+        /* On laisse l'animation de dechirure se terminer (600 ms) avant de
+           montrer les cartes, mais on ne bloque pas si le reseau a ete plus
+           lent que l'anim. */
+        var revele = function () {
+          tirageEnCours = false;
+          el('pack').classList.remove('dechire');
+          el('pack-stage').hidden = true;
+          el('reveal').hidden = false;
+          el('flipper').classList.remove('is-open');
+          showNext();
+          cards.forEach(rattraperImageCarte);
+          refreshPacks();
+          refreshSucces();
+          showMissions();
+          refreshAlbums();
+          if (!el('view-raid').hidden) showHistoire();
+        };
+        var ecoule = Date.now() - tirageDebut;
+        if (ecoule >= 600) revele();
+        else setTimeout(revele, 600 - ecoule);
       })
       .catch(function (err) {
         /* Le paquet n'a pas abouti : on le rend au joueur. */
         var e2 = readPacks(); e2.n = Math.min(MAX_PAQUETS, e2.n + 1);
         e2.ouverts = Math.max(0, e2.ouverts - 1); writePacks(e2);
         tirageEnCours = false;
+        el('pack').classList.remove('dechire');
         el('pack-stage').hidden = false;
         el('pack').disabled = false;
+        status.hidden = false;
         status.className = 'status error';
         status.textContent = 'Wikipédia n’a pas répondu (' + err.message + '). Réessayez.';
         refreshPacks();
@@ -2648,99 +2716,99 @@
     { id: 'geo', domaine: 'geo', nom: 'Le tour du monde',
       intro: 'Rassemblez des cartes de géographie pour arpenter la planète.',
       niveaux: [
-        { art: 'Rome',        def: 500 },
-        { art: 'Sahara',      def: 720 },
-        { art: 'Himalaya',    def: 1000 },
-        { art: 'Océan Pacifique', def: 1400, boss: true }
+        { art: 'Rome',        def: 350 },
+        { art: 'Sahara',      def: 500 },
+        { art: 'Himalaya',    def: 700 },
+        { art: 'Océan Pacifique', def: 980, boss: true }
       ] },
     { id: 'hist', domaine: 'hist', nom: 'Les âges sombres',
       intro: 'Convoquez l’Histoire, de l’Antiquité aux révolutions.',
       niveaux: [
-        { art: 'Jules César',        def: 520 },
-        { art: 'Charlemagne',        def: 760 },
-        { art: 'Révolution française', def: 1050 },
-        { art: 'Empire romain',      def: 1450, boss: true }
+        { art: 'Jules César',        def: 360 },
+        { art: 'Charlemagne',        def: 530 },
+        { art: 'Révolution française', def: 740 },
+        { art: 'Empire romain',      def: 1010, boss: true }
       ] },
     { id: 'sci', domaine: 'sci', nom: 'La marche du savoir',
       intro: 'Les sciences, du vivant à l’infiniment grand.',
       niveaux: [
-        { art: 'Cellule (biologie)', def: 540 },
-        { art: 'Évolution (biologie)', def: 780 },
-        { art: 'Théorie de la relativité', def: 1080 },
-        { art: 'Univers',            def: 1500, boss: true }
+        { art: 'Cellule (biologie)', def: 380 },
+        { art: 'Évolution (biologie)', def: 550 },
+        { art: 'Théorie de la relativité', def: 760 },
+        { art: 'Univers',            def: 1050, boss: true }
       ] },
     { id: 'art', domaine: 'art', nom: 'Le cabinet des muses',
       intro: 'Arts et culture, de la toile à la scène.',
       niveaux: [
-        { art: 'Renaissance (période historique)', def: 550 },
-        { art: 'Impressionnisme', def: 800 },
-        { art: 'Ludwig van Beethoven', def: 1100 },
-        { art: 'La Joconde',     def: 1550, boss: true }
+        { art: 'Renaissance (période historique)', def: 380 },
+        { art: 'Impressionnisme', def: 560 },
+        { art: 'Ludwig van Beethoven', def: 770 },
+        { art: 'La Joconde',     def: 1080, boss: true }
       ] },
     { id: 'sport', domaine: 'sport', nom: 'L’arène',
       intro: 'Le sport, des terrains aux podiums.',
       niveaux: [
-        { art: 'Marathon (sport)', def: 530 },
-        { art: 'Tour de France',   def: 770 },
-        { art: 'Coupe du monde de football', def: 1080 },
-        { art: 'Jeux olympiques',  def: 1480, boss: true }
+        { art: 'Marathon (sport)', def: 370 },
+        { art: 'Tour de France',   def: 540 },
+        { art: 'Coupe du monde de football', def: 760 },
+        { art: 'Jeux olympiques',  def: 1040, boss: true }
       ] },
     { id: 'soc', domaine: 'soc', nom: 'Le grand théâtre',
       intro: 'La société, ses pouvoirs et ses idées.',
       niveaux: [
-        { art: 'Démocratie',   def: 540 },
-        { art: 'Philosophie',  def: 790 },
-        { art: 'Économie',     def: 1090 },
-        { art: 'Organisation des Nations unies', def: 1500, boss: true }
+        { art: 'Démocratie',   def: 380 },
+        { art: 'Philosophie',  def: 550 },
+        { art: 'Économie',     def: 760 },
+        { art: 'Organisation des Nations unies', def: 1050, boss: true }
       ] },
 
     { id: 'geo2', domaine: 'geo', nom: 'Terres extrêmes',
       intro: 'Les confins de la planète, des pôles aux volcans.',
       niveaux: [
-        { art: 'Antarctique', def: 620 },
-        { art: 'Amazonie', def: 880 },
-        { art: 'Mont Everest', def: 1180 },
-        { art: 'Terre', def: 1600, boss: true }
+        { art: 'Antarctique', def: 430 },
+        { art: 'Amazonie', def: 620 },
+        { art: 'Mont Everest', def: 830 },
+        { art: 'Terre', def: 1120, boss: true }
       ] },
     { id: 'hist2', domaine: 'hist', nom: 'Grandes civilisations',
       intro: 'Les empires qui ont façonné le monde.',
       niveaux: [
-        { art: 'Égypte antique', def: 640 },
-        { art: 'Grèce antique', def: 900 },
-        { art: 'Première Guerre mondiale', def: 1200 },
-        { art: 'Seconde Guerre mondiale', def: 1650, boss: true }
+        { art: 'Égypte antique', def: 450 },
+        { art: 'Grèce antique', def: 630 },
+        { art: 'Première Guerre mondiale', def: 840 },
+        { art: 'Seconde Guerre mondiale', def: 1160, boss: true }
       ] },
     { id: 'sci2', domaine: 'sci', nom: 'Aux frontières de la science',
       intro: 'Du corps humain aux lois de l’univers.',
       niveaux: [
-        { art: 'ADN', def: 660 },
-        { art: 'Atome', def: 920 },
-        { art: 'Trou noir', def: 1220 },
-        { art: 'Big Bang', def: 1680, boss: true }
+        { art: 'ADN', def: 460 },
+        { art: 'Atome', def: 640 },
+        { art: 'Trou noir', def: 850 },
+        { art: 'Big Bang', def: 1180, boss: true }
       ] },
     { id: 'art2', domaine: 'art', nom: 'Génies de l’art',
       intro: 'Les créateurs et leurs chefs-d’œuvre.',
       niveaux: [
-        { art: 'Wolfgang Amadeus Mozart', def: 680 },
-        { art: 'Pablo Picasso', def: 940 },
-        { art: 'William Shakespeare', def: 1240 },
-        { art: 'Léonard de Vinci', def: 1700, boss: true }
+        { art: 'Wolfgang Amadeus Mozart', def: 480 },
+        { art: 'Pablo Picasso', def: 660 },
+        { art: 'William Shakespeare', def: 870 },
+        { art: 'Léonard de Vinci', def: 1190, boss: true }
       ] },
     { id: 'sport2', domaine: 'sport', nom: 'Légendes du sport',
       intro: 'Les disciplines et leurs héros.',
       niveaux: [
-        { art: 'Basket-ball', def: 660 },
-        { art: 'Tennis', def: 920 },
-        { art: 'Rugby à XV', def: 1220 },
-        { art: 'Formule 1', def: 1660, boss: true }
+        { art: 'Basket-ball', def: 460 },
+        { art: 'Tennis', def: 640 },
+        { art: 'Rugby à XV', def: 850 },
+        { art: 'Formule 1', def: 1160, boss: true }
       ] },
     { id: 'soc2', domaine: 'soc', nom: 'Idées et pouvoirs',
       intro: 'Ce qui organise et divise les sociétés.',
       niveaux: [
-        { art: 'Religion', def: 680 },
-        { art: 'Capitalisme', def: 940 },
-        { art: 'Union européenne', def: 1240 },
-        { art: 'Mondialisation', def: 1700, boss: true }
+        { art: 'Religion', def: 480 },
+        { art: 'Capitalisme', def: 660 },
+        { art: 'Union européenne', def: 870 },
+        { art: 'Mondialisation', def: 1190, boss: true }
       ] }
   ];
 
@@ -2986,8 +3054,55 @@
       writePacks(pk);
       refreshPacks();
     }
+
+    /* Battre le boss offre une carte du theme, garantie Épique ou mieux. */
+    if (niv.boss) {
+      offrirCarteBoss(ch);
+    }
+
     refreshSucces();
+    refreshAlbums();
     peindreChapitre(chapId);
+  }
+
+  /* Ajoute a la collection une carte liee au chapitre, forcee en Épique
+     minimum. On pioche parmi les articles-adversaires du chapitre (deja
+     thematiques) et on va chercher ses vraies donnees sur Wikipedia. */
+  function offrirCarteBoss(ch) {
+    var candidats = ch.niveaux.map(function (n) { return n.art; });
+    var titre = candidats[Math.floor(Math.random() * candidats.length)];
+    var EPIQUE = 3;   /* indice du palier Épique */
+
+    /* Donnees reelles de l'article pour une vraie carte (via le resume). */
+    fetchSummary(titre).then(function (sum) {
+      sum = sum || {};
+      var bytes = 45000;   /* estimation : les articles-boss sont consequents */
+      var carte = {
+        title: titre,
+        url: (sum.content_urls && sum.content_urls.desktop && sum.content_urls.desktop.page)
+             || ('https://' + WIKI + '.org/wiki/' + encodeURIComponent(titre.replace(/ /g, '_'))),
+        desc: sum.description || '', extract: (sum.extract || '').trim().slice(0, 1400),
+        thumb: (sum.thumbnail && sum.thumbnail.source)
+               || (sum.originalimage && sum.originalimage.source) || '',
+        bytes: bytes, views: 10000,
+        atk: Math.max(1, Math.round(Math.log10(10001) * 90)),
+        def: Math.max(1, Math.round(Math.log10(bytes + 1) * 90)),
+        score: TIERS[EPIQUE].max - 1,
+        domaine: ch.domaine, serie: detecterSerie(titre),
+        rank: TIERS[EPIQUE].name, count: 1, obtenu: Date.now(),
+        imgVerif: true
+      };
+      var e = collection[titre];
+      if (e) {
+        /* Deja possedee : on la promeut au moins en Épique. */
+        if (rankIndex(e.rank) < EPIQUE) e.rank = TIERS[EPIQUE].name;
+        e.count += 1;
+      } else {
+        collection[titre] = carte;
+      }
+      save(); refreshCount(); refreshSucces(); refreshAlbums();
+      if (!collection[titre].thumb) rattraperImageCarte(collection[titre]);
+    }).catch(function () {});
   }
 
   /* ---------- succes ---------- */
