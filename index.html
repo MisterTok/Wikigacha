@@ -2692,6 +2692,55 @@
         { art: 'Philosophie',  def: 790 },
         { art: 'Économie',     def: 1090 },
         { art: 'Organisation des Nations unies', def: 1500, boss: true }
+      ] },
+
+    { id: 'geo2', domaine: 'geo', nom: 'Terres extrêmes',
+      intro: 'Les confins de la planète, des pôles aux volcans.',
+      niveaux: [
+        { art: 'Antarctique', def: 620 },
+        { art: 'Amazonie', def: 880 },
+        { art: 'Mont Everest', def: 1180 },
+        { art: 'Terre', def: 1600, boss: true }
+      ] },
+    { id: 'hist2', domaine: 'hist', nom: 'Grandes civilisations',
+      intro: 'Les empires qui ont façonné le monde.',
+      niveaux: [
+        { art: 'Égypte antique', def: 640 },
+        { art: 'Grèce antique', def: 900 },
+        { art: 'Première Guerre mondiale', def: 1200 },
+        { art: 'Seconde Guerre mondiale', def: 1650, boss: true }
+      ] },
+    { id: 'sci2', domaine: 'sci', nom: 'Aux frontières de la science',
+      intro: 'Du corps humain aux lois de l’univers.',
+      niveaux: [
+        { art: 'ADN', def: 660 },
+        { art: 'Atome', def: 920 },
+        { art: 'Trou noir', def: 1220 },
+        { art: 'Big Bang', def: 1680, boss: true }
+      ] },
+    { id: 'art2', domaine: 'art', nom: 'Génies de l’art',
+      intro: 'Les créateurs et leurs chefs-d’œuvre.',
+      niveaux: [
+        { art: 'Wolfgang Amadeus Mozart', def: 680 },
+        { art: 'Pablo Picasso', def: 940 },
+        { art: 'William Shakespeare', def: 1240 },
+        { art: 'Léonard de Vinci', def: 1700, boss: true }
+      ] },
+    { id: 'sport2', domaine: 'sport', nom: 'Légendes du sport',
+      intro: 'Les disciplines et leurs héros.',
+      niveaux: [
+        { art: 'Basket-ball', def: 660 },
+        { art: 'Tennis', def: 920 },
+        { art: 'Rugby à XV', def: 1220 },
+        { art: 'Formule 1', def: 1660, boss: true }
+      ] },
+    { id: 'soc2', domaine: 'soc', nom: 'Idées et pouvoirs',
+      intro: 'Ce qui organise et divise les sociétés.',
+      niveaux: [
+        { art: 'Religion', def: 680 },
+        { art: 'Capitalisme', def: 940 },
+        { art: 'Union européenne', def: 1240 },
+        { art: 'Mondialisation', def: 1700, boss: true }
       ] }
   ];
 
@@ -2771,7 +2820,12 @@
   }
   function toutFiniNormal() {
     var h = readHist();
-    return CHAPITRES.every(function (ch) { return (h[ch.id] || 0) >= ch.niveaux.length; });
+    /* Le mode difficile se debloque des que six chapitres sont termines,
+       pas forcement tous les douze. */
+    var finis = CHAPITRES.filter(function (ch) {
+      return (h[ch.id] || 0) >= ch.niveaux.length;
+    }).length;
+    return finis >= 6;
   }
 
   function showHistoire() {
@@ -3030,7 +3084,8 @@
 
     { g: 'Histoire', id: 'h1', n: 'Premier parcours', d: 'Terminer un chapitre',        v: 1, gain: 2, m: function (x) { return x.chapitres; } },
     { g: 'Histoire', id: 'h3', n: 'Érudit',           d: 'Terminer trois chapitres',    v: 3, gain: 4, m: function (x) { return x.chapitres; } },
-    { g: 'Histoire', id: 'h6', n: 'Encyclopédie vivante', d: 'Terminer les six chapitres', v: 6, gain: 6, m: function (x) { return x.chapitres; } },
+    { g: 'Histoire', id: 'h6', n: 'Grand voyageur',    d: 'Terminer six chapitres',       v: 6,  gain: 6, m: function (x) { return x.chapitres; } },
+    { g: 'Histoire', id: 'h12', n: 'Encyclopédie vivante', d: 'Terminer les douze chapitres', v: 12, gain: 10, m: function (x) { return x.chapitres; } },
     { g: 'Histoire', id: 'hd', n: 'Touche-à-tout',    d: 'Des cartes de six domaines',  v: 6, gain: 3, m: function (x) { return x.domaines; } },
 
     { g: 'Albums', id: 'a1', n: 'Collectionneur',   d: 'Compléter une série',      v: 1, gain: 3, m: function (x) { return x.albums; } },
@@ -3121,7 +3176,37 @@
     { q: 'Quel fleuve traverse Paris ?', ok: 'La Seine', ko: ['La Loire', 'Le Rhône', 'La Garonne'], art: 'Seine' },
     { q: 'Quelle est la plus grande forêt tropicale du monde ?', ok: 'L\'Amazonie', ko: ['Le Congo', 'Bornéo', 'La Nouvelle-Guinée'], art: 'Forêt amazonienne' },
     { q: 'Qui a écrit \'Don Quichotte\' ?', ok: 'Cervantès', ko: ['Shakespeare', 'Dante', 'Molière'], art: 'Don Quichotte' },
-    { q: 'Quelle est la capitale de la Russie ?', ok: 'Moscou', ko: ['Saint-Pétersbourg', 'Kiev', 'Minsk'], art: 'Moscou' }
+    { q: 'Quelle est la capitale de la Russie ?', ok: 'Moscou', ko: ['Saint-Pétersbourg', 'Kiev', 'Minsk'], art: 'Moscou' },
+    { q: 'Quel est le plus petit pays du monde ?', ok: 'Le Vatican', ko: ['Monaco', 'Malte', 'Saint-Marin'], art: '' },
+    { q: 'Combien de dents a un adulte en bonne santé ?', ok: '32', ko: ['28', '30', '36'], art: '' },
+    { q: 'Quel peintre s\'est coupé une oreille ?', ok: 'Van Gogh', ko: ['Gauguin', 'Monet', 'Cézanne'], art: '' },
+    { q: 'Quelle planète est la plus proche du Soleil ?', ok: 'Mercure', ko: ['Vénus', 'Mars', 'La Terre'], art: '' },
+    { q: 'Quel est le plus grand félin du monde ?', ok: 'Le tigre', ko: ['Le lion', 'Le jaguar', 'Le léopard'], art: '' },
+    { q: 'Dans quel pays se trouve la ville de Marrakech ?', ok: 'Le Maroc', ko: ['L\'Algérie', 'La Tunisie', 'L\'Égypte'], art: '' },
+    { q: 'Qui a peint \'Guernica\' ?', ok: 'Picasso', ko: ['Dalí', 'Miró', 'Matisse'], art: '' },
+    { q: 'Quel est le symbole chimique du fer ?', ok: 'Fe', ko: ['Fr', 'F', 'Ir'], art: '' },
+    { q: 'Combien de temps met la Terre pour tourner sur elle-même ?', ok: '24 heures', ko: ['12 heures', '365 jours', '1 heure'], art: '' },
+    { q: 'Quelle est la capitale de la Grèce ?', ok: 'Athènes', ko: ['Sparte', 'Thessalonique', 'Corinthe'], art: '' },
+    { q: 'Quel océan borde la côte ouest de la France ?', ok: 'L\'Atlantique', ko: ['Le Pacifique', 'La Méditerranée', 'L\'Indien'], art: '' },
+    { q: 'Qui a écrit \'Le Petit Prince\' ?', ok: 'Saint-Exupéry', ko: ['Camus', 'Sartre', 'Gide'], art: '' },
+    { q: 'Quel gaz respirons-nous principalement ?', ok: 'L\'azote', ko: ['L\'oxygène', 'Le CO2', 'L\'hélium'], art: '' },
+    { q: 'Quelle est la plus grande île du monde ?', ok: 'Le Groenland', ko: ['L\'Australie', 'Madagascar', 'Bornéo'], art: '' },
+    { q: 'En quelle année est tombé le mur de Berlin ?', ok: '1989', ko: ['1991', '1985', '1979'], art: '' },
+    { q: 'Quel animal est le roi de la savane ?', ok: 'Le lion', ko: ['L\'éléphant', 'Le guépard', 'Le buffle'], art: '' },
+    { q: 'Quelle est la monnaie du Japon ?', ok: 'Le yen', ko: ['Le yuan', 'Le won', 'Le baht'], art: '' },
+    { q: 'Qui a composé \'La Flûte enchantée\' ?', ok: 'Mozart', ko: ['Beethoven', 'Verdi', 'Wagner'], art: '' },
+    { q: 'Quel est l\'élément le plus abondant dans l\'univers ?', ok: 'L\'hydrogène', ko: ['L\'oxygène', 'Le carbone', 'L\'hélium'], art: '' },
+    { q: 'Dans quelle ville se trouve la statue du Christ Rédempteur ?', ok: 'Rio de Janeiro', ko: ['São Paulo', 'Lima', 'Buenos Aires'], art: '' },
+    { q: 'Combien de cordes a un violon ?', ok: 'Quatre', ko: ['Six', 'Cinq', 'Trois'], art: '' },
+    { q: 'Quel est le plus long os du corps humain ?', ok: 'Le fémur', ko: ['Le tibia', 'L\'humérus', 'Le radius'], art: '' },
+    { q: 'Quelle mer est la plus salée du monde ?', ok: 'La mer Morte', ko: ['La mer Rouge', 'La Méditerranée', 'La mer Noire'], art: '' },
+    { q: 'Qui a peint \'Les Tournesols\' ?', ok: 'Van Gogh', ko: ['Monet', 'Renoir', 'Degas'], art: '' },
+    { q: 'Quelle est la capitale du Canada ?', ok: 'Ottawa', ko: ['Toronto', 'Montréal', 'Québec'], art: '' },
+    { q: 'Quel scientifique a énoncé E=mc² ?', ok: 'Einstein', ko: ['Newton', 'Bohr', 'Planck'], art: '' },
+    { q: 'Quel est le plus haut sommet d\'Afrique ?', ok: 'Le Kilimandjaro', ko: ['Le mont Kenya', 'L\'Atlas', 'Le Ruwenzori'], art: '' },
+    { q: 'Combien y a-t-il de planètes dans le système solaire ?', ok: 'Huit', ko: ['Neuf', 'Sept', 'Dix'], art: '' },
+    { q: 'Quel pays a pour capitale Lisbonne ?', ok: 'Le Portugal', ko: ['L\'Espagne', 'L\'Italie', 'La Grèce'], art: '' },
+    { q: 'Qui a écrit \'Hamlet\' ?', ok: 'Shakespeare', ko: ['Molière', 'Goethe', 'Tolstoï'], art: '' }
   ];
 
   /* ---------- quiz quotidien ----------
@@ -3133,13 +3218,17 @@
   var QUIZ_TAILLE = 5;
   var QUIZ_GAIN = 15;      /* Wikigold par bonne reponse */
   var QUIZ_BONUS = 30;     /* bonus si sans-faute */
+  var QUIZ_PAR_JOUR = 2;
 
   var quizSession = null;
 
-  function quizFaitAujourdhui() {
+  function quizFaitsAujourdhui() {
     var d;
     try { d = JSON.parse(localStorage.getItem(QKEY_QUIZ)); } catch (e) { d = null; }
-    return d && d.date === jour();
+    return (d && d.date === jour()) ? (d.n || 0) : 0;
+  }
+  function quizRestants() {
+    return Math.max(0, QUIZ_PAR_JOUR - quizFaitsAujourdhui());
   }
 
   function melange(arr) {
@@ -3152,7 +3241,7 @@
   }
 
   function demarrerQuiz() {
-    if (quizFaitAujourdhui()) return;
+    if (quizRestants() < 1) return;
     var choix = melange(QUIZ_BANQUE).slice(0, QUIZ_TAILLE);
     quizSession = { i: 0, bonnes: 0, questions: choix, repondu: false };
     peindreQuiz();
@@ -3162,15 +3251,17 @@
     var body = el('quiz-body');
 
     if (!quizSession) {
-      if (quizFaitAujourdhui()) {
+      var reste = quizRestants();
+      if (reste < 1) {
         body.innerHTML = '<p class="hist-titre">QUIZ DU JOUR</p>'
-          + '<p class="duel-intro">Vous avez déjà joué aujourd’hui. '
-          + 'Un nouveau quiz vous attend demain.</p>';
+          + '<p class="duel-intro">Vous avez fait vos ' + QUIZ_PAR_JOUR
+          + ' quiz aujourd’hui. De nouveaux vous attendent demain.</p>';
       } else {
         body.innerHTML = '<p class="hist-titre">QUIZ DU JOUR</p>'
           + '<p class="duel-intro">Cinq questions de culture sur des articles de '
           + 'Wikipédia. Chaque bonne réponse rapporte ' + QUIZ_GAIN + ' Wikigold, '
-          + 'avec un bonus de ' + QUIZ_BONUS + ' pour un sans-faute. Un quiz par jour.</p>'
+          + 'avec un bonus de ' + QUIZ_BONUS + ' pour un sans-faute. '
+          + 'Il vous reste ' + reste + ' quiz aujourd’hui.</p>'
           + '<button class="btn btn-solid" id="quiz-start">Commencer le quiz</button>';
       }
       return;
@@ -3181,11 +3272,19 @@
       /* Fin : on verse les gains et on verrouille pour la journee. */
       var gain = s.bonnes * QUIZ_GAIN + (s.bonnes === QUIZ_TAILLE ? QUIZ_BONUS : 0);
       ajouterGold(gain);
-      try { localStorage.setItem(QKEY_QUIZ, JSON.stringify({ date: jour() })); } catch (e) {}
+      try {
+        localStorage.setItem(QKEY_QUIZ,
+          JSON.stringify({ date: jour(), n: quizFaitsAujourdhui() + 1 }));
+      } catch (e) {}
       body.innerHTML = '<p class="hist-titre">QUIZ TERMINÉ</p>'
         + '<div class="win"><h3>' + s.bonnes + ' / ' + QUIZ_TAILLE + ' bonnes réponses</h3>'
         + '<p>' + gain + ' Wikigold gagnés'
-        + (s.bonnes === QUIZ_TAILLE ? ' (sans-faute !)' : '') + '. À demain pour un nouveau quiz.</p></div>';
+        + (s.bonnes === QUIZ_TAILLE ? ' (sans-faute !)' : '') + '.</p>'
+        + '<p>' + (quizRestants() > 0
+            ? 'Il vous reste ' + quizRestants() + ' quiz aujourd’hui.'
+            : 'À demain pour de nouveaux quiz.') + '</p></div>'
+        + (quizRestants() > 0
+            ? '<button class="btn btn-solid" id="quiz-start">Quiz suivant</button>' : '');
       quizSession = null;
       return;
     }
