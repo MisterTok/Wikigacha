@@ -75,11 +75,11 @@
   }
   .gold-bandeau b { color: #f0dda4; font-variant-numeric: tabular-nums; }
   .pack-stage { text-align: center; padding: 30px 0 10px; }
-  /* Sachet scelle : un corps sombre + une languette doree en haut qu'on
-     tire vers le bas pour l'ouvrir. La variable --tear (0 a 1) suit le doigt. */
+  /* Sachet scelle : le corps + une bande doree sur le bord droit qu'on
+     arrache vers la gauche. La variable --tear (0 a 1) suit le doigt. */
   .pack {
     --tear: 0;
-    width: 184px; height: 256px; position: relative;
+    width: 184px; height: 256px; position: relative; margin: 0 auto;
     touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
     border-radius: 4px; overflow: hidden;
     box-shadow: 0 14px 34px rgba(0,0,0,.5);
@@ -95,31 +95,35 @@
       linear-gradient(165deg, #323a57 0%, #1a1f30 100%);
     box-shadow: inset 0 0 0 6px rgba(201,153,46,.16), inset 0 40px 60px rgba(0,0,0,.35);
   }
-  /* La languette doree en haut, qui descend avec --tear. */
+  /* La bande doree en haut, qu'on arrache vers la DROITE avec --tear. */
   .pack-bande {
-    position: absolute; left: 0; right: 0; top: 0; height: 46px; z-index: 3;
+    position: absolute; left: 0; right: 0; top: 0; height: 44px; z-index: 3;
     display: flex; align-items: center; justify-content: center;
     color: #1a1d29;
     background: linear-gradient(180deg, #f3dfa4, #c9992e);
     border-bottom: 2px dashed rgba(26,29,41,.5);
     box-shadow: 0 3px 10px rgba(0,0,0,.4);
-    transform: translateY(calc(var(--tear) * 210px)) rotate(calc(var(--tear) * -4deg));
+    transform: translateX(calc(var(--tear) * 215px)) rotate(calc(var(--tear) * 4deg));
     transition: transform .05s linear;
   }
   .pack.ouvert .pack-bande {
-    transform: translateY(280px) rotate(-10deg); opacity: 0;
+    transform: translateX(265px) rotate(10deg); opacity: 0;
     transition: transform .4s ease-in, opacity .4s ease-in;
   }
+  /* Les perforations, horizontales sous la bande. */
   .pack-fil {
-    position: absolute; left: 8%; right: 8%; bottom: 4px; height: 2px;
+    position: absolute; left: 5%; right: 5%; bottom: 4px; height: 2px;
     background: repeating-linear-gradient(90deg, rgba(26,29,41,.6) 0 5px, transparent 5px 10px);
   }
   .pack-fleche {
-    font-size: 20px; line-height: 1; margin-top: -4px;
+    font-size: 20px; line-height: 1;
     animation: flecheBat 1.4s ease-in-out infinite;
   }
-  @keyframes flecheBat { 0%,100%{transform:translateY(0);} 50%{transform:translateY(3px);} }
-  /* Le corps se devoile a mesure : un liseré clair sous la languette. */
+  @keyframes flecheBat {
+    0%,100%{ transform: translateX(0); }
+    50%    { transform: translateX(4px); }
+  }
+  /* Liseré clair révélé sous la bande. */
   .pack-bande::after {
     content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 3px;
     background: rgba(240,221,164,.7);
@@ -886,7 +890,7 @@
       </div>
       <div class="pack-eclat" id="pack-eclat"></div>
     </div>
-    <p class="hint" id="hint">Glissez la languette vers le bas</p>
+    <p class="hint" id="hint">Tirez la languette vers la droite</p>
   </div>
 
   <div id="reveal" class="reveal" hidden>
@@ -1641,7 +1645,7 @@
       /* Le paquet revient sous le recapitulatif : on le touche pour recommencer. */
       el('pack-stage').hidden = false;
       el('pack').disabled = false;
-      el('hint').textContent = 'Touchez le paquet pour en ouvrir un autre';
+      el('hint').textContent = 'Tirez la languette pour un autre paquet';
       return;
     }
     var c = queue[qi], t = tierOf(c.rank);
@@ -1744,7 +1748,7 @@
     el('pack').style.setProperty('--tear', 0);
     el('reveal').hidden = true;
     el('draw').innerHTML = '';
-    el('hint').textContent = 'Touchez le paquet';
+    el('hint').textContent = 'Tirez la languette vers la droite';
   }
 
   /* ---------- fiche ---------- */
@@ -3823,8 +3827,8 @@
      --tear (0 a 1) suit le doigt ; passe un seuil, le paquet s'ouvre. */
   (function () {
     var pack = el('pack');
-    var y0 = null, ouvre = false;
-    var COURSE = 150;   /* px de glissement pour ouvrir completement */
+    var x0 = null, ouvre = false;
+    var COURSE = 140;   /* px de glissement vers la gauche pour ouvrir */
     var SEUIL = 0.55;   /* fraction a partir de laquelle ca s'ouvre au relacher */
 
     function pret() {
@@ -3833,22 +3837,23 @@
     }
     function setTear(v) { pack.style.setProperty('--tear', Math.max(0, Math.min(1, v))); }
 
-    function debut(clientY) {
+    function debut(clientX) {
       if (!pret()) return;
-      y0 = clientY; ouvre = false;
+      x0 = clientX; ouvre = false;
     }
-    function bouge(clientY, e) {
-      if (y0 === null) return;
+    function bouge(clientX, e) {
+      if (x0 === null) return;
       if (e && e.cancelable) e.preventDefault();
-      var d = (clientY - y0) / COURSE;
+      /* On arrache vers la DROITE : le deplacement positif fait progresser. */
+      var d = (clientX - x0) / COURSE;
       setTear(d);
       ouvre = d >= SEUIL;
     }
     function fin() {
-      if (y0 === null) return;
-      y0 = null;
+      if (x0 === null) return;
+      x0 = null;
       if (ouvre) { declencher(); }
-      else { setTear(0); }   /* pas assez tire : la languette remonte */
+      else { setTear(0); }   /* pas assez tire : la bande revient */
     }
     function declencher() {
       if (!pret()) return;
@@ -3864,16 +3869,16 @@
     }
 
     pack.addEventListener('touchstart', function (e) {
-      debut(e.touches[0].clientY);
+      debut(e.touches[0].clientX);
     }, { passive: true });
     pack.addEventListener('touchmove', function (e) {
-      bouge(e.touches[0].clientY, e);
+      bouge(e.touches[0].clientX, e);
     }, { passive: false });
     pack.addEventListener('touchend', fin);
     pack.addEventListener('touchcancel', fin);
     /* Souris (test PC) : glisser en maintenant le bouton. */
-    pack.addEventListener('mousedown', function (e) { debut(e.clientY); });
-    window.addEventListener('mousemove', function (e) { if (y0 !== null) bouge(e.clientY, e); });
+    pack.addEventListener('mousedown', function (e) { debut(e.clientX); });
+    window.addEventListener('mousemove', function (e) { if (x0 !== null) bouge(e.clientX, e); });
     window.addEventListener('mouseup', fin);
     /* Accessibilite : Entree/Espace ouvre directement. */
     pack.addEventListener('keydown', function (e) {
