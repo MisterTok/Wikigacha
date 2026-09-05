@@ -1292,9 +1292,13 @@
   /* Troisieme filet : la premiere image reelle du corps de l'article.
      On demande la liste des images, on ecarte les icones et logos communs,
      puis on resout l'URL de la premiere image exploitable. */
+  /* Image officielle du sujet, declaree sur Wikidata (propriete P18).
+     C'est une donnee explicite ("quelle image represente ce sujet"), pas une
+     devinette : on evite ainsi les illustrations de section sans rapport. */
   function fetchImageCorps(title) {
+    /* 1) Recuperer l'identifiant Wikidata de l'article. */
     var url = 'https://' + WIKI + '.org/w/api.php'
-      + '?action=query&format=json&origin=*&prop=images&imlimit=20'
+      + '?action=query&format=json&origin=*&prop=pageprops&ppprop=wikibase_item'
       + '&titles=' + encodeURIComponent(title.replace(/ /g, '_'));
     return fetch(url)
       .then(function (r) { return r.ok ? r.json() : null; })
@@ -1302,29 +1306,40 @@
         var pg = d && d.query && d.query.pages;
         if (!pg) return '';
         var p0 = pg[Object.keys(pg)[0]];
-        var imgs = (p0 && p0.images) || [];
-        var jeter = /(commons-logo|edit-|wiki\.png|question_book|disambig|ambox|magnify|symbol|flag_of|logo|icon)/i;
-        var choisie = null;
-        for (var i = 0; i < imgs.length; i++) {
-          var t = imgs[i].title || '';
-          if (/\.(jpg|jpeg|png)$/i.test(t) && !jeter.test(t)) { choisie = t; break; }
-        }
-        if (!choisie) return '';
-        /* Resoudre l'URL de vignette de ce fichier. */
-        var u2 = 'https://' + WIKI + '.org/w/api.php'
-          + '?action=query&format=json&origin=*&prop=imageinfo&iiprop=url&iiurlwidth=500'
-          + '&titles=' + encodeURIComponent(choisie);
-        return fetch(u2).then(function (r) { return r.ok ? r.json() : null; })
+        var qid = p0 && p0.pageprops && p0.pageprops.wikibase_item;
+        if (!qid) return '';
+
+        /* 2) Lire la propriete P18 (image) de cette fiche Wikidata. */
+        var u2 = 'https://www.wikidata.org/w/api.php'
+          + '?action=wbgetclaims&format=json&origin=*&property=P18&entity=' + qid;
+        return fetch(u2)
+          .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (d2) {
-            var p2 = d2 && d2.query && d2.query.pages;
-            if (!p2) return '';
-            var info = p2[Object.keys(p2)[0]];
-            var ii = info && info.imageinfo && info.imageinfo[0];
-            return (ii && (ii.thumburl || ii.url)) || '';
+            var cl = d2 && d2.claims && d2.claims.P18;
+            if (!cl || !cl.length) return '';
+            var fichier = cl[0].mainsnak && cl[0].mainsnak.datavalue
+                       && cl[0].mainsnak.datavalue.value;
+            if (!fichier) return '';
+
+            /* 3) Resoudre l'URL de vignette du fichier sur Commons. */
+            var u3 = 'https://commons.wikimedia.org/w/api.php'
+              + '?action=query&format=json&origin=*&prop=imageinfo'
+              + '&iiprop=url&iiurlwidth=500'
+              + '&titles=' + encodeURIComponent('File:' + fichier);
+            return fetch(u3)
+              .then(function (r) { return r.ok ? r.json() : null; })
+              .then(function (d3) {
+                var p3 = d3 && d3.query && d3.query.pages;
+                if (!p3) return '';
+                var info = p3[Object.keys(p3)[0]];
+                var ii = info && info.imageinfo && info.imageinfo[0];
+                return (ii && (ii.thumburl || ii.url)) || '';
+              });
           });
       })
       .catch(function () { return ''; });
   }
+
 
   function toCard(page, views, q) {
     var bytes = page.length || 1;
@@ -1363,6 +1378,23 @@
       if (ANCIENS_RANGS[c.rank]) { c.rank = ANCIENS_RANGS[c.rank]; migre = true; }
       if (typeof c.obtenu !== 'number') { c.obtenu = base + i * 1000; migre = true; }
     });
+
+    /* Nettoyage des images parasites heritees de l'ancien filet : une meme
+       image sur plusieurs cartes differentes est forcement une illustration
+       de modele, pas le sujet. On l'efface pour qu'elle soit redemandee
+       proprement via Wikidata. */
+    var compte = {};
+    cles.forEach(function (k) {
+      var t = collection[k].thumb;
+      if (t) compte[t] = (compte[t] || 0) + 1;
+    });
+    cles.forEach(function (k) {
+      var c = collection[k];
+      if (c.thumb && compte[c.thumb] > 1) {
+        c.thumb = ''; c.imgVerif = false; migre = true;
+      }
+    });
+
     if (migre) save();
   }
   function save() {
