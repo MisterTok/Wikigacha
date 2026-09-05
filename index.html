@@ -1196,6 +1196,21 @@
     );
   }
 
+  /* Score final de rarete : la qualite de redaction donne le potentiel, mais
+     la popularite (vues) le module. Un article tres complet mais jamais consulte
+     — typiquement une petite commune generee automatiquement — reste bride ;
+     un sujet majeur et tres consulte atteint les hauts tiers. */
+  function scoreRarete(bytes, views, q) {
+    var qual = qualityScore(bytes, q);
+    /* Facteur de popularite entre 0.20 et 1.20 selon les vues sur deux mois.
+       Courbe durcie : un article peu consulte est fortement bride, ce qui
+       ecarte les petites communes generees automatiquement des hauts tiers.
+       ~0 vue -> 0.20 ; ~1000 vues -> ~0.5 ; ~50 000 vues+ -> plafond 1.20. */
+    var f = Math.min(1, Math.log10(views + 1) / Math.log10(50000));
+    var pop = 0.20 + 1.00 * (f * f);   /* le carre accentue la penalite en bas */
+    return qual * pop;
+  }
+
   function fetchSummary(title) {
     var url = 'https://' + WIKI + '.org/api/rest_v1/page/summary/'
       + encodeURIComponent(title.replace(/ /g, '_'));
@@ -1244,7 +1259,7 @@
 
   function toCard(page, views, q) {
     var bytes = page.length || 1;
-    var score = qualityScore(bytes, q);
+    var score = scoreRarete(bytes, views, q);
     var tier = TIERS.find(function (t) { return score < t.max; });
     return {
       score: Math.round(score * 10) / 10,
@@ -1555,7 +1570,10 @@
     }
   }
 
+  var tirageEnCours = false;
+
   function openPack() {
+    if (tirageEnCours) return;   /* verrou : un seul tirage a la fois */
     var status = el('status');
     var etat = readPacks();
     if (etat.n < 1) {
@@ -1563,13 +1581,16 @@
       status.textContent = 'Plus de paquets. Un nouveau arrive dans moins d’une minute.';
       return;
     }
+    tirageEnCours = true;
     etat.n -= 1; etat.ouverts += 1;
     noterJour('paquets', 1);
     if (etat.n === MAX_PAQUETS - 1) etat.ts = Date.now();
     writePacks(etat);
     var pitie = (etat.ouverts % PITIE_TOUS) === 0;
 
+    /* On masque le paquet tout de suite pour qu'un second tap ne relance rien. */
     el('pack').disabled = true;
+    el('pack-stage').hidden = true;
     el('draw').innerHTML = '';
     status.hidden = false; status.className = 'status';
     status.textContent = 'Tirage de cinq articles…';
@@ -1589,6 +1610,7 @@
           best.garantie = true;
         }
         queue = cards; qi = 0;
+        tirageEnCours = false;
         status.hidden = true;
         el('pack-stage').hidden = true;
         el('reveal').hidden = false;
@@ -1604,6 +1626,9 @@
         /* Le paquet n'a pas abouti : on le rend au joueur. */
         var e2 = readPacks(); e2.n = Math.min(MAX_PAQUETS, e2.n + 1);
         e2.ouverts = Math.max(0, e2.ouverts - 1); writePacks(e2);
+        tirageEnCours = false;
+        el('pack-stage').hidden = false;
+        el('pack').disabled = false;
         status.className = 'status error';
         status.textContent = 'Wikipédia n’a pas répondu (' + err.message + '). Réessayez.';
         refreshPacks();
@@ -1892,7 +1917,7 @@
           var page = r[0] || {};
           var titre = (a.titles && a.titles.normalized) || a.title || page.title;
           var bytes = page.length || 40000;
-          var sc = qualityScore(bytes, r[1]);
+          var sc = scoreRarete(bytes, r[2], r[1]);
           var tier = TIERS.find(function (t) { return sc < t.max; });
           var boss = {
             title: titre,
