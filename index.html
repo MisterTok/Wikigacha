@@ -600,6 +600,22 @@
   }
   .sous-tab.is-active { background: var(--night-up); color: var(--ivory); border-color: var(--glass-dim); }
 
+  /* --- boutique --- */
+  .boutique-solde {
+    font-size: 13px; color: var(--glass-dim); margin: 0 0 16px;
+    padding-bottom: 12px; border-bottom: 1px solid var(--night-line);
+  }
+  .boutique-solde b { color: #f0dda4; font-variant-numeric: tabular-nums; }
+  .offre {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+    padding: 14px; background: var(--night-up);
+    border: 1px solid var(--night-line); border-left: 4px solid #c9992e;
+  }
+  .offre-txt { flex: 1 1 auto; min-width: 0; }
+  .offre-nom { display: block; font-family: var(--display); font-size: 17px; color: var(--ivory); }
+  .offre-note { display: block; font-size: 12px; color: #c9992e; margin-top: 2px; }
+  .offre .btn { margin: 0; width: auto; flex: none; padding: 10px 16px; font-variant-numeric: tabular-nums; }
+
   /* --- albums (series) --- */
   #albums-count { font-variant-numeric: tabular-nums; }
   .album {
@@ -765,14 +781,20 @@
   <h1>Wikigacha</h1>
   <p class="tagline">Cinq articles au hasard. À vous de voir ce que ça vaut.</p>
   <nav class="tabs">
-    <button id="tab-open" class="tab is-active">Paquets</button>
-    <button id="tab-coll" class="tab">Collection <span id="coll-count">(0)</span></button>
-    <button id="tab-raid" class="tab">Combat</button>
+    <button id="tab-cartes" class="tab is-active">Cartes</button>
+    <button id="tab-raid" class="tab">Jouer</button>
+    <button id="tab-boutique" class="tab">Boutique</button>
     <button id="tab-succes" class="tab">Succès <span id="succes-count"></span></button>
   </nav>
 </header>
 
-<main id="view-open">
+<main id="view-cartes">
+  <nav class="sous-tabs">
+    <button id="sub-ouvrir" class="sous-tab is-active">Ouvrir</button>
+    <button id="sub-collec" class="sous-tab">Collection <span id="coll-count">(0)</span></button>
+    <button id="sub-albums" class="sous-tab">Albums <span id="albums-count"></span></button>
+  </nav>
+  <div id="view-open">
   <p id="packs" class="packs"></p>
   <p class="gold-bandeau">Wikigold : <b id="gold-compteur">0</b></p>
   <div id="missions"></div>
@@ -800,15 +822,9 @@
 
   <div id="draw" class="draw"></div>
   <div id="status" class="status" hidden></div>
+  </div>
 
-</main>
-
-<main id="view-coll" hidden>
-  <nav class="sous-tabs">
-    <button id="sub-cartes" class="sous-tab is-active">Cartes</button>
-    <button id="sub-albums" class="sous-tab">Albums <span id="albums-count"></span></button>
-  </nav>
-  <div id="coll-cartes">
+  <div id="coll-cartes" hidden>
   <button id="echange-plier" class="echange-lien">
     Recevoir une carte offerte par un ami
   </button>
@@ -851,6 +867,10 @@
   <div id="coll-zone-raz"></div>
   </div>
   <div id="coll-albums" hidden></div>
+</main>
+
+<main id="view-boutique" hidden>
+  <div id="boutique-body"></div>
 </main>
 
 <main id="view-raid" hidden>
@@ -1707,7 +1727,7 @@
     save();
     refreshCount(); refreshSucces();
     openSheet(titre);      /* on rouvre la fiche a jour */
-    if (!el('view-coll').hidden) showCollection();
+    if (!el('coll-cartes').hidden) showCollection();
   }
 
   function closeSheet() {
@@ -2884,6 +2904,52 @@
     return { x: x, st: st, faits: faits };
   }
 
+  /* ---------- boutique ----------
+     Achat de paquets contre Wikigold. Les paquets achetes peuvent depasser
+     le plafond de regeneration (comme les recompenses), c'est le but de la
+     boutique : convertir la monnaie accumulee en tirages. */
+
+  var OFFRES = [
+    { id: 'p1',  paquets: 1,  prix: 40,  nom: 'Un paquet' },
+    { id: 'p5',  paquets: 5,  prix: 180, nom: 'Cinq paquets', note: '10 % de remise' },
+    { id: 'p12', paquets: 12, prix: 400, nom: 'Douze paquets', note: 'meilleure offre' }
+  ];
+
+  function acheter(id) {
+    var o = OFFRES.filter(function (x) { return x.id === id; })[0];
+    if (!o) return;
+    if (readGold() < o.prix) { showBoutique('Pas assez de Wikigold.'); return; }
+    ajouterGold(-o.prix);
+    var pk = readPacks();
+    pk.n += o.paquets;   /* les achats peuvent depasser le plafond auto */
+    writePacks(pk);
+    refreshPacks();
+    showBoutique(o.paquets + (o.paquets > 1 ? ' paquets ajoutés.' : ' paquet ajouté.'));
+  }
+
+  function showBoutique(msg) {
+    var or = readGold();
+    var html = '<p class="hist-titre">BOUTIQUE</p>'
+      + '<p class="duel-intro">Échangez vos Wikigold contre des paquets. '
+      + 'Vous gagnez des Wikigold en accomplissant missions, succès et albums.</p>'
+      + '<p class="boutique-solde">Solde : <b>' + or.toLocaleString('fr-FR') + '</b> Wikigold</p>';
+
+    OFFRES.forEach(function (o) {
+      var abordable = or >= o.prix;
+      html += '<div class="offre">'
+        + '<div class="offre-txt"><span class="offre-nom">' + esc(o.nom) + '</span>'
+        + (o.note ? '<span class="offre-note">' + esc(o.note) + '</span>' : '')
+        + '</div>'
+        + '<button class="btn' + (abordable ? ' btn-solid' : '') + '" '
+        + (abordable ? 'data-achat="' + o.id + '"' : 'disabled') + '>'
+        + o.prix + ' or</button>'
+        + '</div>';
+    });
+
+    html += '<p class="recompense-msg" id="boutique-msg">' + (msg ? esc(msg) : '') + '</p>';
+    el('boutique-body').innerHTML = html;
+  }
+
   function showSucces() {
     var r = refreshSucces(), x = r.x, st = r.st;
     var html = '<p class="succes-tete"><b>' + r.faits + '</b> succès sur <b>'
@@ -3040,12 +3106,14 @@
   }
 
   function basculerColl(quoi) {
-    el('coll-cartes').hidden = quoi !== 'cartes';
+    el('view-open').hidden = quoi !== 'ouvrir';
+    el('coll-cartes').hidden = quoi !== 'collec';
     el('coll-albums').hidden = quoi !== 'albums';
-    el('sub-cartes').classList.toggle('is-active', quoi === 'cartes');
+    el('sub-ouvrir').classList.toggle('is-active', quoi === 'ouvrir');
+    el('sub-collec').classList.toggle('is-active', quoi === 'collec');
     el('sub-albums').classList.toggle('is-active', quoi === 'albums');
+    if (quoi === 'collec') showCollection();
     if (quoi === 'albums') showAlbums();
-    else showCollection();
   }
 
   function showCollection() {
@@ -3188,13 +3256,15 @@
     showCollection();
   }
 
+  var sousCartes = 'ouvrir';
   function switchTo(which) {
-    ['open', 'coll', 'raid', 'succes'].forEach(function (v) {
+    ['cartes', 'raid', 'boutique', 'succes'].forEach(function (v) {
       el('view-' + v).hidden = (v !== which);
       el('tab-' + v).classList.toggle('is-active', v === which);
     });
-    if (which === 'coll') { showCollection(); refreshAlbums(); }
+    if (which === 'cartes') { basculerColl(sousCartes); refreshAlbums(); }
     if (which === 'raid') montrerCombat(sousCombat);
+    if (which === 'boutique') showBoutique();
     if (which === 'succes') showSucces();
   }
 
@@ -3260,12 +3330,13 @@
   el('flipper').addEventListener('keydown', function (e) {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onFlip(null); }
   });
-  el('tab-open').addEventListener('click', function () { switchTo('open'); });
-  el('tab-coll').addEventListener('click', function () { switchTo('coll'); });
+  el('tab-cartes').addEventListener('click', function () { switchTo('cartes'); });
+  el('tab-boutique').addEventListener('click', function () { switchTo('boutique'); });
   el('tab-raid').addEventListener('click', function () { switchTo('raid'); });
   el('tab-succes').addEventListener('click', function () { switchTo('succes'); });
-  el('sub-cartes').addEventListener('click', function () { basculerColl('cartes'); });
-  el('sub-albums').addEventListener('click', function () { basculerColl('albums'); });
+  el('sub-ouvrir').addEventListener('click', function () { sousCartes = 'ouvrir'; basculerColl('ouvrir'); });
+  el('sub-collec').addEventListener('click', function () { sousCartes = 'collec'; basculerColl('collec'); });
+  el('sub-albums').addEventListener('click', function () { sousCartes = 'albums'; basculerColl('albums'); });
   el('coll-albums').addEventListener('click', function (e) {
     if (!e.target.closest) return;
     var go = e.target.closest('[data-album-go]');
@@ -3325,6 +3396,10 @@
     var m = e.target.closest ? e.target.closest('[data-mission]') : null;
     if (m) reclamerMission(m.getAttribute('data-mission'));
   });
+  el('boutique-body').addEventListener('click', function (e) {
+    var a = e.target.closest ? e.target.closest('[data-achat]') : null;
+    if (a) acheter(a.getAttribute('data-achat'));
+  });
   el('raid-body').addEventListener('click', function (e) {
     if (!e.target.closest) return;
     var cl = e.target.closest('[data-claim]');
@@ -3333,7 +3408,9 @@
     var f = e.target.closest('[data-attack]');
     if (f) attaquer(f.getAttribute('data-attack'));
   });
-  el('goto-open').addEventListener('click', function () { switchTo('open'); });
+  el('goto-open').addEventListener('click', function () {
+    sousCartes = 'ouvrir'; switchTo('cartes'); basculerColl('ouvrir');
+  });
   el('sheet').addEventListener('click', function (e) {
     if (e.target === el('sheet')) closeSheet();
   });
@@ -3365,6 +3442,7 @@
 
   load();
   pointerPresence();
+  basculerColl('ouvrir');
   showMissions();
   refreshAlbums();
   refreshGold();
