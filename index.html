@@ -169,13 +169,28 @@
     display: flex; flex-direction: column;
     box-shadow: 0 16px 38px rgba(0,0,0,.55);
   }
+  /* Dos de carte : registre bordeaux a losanges, volontairement different
+     du paquet (bleu nuit raye) pour qu'on distingue l'emballage du contenu. */
   .face-back {
     align-items: center; justify-content: center; gap: 10px;
-    border: 1px solid #3a4260; color: var(--ivory);
+    border: 1px solid #6b2f38; color: var(--ivory);
     background:
-      repeating-linear-gradient(135deg, transparent 0 9px, rgba(255,255,255,.022) 9px 18px),
-      linear-gradient(165deg, #2b3149 0%, #191d2c 100%);
-    box-shadow: 0 16px 38px rgba(0,0,0,.55), inset 0 0 0 6px rgba(201,153,46,.13);
+      repeating-linear-gradient(45deg, transparent 0 11px, rgba(255,255,255,.045) 11px 12px),
+      repeating-linear-gradient(-45deg, transparent 0 11px, rgba(255,255,255,.045) 11px 12px),
+      radial-gradient(circle at 50% 40%, #6d2b36 0%, #3d1620 60%, #260d14 100%);
+    box-shadow: 0 16px 38px rgba(0,0,0,.55), inset 0 0 0 5px rgba(230,200,150,.18);
+  }
+  /* Cadre interieur fin, comme un liseré de carte a jouer. */
+  .face-back::before {
+    content: ""; position: absolute; inset: 14px;
+    border: 1px solid rgba(230,200,150,.28); border-radius: 2px;
+    pointer-events: none;
+  }
+  /* Le W du dos : creuse, pas dore comme celui du paquet. */
+  .face-back .pack-w {
+    background: none; -webkit-background-clip: initial; background-clip: initial;
+    color: rgba(240,225,200,.22);
+    text-shadow: 0 2px 0 rgba(0,0,0,.45), 0 -1px 0 rgba(255,255,255,.10);
   }
   .face-back .pack-w { font-size: 84px; }
   .face-back small { font-size: 10px; letter-spacing: .14em; color: var(--glass-dim); }
