@@ -64,11 +64,16 @@
 
   /* --- paquet --- */
   .packs {
-    margin: 0 0 4px; padding-bottom: 12px; text-align: center;
+    margin: 0 0 4px; text-align: center;
     font-size: 12px; color: var(--glass-dim);
-    border-bottom: 1px solid var(--night-line);
     font-variant-numeric: tabular-nums;
   }
+  .gold-bandeau {
+    margin: 0 0 12px; padding-bottom: 12px; text-align: center;
+    font-size: 12px; color: var(--glass-dim);
+    border-bottom: 1px solid var(--night-line);
+  }
+  .gold-bandeau b { color: #f0dda4; font-variant-numeric: tabular-nums; }
   .pack-stage { text-align: center; padding: 30px 0 10px; }
   .pack {
     width: 176px; height: 248px; cursor: pointer; position: relative;
@@ -769,6 +774,7 @@
 
 <main id="view-open">
   <p id="packs" class="packs"></p>
+  <p class="gold-bandeau">Wikigold : <b id="gold-compteur">0</b></p>
   <div id="missions"></div>
   <div id="pack-stage" class="pack-stage">
     <button id="pack" class="pack" aria-label="Ouvrir un paquet de cinq cartes">
@@ -1231,6 +1237,24 @@
   }
   /* --- Reserve de paquets : dix au maximum, un de plus par minute. --- */
   var PKEY = 'wikigacha:paquets';
+  var GKEY = 'wikigacha:wikigold';
+
+  /* ---------- Wikigold : monnaie du jeu ---------- */
+  function readGold() {
+    var v;
+    try { v = parseInt(localStorage.getItem(GKEY), 10); } catch (e) { v = NaN; }
+    return isNaN(v) ? 0 : v;
+  }
+  function ajouterGold(n) {
+    var v = Math.max(0, readGold() + n);
+    try { localStorage.setItem(GKEY, String(v)); } catch (e) {}
+    refreshGold();
+    return v;
+  }
+  function refreshGold() {
+    var e = el('gold-compteur');
+    if (e) e.textContent = readGold().toLocaleString('fr-FR');
+  }
 
   function readPacks() {
     var d;
@@ -1989,7 +2013,11 @@
     if (etat.reclames.indexOf(i) !== -1) return;
 
     var pk = readPacks();
-    var gain = PALIERS[i].gain;   /* les recompenses peuvent depasser le plafond */
+    var gain = Math.min(PALIERS[i].gain, MAX_PAQUETS - pk.n);
+    if (gain <= 0) {
+      el('recompense-msg').textContent = 'Réserve pleine — ouvrez des paquets, puis revenez.';
+      return;
+    }
     pk.n += gain;
     writePacks(pk);
     etat.reclames.push(i);
@@ -2077,12 +2105,9 @@
     if (!m || d.reclamees.indexOf(id) !== -1) return;
     var courant = (m.c === 'rarete') ? d.rarete : (d[m.c] || 0);
     if (courant < m.v) return;
-    var pk = readPacks();
-    pk.n = pk.n + m.gain;   /* les recompenses peuvent depasser le plafond */
-    writePacks(pk);
+    ajouterGold(m.gain * 20);
     d.reclamees.push(id);
     writeJour(d);
-    refreshPacks();
     showMissions();
   }
 
@@ -2098,7 +2123,7 @@
       var pris = d.reclamees.indexOf(m.id) !== -1;
       var etat;
       if (pris) etat = 'reçu';
-      else if (fait) etat = '+' + m.gain;
+      else if (fait) etat = '+' + (m.gain * 20) + ' or';
       else if (m.c === 'rarete') etat = TIERS[m.v].short + ' requis';
       else etat = val.toLocaleString('fr-FR') + ' / ' + m.v.toLocaleString('fr-FR');
       var cls = 'mission' + (pris ? ' fait' : (fait ? ' pret' : ''));
@@ -2420,7 +2445,7 @@
     var recu = 0;
     if (gagne) {
       var pk = readPacks();
-      recu = GAIN_DUEL;
+      recu = Math.min(GAIN_DUEL, MAX_PAQUETS - pk.n);
       pk.n += recu;
       writePacks(pk);
       refreshPacks();
@@ -2724,8 +2749,9 @@
     writeHist(prog);
 
     /* Recompense : un paquet par niveau, trois pour le boss final. */
-    var gain = niv.boss ? 3 : 1;
+    var gain = niv.boss ? 2 : 1;
     var pk = readPacks();
+    gain = Math.min(gain, MAX_PAQUETS - pk.n);
     pk.n += gain;
     writePacks(pk);
     refreshPacks();
@@ -2841,12 +2867,9 @@
     var x = mesures();
     if ((sc.m(x) || 0) < sc.v) return;
 
-    var pk = readPacks();
-    pk.n = pk.n + sc.gain;   /* les recompenses peuvent depasser le plafond */
-    writePacks(pk);
+    ajouterGold(sc.gain * 20);
     st.reclames.push(id);
     writeStats(st);
-    refreshPacks();
     showSucces();
   }
 
@@ -2884,7 +2907,7 @@
             + val.toLocaleString('fr-FR') + ' / ' + a.v.toLocaleString('fr-FR')
             + '<span class="jauge"><span style="width:' + pct.toFixed(0) + '%"></span></span></span>')
         + '</span>'
-        + '<span class="succes-gain">' + (pris ? 'reçu' : '+' + a.gain) + '</span>'
+        + '<span class="succes-gain">' + (pris ? 'reçu' : '+' + (a.gain * 20)) + '</span>'
         + '</' + (fait && !pris ? 'button' : 'div') + '>';
     });
     el('succes-body').innerHTML = html;
@@ -2997,7 +3020,7 @@
             ? (pris
                 ? '<p class="album-fait">Série complète · récompense reçue</p>'
                 : '<button class="btn btn-solid" data-album-go="' + s.id + '">'
-                  + 'Réclamer ' + s.gain + ' paquets</button>')
+                  + 'Réclamer ' + (s.gain * 20) + ' Wikigold</button>')
             : '<p class="album-manque">Encore ' + (e.total - e.trouves)
               + ' article' + (e.total - e.trouves > 1 ? 's' : '') + ' à trouver</p>')
         + '</div>';
@@ -3010,11 +3033,9 @@
     if (!s || albumsReclames().indexOf(id) !== -1) return;
     var e = etatSerie(s);
     if (e.trouves < e.total) return;
-    var pk = readPacks();
-    pk.n += s.gain;
-    writePacks(pk);
+    ajouterGold(s.gain * 20);
     marquerAlbum(id);
-    refreshPacks(); refreshAlbums(); refreshSucces();
+    refreshAlbums(); refreshSucces();
     showAlbums();
   }
 
@@ -3157,7 +3178,7 @@
       return;
     }
     if (etape === 'annule') { showCollection(); return; }
-    [KEY, PKEY, RKEY, SKEY, JKEY, CKEY, VKEY].forEach(function (k) {
+    TOUTES_CLES.forEach(function (k) {
       try { localStorage.removeItem(k); } catch (e) {}
     });
     collection = {};
@@ -3346,6 +3367,7 @@
   pointerPresence();
   showMissions();
   refreshAlbums();
+  refreshGold();
   refreshCount();
   refreshSucces();
   refreshPacks();
