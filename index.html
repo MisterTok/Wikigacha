@@ -1070,10 +1070,16 @@
 
   /* ---------- données ---------- */
 
+  var MIN_AVEC_IMAGE = 3;   /* on vise au moins 3 cartes illustrees sur 5 */
+
+  /* On tire large (12 articles) en UN SEUL appel, puis on selectionne cinq
+     articles en privilegiant ceux qui ont deja une vignette. Les statistiques
+     (vues, qualite) ne sont demandees que pour les cinq retenus : le surcout
+     reseau est donc quasi nul. */
   function fetchPack() {
     var url = 'https://' + WIKI + '.org/w/api.php'
       + '?action=query&format=json&origin=*'
-      + '&generator=random&grnnamespace=0&grnlimit=5'
+      + '&generator=random&grnnamespace=0&grnlimit=12'
       + '&prop=info|pageimages|description|extracts'
       + '&inprop=url&piprop=thumbnail&pithumbsize=500&pilicense=any'
       + '&exintro=1&explaintext=1&exlimit=max';
@@ -1083,7 +1089,27 @@
     }).then(function (d) {
       var pages = d && d.query && d.query.pages;
       if (!pages) throw new Error('reponse vide');
-      return Object.keys(pages).map(function (k) { return pages[k]; });
+      var tous = Object.keys(pages).map(function (k) { return pages[k]; });
+
+      var avec = tous.filter(function (p) { return p.thumbnail && p.thumbnail.source; });
+      var sans = tous.filter(function (p) { return !(p.thumbnail && p.thumbnail.source); });
+
+      /* On prend jusqu'a MIN_AVEC_IMAGE illustres, puis on complete au hasard
+         avec le reste pour garder de la variete dans les tirages. */
+      var choix = avec.slice(0, MIN_AVEC_IMAGE);
+      var reste = avec.slice(MIN_AVEC_IMAGE).concat(sans);
+      for (var i = reste.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = reste[i]; reste[i] = reste[j]; reste[j] = t;
+      }
+      choix = choix.concat(reste).slice(0, 5);
+
+      /* On melange l'ordre final pour ne pas montrer les illustrees en premier. */
+      for (var k = choix.length - 1; k > 0; k--) {
+        var m = Math.floor(Math.random() * (k + 1));
+        var u = choix[k]; choix[k] = choix[m]; choix[m] = u;
+      }
+      return choix;
     });
   }
 
