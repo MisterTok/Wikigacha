@@ -1320,13 +1320,43 @@
      un sujet majeur et tres consulte atteint les hauts tiers. */
   function scoreRarete(bytes, views, q) {
     var qual = qualityScore(bytes, q);
-    /* Facteur de popularite entre 0.20 et 1.20 selon les vues sur deux mois.
-       Courbe durcie : un article peu consulte est fortement bride, ce qui
-       ecarte les petites communes generees automatiquement des hauts tiers.
-       ~0 vue -> 0.20 ; ~1000 vues -> ~0.5 ; ~50 000 vues+ -> plafond 1.20. */
+    /* Facteur de popularite entre 0.20 et 1.20 selon les vues sur deux mois. */
     var f = Math.min(1, Math.log10(views + 1) / Math.log10(50000));
-    var pop = 0.20 + 1.00 * (f * f);   /* le carre accentue la penalite en bas */
+    var pop = 0.20 + 1.00 * (f * f);
     return qual * pop;
+  }
+
+  /* Plafond de rarete selon l'audience : un article que personne ne consulte
+     ne peut pas devenir Legendaire, meme s'il est parfaitement redige (cas
+     typique des communes, tres documentees mais peu lues).
+     Indices : 0 Commune, 1 Peu commune, 2 Rare, 3 Épique, 4 Légendaire, 5 Mythique. */
+  var PLAFONDS_VUES = [
+    { vues: 500,   max: 1 },   /* moins de 500 vues   -> Peu commune au plus */
+    { vues: 2000,  max: 2 },   /* moins de 2 000      -> Rare */
+    { vues: 8000,  max: 3 },   /* moins de 8 000      -> Épique */
+    { vues: 30000, max: 4 }    /* moins de 30 000     -> Légendaire */
+  ];
+  /* Seuil eleve a dessein : les articles de communes atteignent facilement
+     90+ grace a leurs references administratives. Seule une redaction
+     vraiment hors norme donne le cran de bonus. */
+  var QUALITE_EXCEPTIONNELLE = 98;
+
+  /* Determine le palier final : le score donne le niveau brut, la popularite
+     pose un plafond, et une qualite exceptionnelle accorde un cran de plus. */
+  function paliersDe(score, views, bytes, q) {
+    var brut = TIERS.findIndex(function (t) { return score < t.max; });
+    if (brut < 0) brut = TIERS.length - 1;
+
+    var plafond = TIERS.length - 1;
+    for (var i = 0; i < PLAFONDS_VUES.length; i++) {
+      if (views < PLAFONDS_VUES[i].vues) { plafond = PLAFONDS_VUES[i].max; break; }
+    }
+    /* Un article remarquablement redige gagne un palier au-dessus du plafond :
+       l'excellence discrete n'est pas totalement ecrasee par l'audience. */
+    if (qualityScore(bytes, q) >= QUALITE_EXCEPTIONNELLE) {
+      plafond = Math.min(TIERS.length - 1, plafond + 1);
+    }
+    return TIERS[Math.min(brut, plafond)];
   }
 
   function fetchSummary(title) {
@@ -1393,7 +1423,7 @@
   function toCard(page, views, q) {
     var bytes = page.length || 1;
     var score = scoreRarete(bytes, views, q);
-    var tier = TIERS.find(function (t) { return score < t.max; });
+    var tier = paliersDe(score, views, bytes, q);
     return {
       score: Math.round(score * 10) / 10,
       refs: q ? q.refs : null, img: q ? q.img : null, sec: q ? q.sec : null,
@@ -2107,7 +2137,7 @@
           var titre = (a.titles && a.titles.normalized) || a.title || page.title;
           var bytes = page.length || 40000;
           var sc = scoreRarete(bytes, r[2], r[1]);
-          var tier = TIERS.find(function (t) { return sc < t.max; });
+          var tier = paliersDe(sc, r[2], bytes, r[1]);
           var boss = {
             title: titre,
             url: page.fullurl || ('https://' + WIKI + '.org/wiki/'
