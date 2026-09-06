@@ -660,6 +660,12 @@
   }
   .jauge span { position: absolute; inset: 0 auto 0 0; background: #c9992e; }
 
+  .offline-bandeau {
+    padding: 10px 14px; margin: 12px 0 0; font-size: 13px; line-height: 1.5;
+    background: var(--night-up); border: 1px solid var(--night-line);
+    color: var(--glass-dim);
+  }
+
   .sous-tabs { display: flex; gap: 6px; margin-bottom: 20px; }
   .sous-tab {
     flex: 1; padding: 9px 6px; font: inherit; font-size: 13px;
@@ -879,6 +885,10 @@
     <button id="tab-succes" class="tab">Succès <span id="succes-count"></span></button>
   </nav>
 </header>
+
+<div id="offline-bandeau" class="offline-bandeau" hidden>
+  Hors connexion — l’ouverture de paquets est indisponible.
+</div>
 
 <main id="view-cartes">
   <nav class="sous-tabs">
@@ -4139,6 +4149,16 @@
   el('coll-q').addEventListener('input', function () {
     vue.q = el('coll-q').value; showCollection();
   });
+
+  /* Bandeau discret quand la connexion tombe : l'ouverture de paquets a
+     besoin de Wikipedia, le reste du jeu fonctionne normalement. */
+  function majEtatReseau() {
+    var b = el('offline-bandeau');
+    if (b) b.hidden = navigator.onLine;
+  }
+  window.addEventListener('online', majEtatReseau);
+  window.addEventListener('offline', majEtatReseau);
+  majEtatReseau();
 
   load();
   pointerPresence();
