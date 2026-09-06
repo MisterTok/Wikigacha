@@ -85,15 +85,28 @@
     box-shadow: 0 14px 34px rgba(0,0,0,.5);
   }
   .pack:active { cursor: grabbing; }
+  /* Le sachet : plus clair et satine que le dos des cartes, avec des reflets
+     verticaux facon plastique et un liseré dore franc. Volontairement sans le
+     grand W du dos de carte, pour qu'on distingue l'emballage du contenu. */
   .pack-corps {
     position: absolute; inset: 0; z-index: 1;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; padding-top: 30px;
     color: var(--ivory);
-    border: 1px solid #3a4260; border-radius: 4px;
+    border: 1px solid #5b6a94; border-radius: 4px;
     background:
-      repeating-linear-gradient(135deg, transparent 0 9px, rgba(255,255,255,.03) 9px 18px),
-      linear-gradient(165deg, #323a57 0%, #1a1f30 100%);
-    box-shadow: inset 0 0 0 6px rgba(201,153,46,.16), inset 0 40px 60px rgba(0,0,0,.35);
+      linear-gradient(100deg, transparent 0 8%, rgba(255,255,255,.10) 12%, transparent 18%),
+      linear-gradient(100deg, transparent 0 42%, rgba(255,255,255,.07) 47%, transparent 54%),
+      linear-gradient(100deg, transparent 0 76%, rgba(255,255,255,.09) 82%, transparent 90%),
+      linear-gradient(180deg, #4a5578 0%, #2c3452 45%, #1d2338 100%);
+    box-shadow:
+      inset 0 0 0 3px rgba(201,153,46,.35),
+      inset 0 0 26px rgba(0,0,0,.45);
+  }
+  /* Le nom du jeu imprime sur le sachet, comme sur un vrai emballage. */
+  .pack-marque {
+    font-family: var(--display); font-size: 26px; letter-spacing: .02em;
+    color: #f0dda4; text-shadow: 0 2px 4px rgba(0,0,0,.5);
   }
   /* La bande doree en haut, qu'on arrache vers la DROITE avec --tear. */
   .pack-bande {
@@ -169,28 +182,13 @@
     display: flex; flex-direction: column;
     box-shadow: 0 16px 38px rgba(0,0,0,.55);
   }
-  /* Dos de carte : registre bordeaux a losanges, volontairement different
-     du paquet (bleu nuit raye) pour qu'on distingue l'emballage du contenu. */
   .face-back {
     align-items: center; justify-content: center; gap: 10px;
-    border: 1px solid #6b2f38; color: var(--ivory);
+    border: 1px solid #3a4260; color: var(--ivory);
     background:
-      repeating-linear-gradient(45deg, transparent 0 11px, rgba(255,255,255,.045) 11px 12px),
-      repeating-linear-gradient(-45deg, transparent 0 11px, rgba(255,255,255,.045) 11px 12px),
-      radial-gradient(circle at 50% 40%, #6d2b36 0%, #3d1620 60%, #260d14 100%);
-    box-shadow: 0 16px 38px rgba(0,0,0,.55), inset 0 0 0 5px rgba(230,200,150,.18);
-  }
-  /* Cadre interieur fin, comme un liseré de carte a jouer. */
-  .face-back::before {
-    content: ""; position: absolute; inset: 14px;
-    border: 1px solid rgba(230,200,150,.28); border-radius: 2px;
-    pointer-events: none;
-  }
-  /* Le W du dos : creuse, pas dore comme celui du paquet. */
-  .face-back .pack-w {
-    background: none; -webkit-background-clip: initial; background-clip: initial;
-    color: rgba(240,225,200,.22);
-    text-shadow: 0 2px 0 rgba(0,0,0,.45), 0 -1px 0 rgba(255,255,255,.10);
+      repeating-linear-gradient(135deg, transparent 0 9px, rgba(255,255,255,.022) 9px 18px),
+      linear-gradient(165deg, #2b3149 0%, #191d2c 100%);
+    box-shadow: 0 16px 38px rgba(0,0,0,.55), inset 0 0 0 6px rgba(201,153,46,.13);
   }
   .face-back .pack-w { font-size: 84px; }
   .face-back small { font-size: 10px; letter-spacing: .14em; color: var(--glass-dim); }
@@ -896,8 +894,8 @@
     <div id="pack" class="pack" role="button" tabindex="0"
          aria-label="Ouvrir un paquet de cinq cartes">
       <div class="pack-corps">
-        <span class="pack-w">W</span>
-        <span class="pack-label">5 CARTES</span>
+        <span class="pack-marque">Wikigacha</span>
+        <span class="pack-label">POCHETTE DE 5 CARTES</span>
       </div>
       <div class="pack-bande" id="pack-bande">
         <span class="pack-fil"></span>
