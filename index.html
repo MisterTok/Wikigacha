@@ -31,13 +31,19 @@
     --t5: #c9992e;
     --t6: #cc4c3f;
 
+    --hud-h: 50px;
+    --bar-h: 58px;
+    --safe-b: env(safe-area-inset-bottom, 0px);
+
     --display: "Fraunces", Georgia, "Times New Roman", serif;
     --sans: -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   }
   *, *::before, *::after { box-sizing: border-box; }
   html { background: var(--night); }
   body {
-    margin: 0 auto; max-width: 640px; padding: 0 16px 56px;
+    margin: 0 auto; max-width: 640px;
+    padding: 0 16px calc(var(--bar-h) + var(--safe-b) + 28px);
+    overscroll-behavior-y: none;
     font-family: var(--sans); color: var(--glass);
     background:
       radial-gradient(120% 60% at 50% 0%, #1d2336 0%, transparent 70%),
@@ -46,34 +52,84 @@
     -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
   }
 
-  .masthead { padding: 26px 0 0; }
-  .masthead h1 {
-    font-family: var(--display); font-weight: 600; font-size: 36px;
-    line-height: 1; margin: 0; color: var(--ivory); letter-spacing: -0.015em;
+  /* Bandeau haut : la marque et les deux ressources du jeu, toujours a
+     l'ecran. Le joueur n'a plus a remonter pour savoir ce qu'il possede. */
+  .hud {
+    position: sticky; top: 0; z-index: 15;
+    margin: 0 -16px 14px; padding: 0 16px; height: var(--hud-h);
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: rgba(20,24,38,.93);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--night-line);
   }
-  .tagline { margin: 8px 0 16px; font-size: 13px; color: var(--glass-dim); }
-  .tabs { display: flex; gap: 5px; margin-bottom: 22px; }
+  .hud-marque {
+    font-family: var(--display); font-weight: 600; font-size: 20px;
+    color: var(--ivory); letter-spacing: -0.015em; white-space: nowrap;
+  }
+  .hud-res { display: flex; gap: 7px; }
+  .res {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 9px; font-size: 12px; color: var(--glass-dim);
+    background: var(--night-up); border: 1px solid var(--night-line);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .res b { color: var(--ivory); font-weight: 600; }
+  .res-or b { color: #f0dda4; }
+  .res .ico { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+  .res-or .ico { color: #c9992e; }
+  .res.bat { animation: resbat .45s ease; }
+  @keyframes resbat { 45% { transform: scale(1.14); } }
+
+  /* Barre d'onglets ancree en bas : tout se pilote au pouce. */
+  .tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 18;
+    display: flex; justify-content: center;
+    padding-bottom: var(--safe-b);
+    background: rgba(20,24,38,.95);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+    border-top: 1px solid var(--night-line);
+  }
+  .tabbar-in { display: flex; width: 100%; max-width: 640px; }
   .tab {
-    flex: 1; padding: 10px 4px; font: inherit; font-size: 12px;
-    background: var(--night-up); color: var(--glass);
-    border: 1px solid var(--night-line); cursor: pointer;
+    position: relative; flex: 1; height: var(--bar-h); padding: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    font: inherit; font-size: 11px; letter-spacing: .01em;
+    background: none; border: 0; cursor: pointer; color: var(--glass-dim);
+    -webkit-tap-highlight-color: transparent; transition: color .15s ease;
   }
-  .tab.is-active { background: var(--ivory); color: var(--ink); border-color: var(--ivory); }
+  .tab svg {
+    width: 22px; height: 22px; stroke: currentColor; fill: none;
+    stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+    transition: transform .16s cubic-bezier(.3,1.3,.5,1);
+  }
+  .tab.is-active { color: var(--ivory); }
+  .tab.is-active svg { transform: translateY(-1px) scale(1.06); }
+  .tab.is-active::before {
+    content: ''; position: absolute; top: 0; left: 50%; width: 24px; height: 2px;
+    margin-left: -12px; background: var(--ivory);
+  }
+  .tab:active svg { transform: scale(.9); }
+  .badge {
+    position: absolute; top: 5px; left: 50%; margin-left: 5px;
+    min-width: 15px; height: 15px; padding: 0 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; line-height: 1; font-variant-numeric: tabular-nums;
+    color: #1a1d29; background: #c9992e;
+  }
+  .badge:empty { display: none; }
   :focus-visible { outline: 2px solid var(--t3); outline-offset: 2px; }
   #coll-count { opacity: .7; font-variant-numeric: tabular-nums; }
 
   /* --- paquet --- */
+  .tagline {
+    margin: 2px 0 4px; text-align: center;
+    font-size: 13px; color: var(--glass-dim);
+  }
   .packs {
-    margin: 0 0 4px; text-align: center;
+    margin: 10px 0 4px; text-align: center;
     font-size: 12px; color: var(--glass-dim);
     font-variant-numeric: tabular-nums;
   }
-  .gold-bandeau {
-    margin: 0 0 12px; padding-bottom: 12px; text-align: center;
-    font-size: 12px; color: var(--glass-dim);
-    border-bottom: 1px solid var(--night-line);
-  }
-  .gold-bandeau b { color: #f0dda4; font-variant-numeric: tabular-nums; }
   .pack-stage { text-align: center; padding: 30px 0 10px; }
   /* Sachet scelle : le corps + une bande doree sur le bord droit qu'on
      arrache vers la gauche. La variable --tear (0 a 1) suit le doigt. */
@@ -326,10 +382,12 @@
   .status.error { color: #ef8b8b; }
   .btn {
     display: block; width: 100%; margin: 8px 0 0; padding: 13px;
+    min-height: 48px;
     background: var(--night-up); border: 1px solid var(--night-line);
     font: inherit; font-size: 15px; color: var(--ivory); cursor: pointer; text-align: center;
+    transition: transform .12s ease, background .12s ease;
   }
-  .btn:active { background: #262c40; }
+  .btn:active { background: #262c40; transform: scale(.985); }
   .btn-solid { background: var(--ivory); color: var(--ink); border-color: var(--ivory); }
   .empty { text-align: center; padding: 52px 0 24px; color: var(--glass-dim); font-size: 14px; }
   .coll-stats {
@@ -666,12 +724,20 @@
     color: var(--glass-dim);
   }
 
-  .sous-tabs { display: flex; gap: 6px; margin-bottom: 20px; }
+  .sous-tabs {
+    position: sticky; top: var(--hud-h); z-index: 12;
+    display: flex; gap: 6px; margin: 0 -16px 18px; padding: 8px 16px 10px;
+    background: rgba(20,24,38,.93);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--night-line);
+  }
   .sous-tab {
-    flex: 1; padding: 9px 6px; font: inherit; font-size: 13px;
+    flex: 1; min-height: 42px; padding: 9px 4px; font: inherit; font-size: 13px;
     background: transparent; color: var(--glass-dim);
     border: 1px solid var(--night-line); cursor: pointer;
+    transition: color .14s ease, background .14s ease, border-color .14s ease;
   }
+  .sous-tab:active { transform: translateY(1px); }
   .sous-tab.is-active { background: var(--night-up); color: var(--ivory); border-color: var(--glass-dim); }
 
   /* --- quiz --- */
@@ -810,11 +876,24 @@
   }
   .sheet[hidden] { display: none; }
   .sheet-inner {
-    width: 100%; max-width: 640px; max-height: 88vh; overflow-y: auto;
+    width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto;
     background: var(--ivory); color: var(--ink);
     border-top: 4px solid var(--tier, var(--t1));
-    padding: 20px 18px 30px; animation: rise .26s ease-out;
+    padding: 20px 18px calc(30px + var(--safe-b));
+    animation: rise .26s ease-out;
+    overscroll-behavior: contain; touch-action: pan-y;
+    will-change: transform;
   }
+  /* Poignee : elle reste en haut de la fiche meme quand on fait defiler,
+     et signale qu'on peut rabattre la fiche d'un glissement vers le bas. */
+  .sheet-inner::before {
+    content: ''; display: block; position: sticky; top: -20px; z-index: 4;
+    height: 22px; margin: -20px -18px 6px;
+    background: var(--ivory)
+      linear-gradient(var(--ivory-dim), var(--ivory-dim)) no-repeat center 9px / 44px 3px;
+  }
+  .sheet-inner.glisse { animation: none; transition: none; }
+  .sheet-inner.rentre { transition: transform .2s ease-out; }
   @keyframes rise { from { transform: translateY(26px); opacity: 0; } }
   .sheet-inner h2 {
     font-family: var(--display); font-weight: 600; font-size: 25px;
@@ -860,6 +939,27 @@
     font-size: 10px; letter-spacing: .05em; color: #c9992e;
   }
 
+  /* Recherche et tri restent sous la main quand on descend la collection. */
+  .outils {
+    position: sticky; top: calc(var(--hud-h) + 60px); z-index: 11;
+    margin: 0 -16px; padding: 10px 16px 12px;
+    background: rgba(20,24,38,.93);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  }
+  .code-champ, .tri, .tri-btn { min-height: 44px; }
+  .card { transition: transform .12s ease, background .12s ease; }
+  .card:active { transform: scale(.988); background: #232941; }
+  .quiz-rep { min-height: 54px; }
+  .palier, .tri-btn { -webkit-tap-highlight-color: transparent; }
+
+  #coll-sentinelle {
+    padding: 14px 0 4px; text-align: center;
+    font-size: 12px; color: var(--glass-dim);
+  }
+
+  .reglages { margin-top: 18px; }
+  .reglages .tri-btn { width: 100%; }
+
   .credit {
     font-size: 11px; color: var(--glass-dim); line-height: 1.7;
     border-top: 1px solid var(--night-line); padding-top: 14px; margin-top: 10px;
@@ -875,15 +975,18 @@
 </head>
 <body>
 
-<header class="masthead">
-  <h1>Wikigacha</h1>
-  <p class="tagline">Cinq articles au hasard. À vous de voir ce que ça vaut.</p>
-  <nav class="tabs">
-    <button id="tab-cartes" class="tab is-active">Cartes</button>
-    <button id="tab-raid" class="tab">Jouer</button>
-    <button id="tab-boutique" class="tab">Boutique</button>
-    <button id="tab-succes" class="tab">Succès <span id="succes-count"></span></button>
-  </nav>
+<header class="hud">
+  <span class="hud-marque">Wikigacha</span>
+  <span class="hud-res">
+    <span class="res" id="res-packs">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4z"/><path d="M4 11h16"/><path d="M12 7V4"/></svg>
+      <b id="hud-packs">0</b><span id="hud-packs-max">/10</span>
+    </span>
+    <span class="res res-or" id="res-or">
+      <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8"/></svg>
+      <b id="gold-compteur">0</b>
+    </span>
+  </span>
 </header>
 
 <div id="offline-bandeau" class="offline-bandeau" hidden>
@@ -897,9 +1000,7 @@
     <button id="sub-albums" class="sous-tab">Albums <span id="albums-count"></span></button>
   </nav>
   <div id="view-open">
-  <p id="packs" class="packs"></p>
-  <p class="gold-bandeau">Wikigold : <b id="gold-compteur">0</b></p>
-  <div id="missions"></div>
+  <p class="tagline">Cinq articles au hasard. À vous de voir ce que ça vaut.</p>
   <div id="pack-stage" class="pack-stage">
     <div id="pack" class="pack" role="button" tabindex="0"
          aria-label="Ouvrir un paquet de cinq cartes">
@@ -929,8 +1030,10 @@
     <p id="tap-on" class="tap-on">Touchez la carte pour la retourner</p>
   </div>
 
+  <p id="packs" class="packs"></p>
   <div id="draw" class="draw"></div>
   <div id="status" class="status" hidden></div>
+  <div id="missions"></div>
   </div>
 
   <div id="coll-cartes" hidden>
@@ -971,9 +1074,13 @@
     </div>
   </div>
   <div id="coll-grid" class="grid"></div>
+  <div id="coll-sentinelle" hidden>Chargement de la suite…</div>
   <div id="coll-vide-filtre"></div>
   <div id="coll-zone-sauvegarde"></div>
   <div id="coll-zone-raz"></div>
+  <div class="reglages">
+    <button id="opt-vibr" class="tri-btn">Vibrations : activées</button>
+  </div>
   </div>
   <div id="coll-albums" hidden></div>
 </main>
@@ -1003,6 +1110,28 @@
   <div class="sheet-inner" id="sheet-inner"></div>
 </div>
 
+<nav class="tabbar" aria-label="Navigation principale">
+  <div class="tabbar-in">
+    <button id="tab-cartes" class="tab is-active">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="11" height="15"/><path d="M8 3h10a2 2 0 0 1 2 2v12"/></svg>
+      <span>Cartes</span>
+    </button>
+    <button id="tab-raid" class="tab">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V3"/><path d="M5 4h13l-3 4 3 4H5"/></svg>
+      <span>Jouer</span>
+    </button>
+    <button id="tab-boutique" class="tab">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16l-1.2 12H5.2z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
+      <span>Boutique</span>
+    </button>
+    <button id="tab-succes" class="tab">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 5H5v1.5A3.5 3.5 0 0 0 8 10"/><path d="M16 5h3v1.5A3.5 3.5 0 0 1 16 10"/><path d="M12 13v4"/><path d="M9 20h6"/></svg>
+      <span>Succès</span>
+      <span id="succes-count" class="badge"></span>
+    </button>
+  </div>
+</nav>
+
 <p class="credit">
   Contenu et données issus de <a href="https://fr.wikipedia.org" target="_blank" rel="noopener">Wikipédia</a>,
   sous licence <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr" target="_blank" rel="noopener">CC BY-SA 4.0</a>.
@@ -1017,6 +1146,7 @@
 
   /* Sept paliers, calques sur ceux du jeu original.
      Le seuil porte sur le score de qualite WikiRank (0-100). */
+  var sousCartesRendu = null;
   var TIERS = [
     { max: 12,  name: 'Commune',    short: 'C',  color: '#8d93a3', fx: '' },
     { max: 22,  name: 'Peu commune',short: 'PC', color: '#4f8d72', fx: '' },
@@ -1077,6 +1207,74 @@
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[m];
     });
   };
+
+  /* ---------- confort de jeu ---------- */
+
+  /* Retours haptiques. Tres courts : ils ponctuent le geste sans le parasiter.
+     Le joueur peut les couper depuis la collection. */
+  var OKEY = 'wikigacha:options';
+  var options = { vibr: true };
+  try {
+    var _o = JSON.parse(localStorage.getItem(OKEY));
+    if (_o && typeof _o.vibr === 'boolean') options.vibr = _o.vibr;
+  } catch (e) {}
+  function saveOptions() {
+    try { localStorage.setItem(OKEY, JSON.stringify(options)); } catch (e) {}
+  }
+  function vib(motif) {
+    if (!options.vibr || !navigator.vibrate) return;
+    try { navigator.vibrate(motif); } catch (e) {}
+  }
+
+  /* Petit battement sur un compteur qui vient de changer : le gain se voit
+     meme quand le regard est ailleurs sur l'ecran. */
+  function battre(id) {
+    var e = el(id);
+    if (!e) return;
+    e.classList.remove('bat');
+    void e.offsetWidth;
+    e.classList.add('bat');
+  }
+
+  /* On remonte en haut a chaque changement d'ecran : sans ca, on arrive au
+     milieu d'une page dont on n'a pas vu le debut. */
+  function hautDePage() {
+    try { window.scrollTo({ top: 0, behavior: 'auto' }); }
+    catch (e) { window.scrollTo(0, 0); }
+  }
+
+  /* Bouton retour d'Android : il ferme la fiche, puis ramene a l'onglet
+     Cartes. Sans ca, un retour reflexe quittait le jeu. */
+  var vueCourante = 'cartes', sautsIgnores = 0, ficheDansHist = false;
+  function pousserHist(tag) {
+    try { history.pushState({ wg: tag }, ''); } catch (e) {}
+  }
+  function reculer() {
+    sautsIgnores += 1;
+    try { history.back(); } catch (e) { sautsIgnores -= 1; }
+  }
+
+  /* Rendu progressif de la collection : au-dela de quelques dizaines de
+     cartes, tout peindre d'un coup fige l'ecran une seconde. */
+  var OBS_OK = !!window.IntersectionObserver;
+  var listeRestante = [], listeObs = null;
+  function rendreListe(vus) {
+    listeRestante = vus.slice();
+    el('coll-grid').innerHTML = '';
+    verserLot();
+  }
+  function verserLot() {
+    var g = el('coll-grid');
+    if (!g) return;
+    var lot = OBS_OK ? listeRestante.splice(0, 24) : listeRestante.splice(0);
+    if (lot.length) {
+      var d = document.createElement('div');
+      d.innerHTML = lot.map(function (c) { return cardHTML(c, c.count); }).join('');
+      while (d.firstChild) g.appendChild(d.firstChild);
+    }
+    var s = el('coll-sentinelle');
+    if (s) s.hidden = !listeRestante.length;
+  }
 
   /* ---------- données ---------- */
 
@@ -1531,7 +1729,10 @@
   }
   function refreshGold() {
     var e = el('gold-compteur');
-    if (e) e.textContent = readGold().toLocaleString('fr-FR');
+    if (!e) return;
+    var v = readGold().toLocaleString('fr-FR');
+    if (e.textContent !== v) battre('res-or');
+    e.textContent = v;
   }
 
   function readPacks() {
@@ -1569,6 +1770,12 @@
     var vers = PITIE_TOUS - (d.ouverts % PITIE_TOUS);
     txt += ' · garantie dans ' + vers + (vers > 1 ? ' paquets' : ' paquet');
     el('packs').textContent = txt;
+    var hp = el('hud-packs');
+    if (hp) {
+      if (hp.textContent !== String(d.n)) battre('res-packs');
+      hp.textContent = d.n;
+      el('hud-packs-max').textContent = d.n > MAX_PAQUETS ? '' : '/' + MAX_PAQUETS;
+    }
     el('pack').classList.toggle('inerte', d.n < 1);
     return d;
   }
@@ -1792,6 +1999,13 @@
     if (qi >= queue.length) return;
     if (!f.classList.contains('is-open')) {
       f.classList.add('is-open');
+      /* Plus la carte est rare, plus la salve est longue : la main sait
+         avant les yeux qu'il se passe quelque chose. */
+      var rang = rankIndex(queue[qi] && queue[qi].rank);
+      if (rang >= 5) vib([0, 30, 55, 30, 55, 70]);
+      else if (rang >= 4) vib([0, 24, 50, 45]);
+      else if (rang >= 3) vib([0, 18, 45, 26]);
+      else vib(11);
       add(queue[qi]);
       el('tap-on').textContent = (qi + 1 < queue.length)
         ? 'Touchez pour la suivante'
@@ -1990,8 +2204,7 @@
       + '<button class="btn btn-offrir" id="sheet-offrir" data-offrir="' + esc(c.title) + '">'
       + 'Offrir cette carte' + (c.count > 1 ? ' (vous en avez ' + c.count + ')' : '')
       + '</button>';
-    el('sheet').hidden = false;
-    document.body.style.overflow = 'hidden';
+    ouvrirFeuille();
     el('sheet-close').addEventListener('click', closeSheet);
 
     /* Rattrapage : si le resume ou l'image manquent, on interroge Wikipedia
@@ -2072,10 +2285,33 @@
     if (!el('coll-cartes').hidden) showCollection();
   }
 
-  function closeSheet() {
+  function ouvrirFeuille() {
+    var f = el('sheet'), i = el('sheet-inner');
+    i.scrollTop = 0;
+    i.style.transform = '';
+    i.classList.remove('glisse', 'rentre');
+    f.hidden = false;
+    document.body.style.overflow = 'hidden';
+    vib(8);
+    if (!ficheDansHist) { ficheDansHist = true; pousserHist('fiche'); }
+  }
+
+  function closeSheet(viaRetour) {
     el('sheet').hidden = true;
     document.body.style.overflow = '';
+    el('sheet-inner').style.transform = '';
+    if (ficheDansHist) {
+      ficheDansHist = false;
+      if (!viaRetour) reculer();
+    }
   }
+
+  window.addEventListener('popstate', function () {
+    if (sautsIgnores > 0) { sautsIgnores -= 1; return; }
+    if (!el('sheet').hidden) { closeSheet(true); return; }
+    if (vueCourante !== 'cartes') { switchTo('cartes', true); return; }
+    /* Deja a la racine : on laisse le systeme reprendre la main. */
+  });
 
   /* ---------- statistiques durables ---------- */
 
@@ -2782,8 +3018,7 @@
         }).join('')
       + '</div>'
       + '<button class="btn" id="sheet-close">Fermer</button>';
-    el('sheet').hidden = false;
-    document.body.style.overflow = 'hidden';
+    ouvrirFeuille();
     el('sheet-close').addEventListener('click', closeSheet);
   }
 
@@ -3184,8 +3419,7 @@
             + encodeURIComponent(titre.replace(/ /g, '_'))
             + '" target="_blank" rel="noopener">Lire l’article</a>')
       + '</div>';
-    el('sheet').hidden = false;
-    document.body.style.overflow = 'hidden';
+    ouvrirFeuille();
     el('sheet-close').addEventListener('click', closeSheet);
   }
 
@@ -3387,8 +3621,7 @@
     var prets = SUCCES.filter(function (a) {
       return (a.m(x) || 0) >= a.v && st.reclames.indexOf(a.id) === -1;
     }).length;
-    el('succes-count').textContent = prets ? '(' + prets + ')' : '';
-    el('succes-count').style.color = prets ? '#c9992e' : '';
+    el('succes-count').textContent = prets ? String(prets) : '';
     return { x: x, st: st, faits: faits };
   }
 
@@ -3816,6 +4049,8 @@
   }
 
   function basculerColl(quoi) {
+    if (sousCartesRendu !== null && quoi !== sousCartesRendu) { vib(5); hautDePage(); }
+    sousCartesRendu = quoi;
     el('view-open').hidden = quoi !== 'ouvrir';
     el('coll-cartes').hidden = quoi !== 'collec';
     el('coll-albums').hidden = quoi !== 'albums';
@@ -3869,7 +4104,7 @@
       return (b.obtenu || 0) - (a.obtenu || 0);   /* egalite : plus recent d'abord */
     });
 
-    el('coll-grid').innerHTML = vus.map(function (c) { return cardHTML(c, c.count); }).join('');
+    rendreListe(vus);
     el('coll-vide-filtre').innerHTML = (items.length && !vus.length)
       ? '<p class="status">Aucune carte ne correspond'
         + (vue.favOnly ? ' (filtre favoris actif)' : '') + '.</p>' : '';
@@ -3976,11 +4211,19 @@
   }
 
   var sousCartes = 'ouvrir';
-  function switchTo(which) {
+  function switchTo(which, viaRetour) {
+    if (which === vueCourante) { hautDePage(); return; }
+    if (!viaRetour) {
+      vib(7);
+      if (which !== 'cartes' && vueCourante === 'cartes') pousserHist('vue');
+    }
+    vueCourante = which;
     ['cartes', 'raid', 'boutique', 'succes'].forEach(function (v) {
       el('view-' + v).hidden = (v !== which);
       el('tab-' + v).classList.toggle('is-active', v === which);
+      el('tab-' + v).setAttribute('aria-selected', v === which ? 'true' : 'false');
     });
+    hautDePage();
     if (which === 'cartes') { basculerColl(sousCartes); refreshAlbums(); }
     if (which === 'raid') montrerCombat(sousCombat);
     if (which === 'boutique') showBoutique();
@@ -4011,7 +4254,11 @@
       /* On arrache vers la DROITE : le deplacement positif fait progresser. */
       var d = (clientX - x0) / COURSE;
       setTear(d);
+      var avant = ouvre;
       ouvre = d >= SEUIL;
+      /* Un cran sec au moment ou le paquet devient ouvrable : le doigt sait
+         qu'il peut lacher. */
+      if (ouvre && !avant) vib(14);
     }
     function fin() {
       if (x0 === null) return;
@@ -4023,6 +4270,7 @@
       if (!pret()) return;
       pack.classList.add('ouvert');
       setTear(1);
+      vib([0, 20, 45, 30]);
       /* On decompte le paquet et on lance le tirage. */
       var etat = readPacks();
       etat.n -= 1; etat.ouverts += 1;
@@ -4145,8 +4393,10 @@
     closeSheet();
     peindrePlacement();
   });
-  var sousCombat = 'raid';
+  var sousCombat = 'raid', sousCombatRendu = null;
   function montrerCombat(quoi) {
+    if (sousCombatRendu !== null && quoi !== sousCombatRendu) { vib(5); hautDePage(); }
+    sousCombatRendu = quoi;
     sousCombat = quoi;
     el('raid-body').hidden = quoi !== 'raid';
     el('duel-body').hidden = quoi !== 'duel';
@@ -4207,6 +4457,41 @@
   el('sheet').addEventListener('click', function (e) {
     if (e.target === el('sheet')) closeSheet();
   });
+
+  /* Glisser la fiche vers le bas pour la rabattre — le geste attendu sur
+     une feuille qui monte du bas de l'ecran. */
+  (function () {
+    var i = el('sheet-inner');
+    var y0 = null, dy = 0, t0 = 0;
+    var SEUIL_PX = 96, SEUIL_VIT = 0.6;
+
+    i.addEventListener('touchstart', function (e) {
+      if (i.scrollTop > 0 || e.touches.length !== 1) { y0 = null; return; }
+      y0 = e.touches[0].clientY; dy = 0; t0 = Date.now();
+      i.classList.add('glisse'); i.classList.remove('rentre');
+    }, { passive: true });
+
+    i.addEventListener('touchmove', function (e) {
+      if (y0 === null) return;
+      dy = e.touches[0].clientY - y0;
+      if (dy <= 0) { i.style.transform = ''; return; }
+      if (e.cancelable) e.preventDefault();
+      /* Resistance progressive : la fiche suit le doigt sans le devancer. */
+      i.style.transform = 'translateY(' + (dy * 0.82) + 'px)';
+    }, { passive: false });
+
+    function relacher() {
+      if (y0 === null) return;
+      var vitesse = dy / Math.max(1, Date.now() - t0);
+      y0 = null;
+      i.classList.remove('glisse');
+      if (dy > SEUIL_PX || vitesse > SEUIL_VIT) { vib(10); closeSheet(); return; }
+      i.classList.add('rentre');
+      i.style.transform = '';
+    }
+    i.addEventListener('touchend', relacher);
+    i.addEventListener('touchcancel', relacher);
+  })();
   document.addEventListener('click', function (e) {
     if (!e.target.closest) return;
     var f = e.target.closest('[data-fav]');
@@ -4229,9 +4514,41 @@
   el('coll-favonly').addEventListener('click', function () {
     vue.favOnly = !vue.favOnly; saveVue(); showCollection();
   });
+  /* Recherche amortie : on ne repeint pas la grille a chaque frappe. */
+  var minuteurQ = null;
   el('coll-q').addEventListener('input', function () {
-    vue.q = el('coll-q').value; showCollection();
+    vue.q = el('coll-q').value;
+    clearTimeout(minuteurQ);
+    minuteurQ = setTimeout(showCollection, 160);
   });
+
+  el('opt-vibr').addEventListener('click', function () {
+    options.vibr = !options.vibr;
+    saveOptions();
+    majOptions();
+    vib(12);
+  });
+  function majOptions() {
+    var b = el('opt-vibr');
+    b.textContent = 'Vibrations : ' + (options.vibr ? 'activées' : 'coupées');
+    b.classList.toggle('actif', options.vibr);
+  }
+  majOptions();
+
+  if (OBS_OK) {
+    listeObs = new IntersectionObserver(function (ents) {
+      if (ents[0].isIntersecting && listeRestante.length) verserLot();
+    }, { rootMargin: '700px 0px' });
+    listeObs.observe(el('coll-sentinelle'));
+  }
+
+  /* Un appui sur un bouton se sent, partout dans le jeu. */
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest) return;
+    if (e.target.closest('button, .btn, .card, .palier')) vib(5);
+  }, true);
+
+  try { history.replaceState({ wg: 'racine' }, ''); } catch (e) {}
 
   /* Bandeau discret quand la connexion tombe : l'ouverture de paquets a
      besoin de Wikipedia, le reste du jeu fonctionne normalement. */
