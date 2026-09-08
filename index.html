@@ -184,16 +184,43 @@
     font-family: var(--display); font-size: 26px; letter-spacing: .02em;
     color: #f0dda4; text-shadow: 0 2px 4px rgba(0,0,0,.5);
   }
-  /* La bande doree en haut, qu'on arrache vers la DROITE avec --tear. */
+  /* La languette dorée. Un aplat doré ne ressemble a rien : un vrai foil
+     renvoie la lumiere par bandes, avec des reflets francs et des creux
+     sombres. D'ou l'empilement de degrades plutot qu'une seule couleur. */
   .pack-bande {
-    position: absolute; left: 0; right: 0; top: 0; height: 44px; z-index: 3;
-    display: flex; align-items: center; justify-content: center;
-    color: #1a1d29;
-    background: linear-gradient(180deg, #f3dfa4, #c9992e);
-    border-bottom: 2px dashed rgba(26,29,41,.5);
-    box-shadow: 0 3px 10px rgba(0,0,0,.4);
-    transform: translateX(calc(var(--tear) * 215px)) rotate(calc(var(--tear) * 4deg));
+    position: absolute; left: 0; right: 0; top: 0; height: 42px; z-index: 3;
+    display: flex; align-items: center; justify-content: flex-start;
+    padding-left: 15px; color: #3a2c0c;
+    background:
+      /* grain vertical du metal brosse */
+      repeating-linear-gradient(90deg,
+        rgba(255,255,255,.09) 0 1px, rgba(0,0,0,.05) 1px 2px, transparent 2px 4px),
+      /* reflets anisotropes : c'est ce qui fait « metal » plutot qu'« aplat » */
+      linear-gradient(96deg,
+        rgba(0,0,0,.18) 0%, rgba(255,255,255,.28) 9%, rgba(255,255,255,.62) 15%,
+        rgba(255,255,255,.05) 24%, rgba(0,0,0,.14) 38%, rgba(255,255,255,.42) 52%,
+        rgba(255,255,255,.02) 63%, rgba(0,0,0,.16) 78%, rgba(255,255,255,.34) 90%,
+        rgba(0,0,0,.12) 100%),
+      /* corps du doré */
+      linear-gradient(180deg, #f2e2b0 0%, #d2a63c 44%, #a97c1f 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.55),
+      inset 0 -1px 0 rgba(90,63,10,.6),
+      0 calc(2px + var(--tear) * 5px) calc(8px + var(--tear) * 12px) rgba(0,0,0,.45);
+    transform:
+      translateX(calc(var(--tear) * 215px))
+      translateY(calc(var(--tear) * -2px))
+      rotate(calc(var(--tear) * 4deg));
     transition: transform .05s linear;
+  }
+  /* Ligne de perforation : un creux, pas un pointille dessine par-dessus. */
+  .pack-bande::before {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px;
+    background:
+      repeating-linear-gradient(90deg,
+        rgba(74,52,8,.55) 0 4px, transparent 4px 9px) 0 1px / auto 2px repeat-x,
+      repeating-linear-gradient(90deg,
+        rgba(255,247,214,.5) 0 4px, transparent 4px 9px) 0 3px / auto 1px repeat-x;
   }
   .pack.ouvert .pack-bande {
     transform: translateX(265px) rotate(10deg); opacity: 0;
@@ -202,29 +229,47 @@
   /* L'ouverture degagee par la bande : on regarde dans le sachet et on
      apercoit la tranche des cartes. C'est ce qui manquait — la bande
      glissait, mais rien ne s'ouvrait derriere. */
+  /* L'ouverture degagee. Le noir pur faisait un trou dans la maquette :
+     l'interieur d'un sachet est un doublage argente qui capte encore un peu
+     de lumiere, avec l'ombre portee de la languette au-dessus. */
   .pack-breche {
-    position: absolute; left: 0; top: 0; height: 44px; z-index: 2;
+    position: absolute; left: 0; top: 0; height: 42px; z-index: 2;
     width: calc(var(--tear) * 215px); overflow: hidden; pointer-events: none;
-    background: linear-gradient(180deg, #05070c 0%, #0d1119 55%, #141a28 100%);
-    box-shadow: inset -6px 0 10px -6px #000;
+    background:
+      linear-gradient(100deg,
+        rgba(255,255,255,.05) 0 14%, transparent 22%,
+        rgba(255,255,255,.035) 46% 52%, transparent 62%,
+        rgba(255,255,255,.05) 84% 92%, transparent 100%),
+      linear-gradient(180deg, #090c14 0%, #121725 62%, #1b2233 100%);
+    box-shadow:
+      inset 0 7px 9px -6px #000,
+      inset -7px 0 11px -7px #000;
   }
-  /* La tranche des cinq cartes, entrevue dans l'ouverture. */
+  /* La tranche des cartes : une pile de papier, pas un code-barres. Les
+     separations sont a peine marquees et le haut prend la lumiere. */
   .pack-breche::before {
-    content: ''; position: absolute; left: -6px; right: -6px; bottom: 7px; height: 11px;
-    background: repeating-linear-gradient(90deg,
-      #efe8d6 0 13px, #b9ae94 13px 15px, #f6f1e4 15px 28px, #c6bca3 28px 30px);
-    box-shadow: 0 -5px 9px rgba(0,0,0,.6);
+    content: ''; position: absolute; left: -8px; right: -8px; bottom: 6px; height: 12px;
+    background:
+      repeating-linear-gradient(90deg,
+        rgba(120,108,84,.5) 0 1px, transparent 1px 17px),
+      linear-gradient(180deg, #fbf7ec 0%, #ece4d2 38%, #c4b99f 100%);
+    box-shadow:
+      0 -6px 10px rgba(0,0,0,.65),
+      inset 0 1px 0 rgba(255,255,255,.85);
   }
-  /* Le bord dechire du sachet, dents irregulieres le long de l'arrachage. */
+  /* Le bord arrache : des perforations rondes, comme sur un vrai sachet, et
+     non des dents de scie. Le liseré clair au-dessus est la fibre mise a nu. */
   .pack-dents {
-    position: absolute; left: 0; top: 36px; height: 9px; z-index: 2;
+    position: absolute; left: 0; top: 34px; height: 10px; z-index: 2;
     width: calc(var(--tear) * 215px); overflow: hidden; pointer-events: none;
   }
   .pack-dents::before {
-    content: ''; position: absolute; left: 0; right: -12px; top: 0; bottom: 0;
+    content: ''; position: absolute; left: 0; right: -14px; top: 0; bottom: 0;
     background:
-      linear-gradient(-52deg, #47527a 50%, transparent 50%) 0 0 / 11px 9px repeat-x,
-      linear-gradient(52deg, #47527a 50%, transparent 50%) 5px 0 / 11px 9px repeat-x;
+      radial-gradient(circle at 50% 0, transparent 4.3px, #444e74 4.5px)
+        repeat-x 0 2px / 9px 10px,
+      radial-gradient(circle at 50% 0, transparent 4.3px, #7d8ab8 4.5px)
+        repeat-x 0 0 / 9px 10px;
   }
   /* Voile d'attente quand il ne reste plus de paquet : le joueur voit
      immediatement pourquoi ca ne s'ouvre pas, et pour combien de temps. */
@@ -249,9 +294,15 @@
   }
   .pack-tirez {
     font-size: 11px; letter-spacing: .22em; font-weight: 600;
+    text-shadow: 0 1px 0 rgba(255,248,216,.65);
   }
+  /* Zone de prise moletee au bout de la languette : c'est la qu'on pince. */
   .pack-fleche {
-    font-size: 19px; line-height: 1; margin-left: 6px;
+    font-size: 17px; line-height: 1; margin-left: auto; margin-right: 11px;
+    padding: 4px 8px;
+    background: repeating-linear-gradient(90deg,
+      rgba(74,52,8,.30) 0 1px, rgba(255,247,214,.30) 1px 2px, transparent 2px 4px);
+    box-shadow: inset 0 0 0 1px rgba(74,52,8,.28);
     animation: flecheBat 1.4s ease-in-out infinite;
   }
   @keyframes flecheBat {
@@ -259,12 +310,14 @@
     50%    { transform: translateX(5px); opacity: 1; }
   }
   /* Passe le seuil, la bande annonce qu'on peut lacher. */
-  .pack.pret .pack-bande { background: linear-gradient(180deg, #fff3cf, #e0ae33); }
+  /* Au seuil, la languette prend la lumiere — sans perdre sa matiere. */
+  .pack.pret .pack-bande { filter: brightness(1.15) saturate(1.05); }
   .pack.pret .pack-fleche { animation: none; opacity: 1; }
   /* Liseré clair révélé sous la bande. */
+  /* Tranche eclairee sous la languette : l'epaisseur du foil. */
   .pack-bande::after {
     content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 3px;
-    background: rgba(240,221,164,.7);
+    background: linear-gradient(180deg, rgba(255,244,208,.85), rgba(140,102,26,.55));
   }
   .pack-eclat {
     position: absolute; inset: 0; z-index: 2; opacity: 0; pointer-events: none;
@@ -1241,7 +1294,8 @@
   }
 
   .reglages { margin-top: 18px; }
-  .reglages .tri-btn { width: 100%; }
+  .reglages { display: flex; flex-wrap: wrap; gap: 8px; }
+  .reglages .tri-btn { flex: 1 1 46%; }
 
   /* --- ecran de demarrage ---
      Il couvre le temps de chargement de la police et du premier rendu.
@@ -1392,7 +1446,6 @@
       <div class="pack-breche"></div>
       <div class="pack-dents"></div>
       <div class="pack-bande" id="pack-bande">
-        <span class="pack-fil"></span>
         <span class="pack-tirez">TIREZ</span>
         <span class="pack-fleche">›</span>
       </div>
@@ -1469,6 +1522,7 @@
   <div id="coll-zone-raz"></div>
   <div class="reglages">
     <button id="opt-vibr" class="tri-btn">Vibrations : activées</button>
+    <button id="opt-son" class="tri-btn">Sons : activés</button>
   </div>
   </div>
   <div id="coll-albums" hidden></div>
@@ -1602,13 +1656,122 @@
 
   /* ---------- confort de jeu ---------- */
 
+  /* ---------- son ----------
+     Tout est synthetise a la volee : pas un octet a telecharger, et le
+     contexte audio n'est cree qu'au premier geste du joueur, comme l'exigent
+     les navigateurs mobiles. */
+  var AudioCtx = window.AudioContext || window.webkitAudioContext;
+  var actx = null, maitre = null, bruitBuf = null;
+
+  function audio() {
+    if (!options.son || !AudioCtx) return null;
+    if (!actx) {
+      try { actx = new AudioCtx(); } catch (e) { AudioCtx = null; return null; }
+      maitre = actx.createGain();
+      maitre.gain.value = 0.5;
+      maitre.connect(actx.destination);
+    }
+    if (actx.state === 'suspended') { try { actx.resume(); } catch (e) {} }
+    return actx;
+  }
+
+  function bruitBlanc() {
+    if (bruitBuf) return bruitBuf;
+    var n = Math.floor(actx.sampleRate * 1.5);
+    bruitBuf = actx.createBuffer(1, n, actx.sampleRate);
+    var d = bruitBuf.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    return bruitBuf;
+  }
+
+  /* Une note : sinus avec attaque courte et extinction exponentielle. */
+  function note(f, t0, duree, vol, type) {
+    var o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || 'sine';
+    o.frequency.setValueAtTime(f, t0);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(vol, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + duree);
+    o.connect(g); g.connect(maitre);
+    o.start(t0); o.stop(t0 + duree + 0.03);
+  }
+
+  /* Un souffle filtre : sert au froissement, aux clics et au glissement. */
+  function souffle(t0, duree, vol, f0, f1, q) {
+    var s = actx.createBufferSource(); s.buffer = bruitBlanc();
+    var f = actx.createBiquadFilter(); f.type = 'bandpass';
+    f.frequency.setValueAtTime(f0, t0);
+    f.frequency.exponentialRampToValueAtTime(f1, t0 + duree);
+    f.Q.value = q || 1.2;
+    var g = actx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(vol, t0 + Math.min(0.03, duree / 3));
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + duree);
+    s.connect(f); f.connect(g); g.connect(maitre);
+    s.start(t0); s.stop(t0 + duree + 0.05);
+  }
+
+  function accord(t0, freqs, ecart, duree, vol) {
+    freqs.forEach(function (f, i) { note(f, t0 + i * ecart, duree, vol); });
+  }
+
+  function son(nom) {
+    if (!audio()) return;
+    var t = actx.currentTime;
+    switch (nom) {
+      case 'tic':       souffle(t, 0.035, 0.07, 2800, 1500, 3.5); break;
+      case 'cran':      souffle(t, 0.05, 0.16, 3600, 1700, 5);
+                        note(1050, t, 0.05, 0.04, 'triangle'); break;
+      case 'dechirure': souffle(t, 0.34, 0.30, 800, 4200, 0.7);
+                        souffle(t + 0.015, 0.26, 0.16, 220, 620, 1.1); break;
+      case 'carte':     souffle(t, 0.085, 0.17, 1300, 4600, 1.6); break;
+      case 'rare':      accord(t, [523.25, 659.25, 783.99], 0.065, 0.45, 0.10); break;
+      case 'legendaire':accord(t, [523.25, 659.25, 783.99, 1046.5], 0.06, 0.62, 0.11); break;
+      case 'mythique':  accord(t, [523.25, 698.46, 880, 1174.7, 1396.9], 0.055, 0.9, 0.12);
+                        souffle(t, 0.5, 0.06, 6000, 2000, 0.8); break;
+      case 'gain':      accord(t, [784, 1046.5], 0.07, 0.34, 0.09); break;
+      case 'erreur':    note(196, t, 0.22, 0.10, 'triangle');
+                        note(147, t + 0.07, 0.26, 0.09, 'triangle'); break;
+    }
+  }
+
+  /* Froissement continu pendant qu'on tire : le bruit suit la vitesse du
+     doigt et monte en frequence a mesure que la languette se decolle. C'est
+     ce qui donne au geste sa matiere. */
+  var ripSrc = null, ripGain = null, ripFiltre = null;
+  function ripDebut() {
+    if (!audio()) return;
+    ripArret();
+    ripSrc = actx.createBufferSource();
+    ripSrc.buffer = bruitBlanc(); ripSrc.loop = true;
+    ripFiltre = actx.createBiquadFilter();
+    ripFiltre.type = 'bandpass'; ripFiltre.frequency.value = 1400; ripFiltre.Q.value = 0.6;
+    ripGain = actx.createGain(); ripGain.gain.value = 0.0001;
+    ripSrc.connect(ripFiltre); ripFiltre.connect(ripGain); ripGain.connect(maitre);
+    try { ripSrc.start(); } catch (e) {}
+  }
+  function ripNiveau(vitesse, avance) {
+    if (!ripGain || !actx) return;
+    var v = Math.max(0.0001, Math.min(0.26, vitesse * 2.2));
+    ripGain.gain.setTargetAtTime(v, actx.currentTime, 0.03);
+    ripFiltre.frequency.setTargetAtTime(1100 + avance * 2800, actx.currentTime, 0.05);
+  }
+  function ripArret() {
+    if (!ripGain) return;
+    var g = ripGain, s = ripSrc;
+    try { g.gain.setTargetAtTime(0.0001, actx.currentTime, 0.03); } catch (e) {}
+    setTimeout(function () { try { s.stop(); } catch (e) {} }, 220);
+    ripGain = null; ripSrc = null; ripFiltre = null;
+  }
+
   /* Retours haptiques. Tres courts : ils ponctuent le geste sans le parasiter.
      Le joueur peut les couper depuis la collection. */
   var OKEY = 'wikigacha:options';
-  var options = { vibr: true };
+  var options = { vibr: true, son: true };
   try {
     var _o = JSON.parse(localStorage.getItem(OKEY));
     if (_o && typeof _o.vibr === 'boolean') options.vibr = _o.vibr;
+    if (_o && typeof _o.son === 'boolean') options.son = _o.son;
   } catch (e) {}
   function saveOptions() {
     try { localStorage.setItem(OKEY, JSON.stringify(options)); } catch (e) {}
@@ -1637,6 +1800,7 @@
     clearTimeout(orMinuteur);
     orMinuteur = setTimeout(function () {
       toast('<b>+' + orCumul.toLocaleString('fr-FR') + '</b> Wikigold');
+      son('gain');
       orCumul = 0;
     }, 400);
   }
@@ -2461,9 +2625,10 @@
       /* Plus la carte est rare, plus la salve est longue : la main sait
          avant les yeux qu'il se passe quelque chose. */
       var rang = rankIndex(queue[qi] && queue[qi].rank);
-      if (rang >= 5) vib([0, 30, 55, 30, 55, 70]);
-      else if (rang >= 4) vib([0, 24, 50, 45]);
-      else if (rang >= 3) vib([0, 18, 45, 26]);
+      son('carte');
+      if (rang >= 5) { vib([0, 30, 55, 30, 55, 70]); son('mythique'); }
+      else if (rang >= 4) { vib([0, 24, 50, 45]); son('legendaire'); }
+      else if (rang >= 3) { vib([0, 18, 45, 26]); son('rare'); }
       else vib(11);
       add(queue[qi]);
       el('tap-on').textContent = (qi + 1 < queue.length)
@@ -4072,6 +4237,7 @@
       histButin = { chap: ch.id, etat: 'pret', titre: titre,
                     nouvelle: nouvelle, rang: c.rank };
       toast('<b>' + esc(c.rank) + '</b> — ' + esc(titre), tierOf(c.rank).color);
+      son(idx >= 5 ? 'mythique' : (idx >= 4 ? 'legendaire' : 'rare'));
       vib(idx >= 5 ? [0, 30, 55, 30, 55, 70]
                    : (idx >= 4 ? [0, 24, 50, 45] : [0, 18, 45, 26]));
       if (histChapOuvert === ch.id) peindreChapitre(ch.id);
@@ -4872,9 +5038,12 @@
     }
     function setTear(v) { pack.style.setProperty('--tear', Math.max(0, Math.min(1, v))); }
 
+    var dPrec = 0, tPrec = 0;
     function debut(clientX) {
       if (!pret()) return;
       x0 = clientX; ouvre = false;
+      dPrec = 0; tPrec = Date.now();
+      ripDebut();
     }
     function bouge(clientX, e) {
       if (x0 === null) return;
@@ -4882,17 +5051,24 @@
       /* On arrache vers la DROITE : le deplacement positif fait progresser. */
       var d = (clientX - x0) / COURSE;
       setTear(d);
+      /* Le froissement suit la vitesse du doigt, pas sa position : on
+         n'entend rien quand la main s'arrete en cours de route. */
+      var maintenant = Date.now();
+      var dt = Math.max(16, maintenant - tPrec);
+      ripNiveau(Math.abs(d - dPrec) / (dt / 1000) * 0.5, Math.max(0, Math.min(1, d)));
+      dPrec = d; tPrec = maintenant;
       var avant = ouvre;
       ouvre = d >= SEUIL;
       pack.classList.toggle('pret', ouvre);
       /* Un cran sec au moment ou le paquet devient ouvrable : le doigt sait
          qu'il peut lacher. */
-      if (ouvre && !avant) vib(14);
+      if (ouvre && !avant) { vib(14); son('cran'); }
     }
     function fin() {
       if (x0 === null) return;
       x0 = null;
       pack.classList.remove('pret');
+      ripArret();
       if (ouvre) { declencher(); }
       else { setTear(0); }   /* pas assez tire : la bande revient */
     }
@@ -4901,6 +5077,7 @@
       pack.classList.add('ouvert');
       setTear(1);
       vib([0, 20, 45, 30]);
+      son('dechirure');
       /* On decompte le paquet et on lance le tirage. */
       var etat = readPacks();
       etat.n -= 1; etat.ouverts += 1;
@@ -5177,14 +5354,20 @@
 
   el('opt-vibr').addEventListener('click', function () {
     options.vibr = !options.vibr;
-    saveOptions();
-    majOptions();
-    vib(12);
+    saveOptions(); majOptions(); vib(12);
+  });
+  el('opt-son').addEventListener('click', function () {
+    options.son = !options.son;
+    saveOptions(); majOptions();
+    if (options.son) son('gain');   /* on fait entendre ce qu'on vient d'allumer */
   });
   function majOptions() {
     var b = el('opt-vibr');
     b.textContent = 'Vibrations : ' + (options.vibr ? 'activées' : 'coupées');
     b.classList.toggle('actif', options.vibr);
+    var c = el('opt-son');
+    c.textContent = 'Sons : ' + (options.son ? 'activés' : 'coupés');
+    c.classList.toggle('actif', options.son);
   }
   majOptions();
 
@@ -5198,7 +5381,7 @@
   /* Un appui sur un bouton se sent, partout dans le jeu. */
   document.addEventListener('click', function (e) {
     if (!e.target.closest) return;
-    if (e.target.closest('button, .btn, .card, .palier')) vib(5);
+    if (e.target.closest('button, .btn, .card, .palier')) { vib(5); son('tic'); }
   }, true);
 
   try { history.replaceState({ wg: 'racine' }, ''); } catch (e) {}
