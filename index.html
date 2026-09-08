@@ -1048,6 +1048,69 @@
   .reglages { margin-top: 18px; }
   .reglages .tri-btn { width: 100%; }
 
+  /* --- ecran de demarrage ---
+     Il couvre le temps de chargement de la police et du premier rendu.
+     Securite : une animation CSS le fait disparaitre au bout de 2,6 s meme
+     si le script ne demarre pas — un ecran de lancement ne doit jamais
+     pouvoir enfermer le joueur. */
+  .splash {
+    position: fixed; inset: 0; z-index: 60;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; padding: 24px;
+    background: radial-gradient(120% 70% at 50% 34%, #1d2336 0%, #141826 70%);
+    animation: splashSortie .45s ease 2.6s forwards;
+  }
+  .splash.parti { opacity: 0; visibility: hidden; transition: opacity .45s ease, visibility 0s .45s; }
+  @keyframes splashSortie { to { opacity: 0; visibility: hidden; } }
+
+  /* Le cartouche de l'icone, redessine : le joueur retrouve a l'ecran ce
+     qu'il vient de toucher sur son bureau. */
+  .splash-marque {
+    width: 116px; height: 116px; display: grid; place-items: center;
+    border: 2px solid #c9992e;
+    box-shadow: 0 0 42px -8px rgba(201,153,46,.55);
+    background:
+      repeating-linear-gradient(135deg, transparent 0 9px, rgba(255,255,255,.03) 9px 18px),
+      #1a1d29;
+    animation: splashMarque .6s cubic-bezier(.2,1.1,.4,1) both;
+  }
+  @keyframes splashMarque { from { opacity: 0; transform: scale(.86); } }
+  .splash-marque span {
+    font-family: var(--display); font-size: 68px; line-height: 1;
+    background: linear-gradient(160deg, #f3dfa4, #c9992e 55%, #f6ecc9);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .splash-nom {
+    font-family: var(--display); font-weight: 600; font-size: 30px;
+    color: var(--ivory); letter-spacing: -0.015em;
+    animation: splashMonte .5s ease .12s both;
+  }
+  .splash-mot {
+    margin: -8px 0 0; font-size: 13px; color: var(--glass-dim); text-align: center;
+    animation: splashMonte .5s ease .2s both;
+  }
+  @keyframes splashMonte { from { opacity: 0; transform: translateY(8px); } }
+  .splash-jauge {
+    width: 132px; height: 2px; background: var(--night-line); overflow: hidden;
+    animation: splashMonte .5s ease .28s both;
+  }
+  .splash-jauge span {
+    display: block; width: 40%; height: 100%; background: #c9992e;
+    animation: splashFile 1.1s ease-in-out infinite;
+  }
+  @keyframes splashFile {
+    0%   { transform: translateX(-110%); }
+    100% { transform: translateX(260%); }
+  }
+  .splash-credit {
+    position: absolute; left: 0; right: 0; bottom: calc(20px + var(--safe-b));
+    text-align: center; font-size: 10px; letter-spacing: .06em; color: #4e566d;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .splash-marque, .splash-nom, .splash-mot, .splash-jauge { animation: none; }
+    .splash-jauge span { animation: none; width: 100%; }
+  }
+
   /* Bandeaux passagers : un gain silencieux est un gain qu'on ne savoure
      pas. Ils s'empilent au-dessus de la barre d'onglets. */
   .toasts {
@@ -1089,6 +1152,14 @@
 </style>
 </head>
 <body>
+
+<div class="splash" id="splash">
+  <div class="splash-marque"><span>W</span></div>
+  <div class="splash-nom">Wikigacha</div>
+  <p class="splash-mot">Cinq articles au hasard.<br>À vous de voir ce que ça vaut.</p>
+  <div class="splash-jauge"><span></span></div>
+  <p class="splash-credit">D'APRÈS WIKIPÉDIA · CC BY-SA 4.0</p>
+</div>
 
 <header class="hud">
   <span class="hud-marque">Wikigacha</span>
@@ -4714,6 +4785,30 @@
   }, true);
 
   try { history.replaceState({ wg: 'racine' }, ''); } catch (e) {}
+
+  /* Retrait de l'ecran de demarrage. On attend que la police d'affichage
+     soit prete — sinon le titre change de dessin sous les yeux du joueur —
+     mais jamais plus de 2,2 s, reseau lent ou pas. Et jamais moins de
+     550 ms : un ecran qui clignote fait plus desordre que pas d'ecran. */
+  (function () {
+    var sp = el('splash');
+    if (!sp) return;
+    var parti = false, t0 = Date.now();
+    function retirer() {
+      if (parti) return;
+      parti = true;
+      var reste = Math.max(0, 550 - (Date.now() - t0));
+      setTimeout(function () {
+        sp.style.animation = 'none';
+        sp.classList.add('parti');
+        setTimeout(function () { if (sp.parentNode) sp.parentNode.removeChild(sp); }, 700);
+      }, reste);
+    }
+    var police = (document.fonts && document.fonts.ready)
+      ? document.fonts.ready : Promise.resolve();
+    police.then(retirer)['catch'](retirer);
+    setTimeout(retirer, 2200);          /* plafond : on n'attend jamais plus */
+  })();
 
   /* Bandeau discret quand la connexion tombe : l'ouverture de paquets a
      besoin de Wikipedia, le reste du jeu fonctionne normalement. */
