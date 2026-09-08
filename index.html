@@ -85,9 +85,12 @@
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 18;
     display: flex; justify-content: center;
     padding-bottom: var(--safe-b);
-    background: rgba(20,24,38,.95);
-    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
-    border-top: 1px solid var(--night-line);
+    /* La barre doit se lire comme une surface posee sur la page, pas comme
+       la suite du fond : elle est un peu plus claire, cernee et ombree. */
+    background: rgba(24,28,44,.97);
+    -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+    border-top: 1px solid #39415c;
+    box-shadow: 0 -12px 26px rgba(0,0,0,.45);
   }
   .tabbar-in { display: flex; width: 100%; max-width: 640px; }
   .tab {
@@ -102,12 +105,18 @@
     stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
     transition: transform .16s cubic-bezier(.3,1.3,.5,1);
   }
-  .tab.is-active { color: var(--ivory); }
-  .tab.is-active svg { transform: translateY(-1px) scale(1.06); }
+  /* Onglet courant : ivoire plein, trait doré et une lueur tres basse en
+     fond. Trois signaux faibles valent mieux qu'un seul trop appuye. */
+  .tab.is-active { color: var(--ivory); font-weight: 600; letter-spacing: .015em; }
+  .tab.is-active svg { transform: translateY(-1px) scale(1.06); stroke-width: 1.9; }
   .tab.is-active::before {
-    content: ''; position: absolute; top: 0; left: 50%; width: 24px; height: 2px;
-    margin-left: -12px; background: var(--ivory);
+    content: ''; position: absolute; top: 0; left: 50%; width: 30px; height: 3px;
+    margin-left: -15px; background: #c9992e;
   }
+  .tab.is-active {
+    background: linear-gradient(180deg, rgba(201,153,46,.13), transparent 72%);
+  }
+  .tab:not(.is-active) { color: #7f889f; }
   .tab:active svg { transform: scale(.9); }
   .badge {
     position: absolute; top: 5px; left: 50%; margin-left: 5px;
@@ -1366,6 +1375,26 @@
     .splash-jauge span { animation: none; width: 100%; }
   }
 
+  /* Bandeau de mise a jour : une nouvelle version est prete, mais on ne
+     recharge jamais sous le nez du joueur en plein tirage. Il decide. */
+  .maj {
+    position: fixed; left: 0; right: 0; z-index: 24;
+    bottom: calc(var(--bar-h) + var(--safe-b));
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    padding: 11px 16px; font-size: 13px; color: var(--ivory);
+    background: rgba(30,35,52,.98);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    border-top: 1px solid var(--night-line);
+    box-shadow: 0 -8px 22px rgba(0,0,0,.5);
+    animation: majEntre .3s ease-out both;
+  }
+  .maj[hidden] { display: none; }
+  @keyframes majEntre { from { opacity: 0; transform: translateY(14px); } }
+  .maj button {
+    flex: none; min-height: 38px; padding: 8px 14px; font: inherit; font-size: 12.5px;
+    color: #14161f; background: #c9992e; border: 0; cursor: pointer;
+  }
+
   /* Bandeaux passagers : un gain silencieux est un gain qu'on ne savoure
      pas. Ils s'empilent au-dessus de la barre d'onglets. */
   .toasts {
@@ -1557,6 +1586,11 @@
 
 <div id="sheet" class="sheet" hidden>
   <div class="sheet-inner" id="sheet-inner"></div>
+</div>
+
+<div class="maj" id="maj" hidden>
+  <span>Nouvelle version disponible.</span>
+  <button id="maj-go">Recharger</button>
 </div>
 
 <div class="toasts" id="toasts" aria-live="polite"></div>
@@ -5391,6 +5425,39 @@
   }, true);
 
   try { history.replaceState({ wg: 'racine' }, ''); } catch (e) {}
+
+  /* Service worker : le jeu doit s'ouvrir et se jouer sans reseau. La
+     collection, les albums, les succes et le mode histoire ne demandent rien
+     au reseau — seule la page manquait a l'appel. */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').then(function (reg) {
+        function surveiller(w) {
+          if (!w) return;
+          w.addEventListener('statechange', function () {
+            /* Une version est prete ET une ancienne tourne deja : on propose,
+               on n'impose pas — recharger en plein tirage serait brutal. */
+            if (w.state === 'installed' && navigator.serviceWorker.controller) {
+              el('maj').hidden = false;
+              el('maj-go').onclick = function () {
+                el('maj').hidden = true;
+                w.postMessage({ type: 'MAJ' });
+              };
+            }
+          });
+        }
+        surveiller(reg.waiting || reg.installing);
+        reg.addEventListener('updatefound', function () { surveiller(reg.installing); });
+      })['catch'](function () {});
+
+      var recharge = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (recharge) return;
+        recharge = true;
+        window.location.reload();
+      });
+    });
+  }
 
   /* Retrait de l'ecran de demarrage. On attend que la police d'affichage
      soit prete — sinon le titre change de dessin sous les yeux du joueur —
