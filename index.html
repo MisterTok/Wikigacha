@@ -22,7 +22,7 @@
     --ink:       #262119;
     --ink-soft:  #6d6555;
     --glass:     #b9c0d4;
-    --glass-dim: #7c85a0;
+    --glass-dim: #8b94ae;   /* 4,25 sur le fond des cartes : sous le seuil */
 
     --t1: #8d93a3;
     --t2: #4f8d72;
@@ -347,7 +347,31 @@
     font-size: 10px; letter-spacing: .12em; text-align: center;
     padding: 5px 0; margin: -10px -10px 10px;
     background: var(--tier); color: #fff;
+    /* Assombri pour que le blanc porte : plusieurs paliers passaient sous
+       le seuil de lisibilite, le doré surtout (2,60). */
+    background: color-mix(in srgb, var(--tier) 65%, #1b1b1b);
   }
+  /* Neuve ou doublon : la reponse doit sauter aux yeux au retournement,
+     c'est la seule chose que le joueur cherche a cet instant. */
+  .neuf {
+    position: absolute; top: 22px; right: 10px; z-index: 4;
+    padding: 5px 10px; font-size: 10px; letter-spacing: .14em; font-weight: 600;
+    color: #14161f; background: linear-gradient(160deg, #f6ecc9, #c9992e);
+    box-shadow: 0 3px 10px rgba(0,0,0,.35);
+    animation: neufPose .4s cubic-bezier(.2,1.25,.4,1) .3s both;
+  }
+  .neuf.vu { color: var(--ivory); background: #4a5062; }
+  @keyframes neufPose { from { opacity: 0; transform: translateY(-10px) scale(.9); } }
+
+  .neuve-chip {
+    font-size: 9.5px; letter-spacing: .12em; padding: 2px 6px;
+    color: #14161f; background: #c9992e;
+  }
+  .card-wrap.neuve .card { box-shadow: inset 0 0 0 1px #c9992e; }
+  .draw-bilan {
+    margin: 0 0 12px; text-align: center; font-size: 12.5px; color: var(--glass-dim);
+  }
+  .draw-bilan b { color: #f0dda4; font-variant-numeric: tabular-nums; }
   .fig {
     flex: 1 1 auto; min-height: 60px; overflow: hidden;
     border: 1px solid var(--ivory-dim); background: #efe8d6;
@@ -463,7 +487,18 @@
     font-size: 12px; color: var(--glass-dim);
   }
   .card-foot b { color: var(--ivory); font-variant-numeric: tabular-nums; }
+  /* Les couleurs de palier sont trop sombres pour porter du texte sur le
+     fond nuit (Épique 3,31 · Mythique 3,47 · Rare 3,53) et trop claires sur
+     l'ivoire. On les decale selon le fond, sans toucher a la teinte de
+     reference. Un navigateur sans color-mix garde la valeur brute declaree
+     juste au-dessus. */
   .rank { margin-left: auto; font-size: 10px; letter-spacing: .1em; color: var(--tier); }
+  .rank, .boss-tag, .fighter-dmg, .butin-rang, .duo-nom, .cote-nom, .pip {
+    color: color-mix(in srgb, var(--tier, var(--t1)) 78%, var(--ivory));
+  }
+  .sheet-sub, .ambiance, .more, .sel-nom {
+    color: color-mix(in srgb, var(--tier, var(--ink-soft)) 60%, var(--ink));
+  }
   .dupe { font-size: 11px; }
 
   .status { font-size: 13px; color: var(--glass-dim); padding: 26px 4px; text-align: center; }
@@ -1464,6 +1499,7 @@
   var KEY = 'wikigacha:collection';
   var collection = {};
   var queue = [], qi = 0;
+  var neuvesTirage = {};   /* titres decouverts dans le paquet en cours */
 
   /* Sept paliers, calques sur ceux du jeu original.
      Le seuil porte sur le score de qualite WikiRank (0-100). */
@@ -2042,7 +2078,7 @@
   function add(c) {
     var e = collection[c.title];
     noterJour('rarete', rankIndex(c.rank));
-    if (!e) noterJour('nouvelles', 1);
+    if (!e) { noterJour('nouvelles', 1); neuvesTirage[c.title] = 1; }
     if (e) { e.count += 1; }
     else {
       collection[c.title] = {
@@ -2255,12 +2291,12 @@
       + '</text></svg>';
   }
 
-  function cardHTML(c, dupes) {
+  function cardHTML(c, dupes, neuve) {
     var t = tierOf(c.rank);
     var visual = c.thumb
       ? '<img class="card-thumb" src="' + esc(c.thumb) + '" alt="" loading="lazy">'
       : '<span class="card-thumb-alt">' + artSVG(c.title, t.color) + '</span>';
-    return '<div class="card-wrap">'
+    return '<div class="card-wrap' + (neuve ? ' neuve' : '') + '">'
       + '<button class="fav' + (c.fav ? ' on' : '') + '" data-fav="' + esc(c.title) + '"'
       + ' aria-label="Favori">' + (c.fav ? '\u2605' : '\u2606') + '</button>'
       + '<button class="card" style="--tier:' + t.color + '" data-title="' + esc(c.title) + '">'
@@ -2272,15 +2308,20 @@
       + '<span>DÉF <b>' + defEff(c) + '</b></span>'
       + (niveau(c) > 1 ? '<span class="stars">' + etoiles(niveau(c)) + '</span>' : '')
       + (dupes > 1 ? '<span class="dupe">\u00d7' + dupes + '</span>' : '')
+      + (neuve ? '<span class="neuve-chip">NOUVELLE</span>' : '')
       + '<span class="rank">' + esc(tierOf(c.rank).short) + '</span></span></button></div>';
   }
 
-  function frontHTML(c) {
+  function frontHTML(c, neuve, copies) {
     var t = tierOf(c.rank);
     var fig = c.thumb
       ? '<img src="' + esc(c.thumb) + '" alt="">'
       : artSVG(c.title, t.color);
-    return '<div class="ribbon">' + esc(c.rank.toUpperCase())
+    var badge = '';
+    if (neuve === true) badge = '<div class="neuf">NOUVELLE</div>';
+    else if (neuve === false) badge = '<div class="neuf vu">EXEMPLAIRE ×' + copies + '</div>';
+    return badge
+      + '<div class="ribbon">' + esc(c.rank.toUpperCase())
       + (c.garantie ? ' · GARANTIE' : '')
       + (niveau(c) > 1 ? ' · ' + etoiles(niveau(c)) : '') + '</div>'
       + '<div class="fig">' + fig + '</div>'
@@ -2332,7 +2373,15 @@
   function showNext() {
     if (qi >= queue.length) {
       el('reveal').hidden = true;
-      el('draw').innerHTML = queue.map(function (c) { return cardHTML(c, 1); }).join('');
+      var nb = queue.filter(function (c) { return neuvesTirage[c.title]; }).length;
+      el('draw').innerHTML = '<p class="draw-bilan">'
+        + (nb
+            ? '<b>' + nb + '</b> nouvelle' + (nb > 1 ? 's' : '') + ' sur ' + queue.length
+            : 'Aucune nouveauté dans ce paquet')
+        + '</p>'
+        + queue.map(function (c) {
+            return cardHTML(c, 1, !!neuvesTirage[c.title]);
+          }).join('');
       /* Le paquet revient sous le recapitulatif : on le touche pour recommencer. */
       el('pack-stage').hidden = false;
       el('pack').disabled = false;
@@ -2340,8 +2389,11 @@
       return;
     }
     var c = queue[qi], t = tierOf(c.rank);
+    /* La carte n'est ajoutee qu'au retournement : a cet instant, la collection
+       ne la contient pas encore si elle est nouvelle. */
+    var poss = collection[c.title];
     el('counter').textContent = 'Carte ' + (qi + 1) + ' sur ' + queue.length;
-    el('front').innerHTML = frontHTML(c);
+    el('front').innerHTML = frontHTML(c, !poss, poss ? poss.count + 1 : 1);
     el('front').style.setProperty('--tier', t.color);
     el('flipper').className = 'flipper ' + t.fx;
     el('flipper').style.setProperty('--tier', t.color);
@@ -2437,7 +2489,7 @@
         return cards;
       })
       .then(function (cards) {
-        queue = cards; qi = 0;
+        queue = cards; qi = 0; neuvesTirage = {};
         /* On laisse l'animation de dechirure se terminer (600 ms) avant de
            montrer les cartes, mais on ne bloque pas si le reseau a ete plus
            lent que l'anim. */
@@ -2893,7 +2945,7 @@
           return '<button class="fighter" style="--tier:' + ct.color + '" '
             + 'data-attack="' + esc(c.title) + '">'
             + '<span class="fighter-name">' + esc(c.title) + '</span>'
-            + '<span class="rank" style="color:' + ct.color + '">' + ct.short + '</span>'
+            + '<span class="rank">' + ct.short + '</span>'
             + '<span class="fighter-dmg">−' + degats(c, b) + '</span>'
             + '</button>';
         }).join('');
@@ -3355,7 +3407,7 @@
         + (moi ? ' style="--tier:' + tm.color + '"' : '') + '>'
         + vueDuo(moi, tm)
         + (moi
-            ? '<span class="duo-nom" style="color:' + tm.color + '">' + esc(moi.title) + '</span>'
+            ? '<span class="duo-nom">' + esc(moi.title) + '</span>'
               + '<b class="duo-pui">' + pMoi + '</b>'
               + '<span class="duo-det">' + atkEff(moi) + ' ATQ · ' + defEff(moi)
               + ' DÉF · ' + tm.short + '</span>'
@@ -3366,7 +3418,7 @@
         + '<div class="duo-sep">VS</div>'
         + '<div class="duo-lui" style="--tier:' + tl.color + '">'
         + vueDuo(lui, tl)
-        + '<span class="duo-nom" style="color:' + tl.color + '">' + esc(lui.title) + '</span>'
+        + '<span class="duo-nom">' + esc(lui.title) + '</span>'
         + '<b class="duo-pui">' + pLui + '</b>'
         + '<span class="duo-det">' + atkEff(lui) + ' ATQ · ' + defEff(lui)
         + ' DÉF · ' + tl.short + '</span>'
@@ -3408,7 +3460,8 @@
           var gagne = manche(c, lui) > 0;
           var pc = atkEff(c) + defEff(c);
           var t = tierOf(c.rank);
-          return '<button class="sel-carte ' + (gagne ? 'gagne' : 'perd')
+          return '<button style="--tier:' + t.color + '" class="sel-carte '
+            + (gagne ? 'gagne' : 'perd')
             + (dejaAilleurs ? ' sel-pris' : '')
             + (choix[slot] === c.title ? ' sel-actif' : '') + '" '
             + 'data-sel-slot="' + slot + '" data-sel-titre="' + esc(c.title) + '"'
@@ -3420,7 +3473,7 @@
             + '</span>'
             + '<span class="sel-corps">'
             + '<span class="sel-ecart">' + (pc - pLui > 0 ? '+' : '') + (pc - pLui) + '</span>'
-            + '<span class="sel-nom" style="color:' + t.color + '">' + esc(c.title) + '</span>'
+            + '<span class="sel-nom">' + esc(c.title) + '</span>'
             + '<span class="sel-st">' + pc + ' au total · ' + atkEff(c) + ' ATQ · '
             + defEff(c) + ' DÉF · ' + t.short
             + (dejaAilleurs ? ' · déjà placée' : '') + '</span>'
@@ -3490,11 +3543,11 @@
     manches.forEach(function (m) {
       var tm = tierOf(m.moi.rank), tl = tierOf(m.lui.rank);
       html += '<div class="manche ' + (m.r > 0 ? 'ok' : (m.r < 0 ? 'ko' : 'nul')) + '">'
-        + '<div class="cote"><span class="cote-nom" style="color:' + tm.color + '">'
+        + '<div class="cote" style="--tier:' + tm.color + '"><span class="cote-nom">'
         + esc(m.moi.title) + '</span>'
         + '<span class="cote-st">ATQ ' + atkEff(m.moi) + ' · DÉF ' + defEff(m.moi) + '</span></div>'
         + '<div class="verdict">' + (m.r > 0 ? '▲' : (m.r < 0 ? '▼' : '=')) + '</div>'
-        + '<div class="cote droite"><span class="cote-nom" style="color:' + tl.color + '">'
+        + '<div class="cote droite" style="--tier:' + tl.color + '"><span class="cote-nom">'
         + esc(m.lui.title) + '</span>'
         + '<span class="cote-st">ATQ ' + atkEff(m.lui) + ' · DÉF ' + defEff(m.lui) + '</span></div>'
         + '</div>';
@@ -4564,7 +4617,7 @@
       var total = items.reduce(function (s, c) { return s + c.count; }, 0);
       var pips = TIERS.map(function (t) {
         var n = items.filter(function (c) { return c.rank === t.name; }).length;
-        return '<span class="pip" style="color:' + t.color + '">'
+        return '<span class="pip" style="--tier:' + t.color + '">'
           + t.name.toUpperCase() + ' ' + n + '</span>';
       }).join('');
       el('coll-stats').innerHTML = '<b>' + items.length + '</b> articles distincts sur <b>'
