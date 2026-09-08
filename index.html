@@ -997,6 +997,44 @@
     border-left: 4px solid #3f79c4; padding: 12px 14px; margin-bottom: 8px;
   }
   .chapitre.fini { border-left-color: #c9992e; }
+
+  /* Butin de fin de chapitre. La carte gagnee doit se voir : c'est le seul
+     moment ou le mode histoire donne autre chose que des paquets. */
+  .butin-attente {
+    margin-top: 14px; padding: 12px;
+    background: var(--night-up); border: 1px solid var(--night-line);
+  }
+  .butin-attente .butin-tag {
+    display: block; padding: 0 0 6px; font-size: 10px; letter-spacing: .14em;
+    color: var(--glass-dim);
+  }
+  .butin {
+    display: block; width: 100%; margin: 14px 0 0; padding: 0;
+    text-align: left; font: inherit; color: var(--ivory); cursor: pointer;
+    background: var(--night-up); border: 1px solid var(--tier, var(--night-line));
+    box-shadow: 0 0 30px -10px var(--tier, transparent);
+    animation: butinEntre .5s cubic-bezier(.2,1.1,.4,1) both;
+  }
+  .butin:active { transform: scale(.99); }
+  @keyframes butinEntre { from { opacity: 0; transform: translateY(12px) scale(.96); } }
+  .butin-tag {
+    display: block; padding: 8px 12px; font-size: 10px; letter-spacing: .14em;
+    color: #14161f; background: var(--tier, var(--night-line));
+  }
+  .butin-vue { display: block; height: 112px; overflow: hidden; background: #0b0e16; }
+  .butin-vue img, .butin-vue .art {
+    display: block; width: 100%; height: 100%; object-fit: cover;
+  }
+  .butin-corps { display: block; padding: 11px 12px 13px; }
+  .butin-rang { display: block; font-size: 10px; letter-spacing: .12em; color: var(--tier); }
+  .butin-nom {
+    display: block; margin-top: 3px; font-family: var(--display); font-size: 19px;
+    line-height: 1.2;
+  }
+  .butin-st {
+    display: block; margin-top: 5px; font-size: 11.5px; color: var(--glass-dim);
+    font-variant-numeric: tabular-nums;
+  }
   .chap-tete { display: flex; justify-content: space-between; align-items: baseline; }
   .chap-nom { font-family: var(--display); font-size: 16px; color: var(--ivory); }
   .chap-prog { font-size: 12px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
@@ -3667,6 +3705,7 @@
 
   function showHistoire() {
     if (histChapOuvert) { peindreChapitre(histChapOuvert); return; }
+    histButin = null;
     var prog = readProg();
     var difficileDispo = toutFiniNormal();
 
@@ -3706,7 +3745,34 @@
     el('histoire-body').innerHTML = html;
   }
 
+  function butinHTML() {
+    if (histButin.etat !== 'pret') {
+      return '<div class="butin-attente">'
+        + '<span class="butin-tag">RÉCOMPENSE DU CHAPITRE</span>'
+        + '<p class="status">Préparation de votre carte…</p></div>';
+    }
+    var c = collection[histButin.titre];
+    if (!c) return '';
+    var t = tierOf(c.rank);
+    return '<button class="butin" data-butin="' + esc(c.title) + '" '
+      + 'style="--tier:' + t.color + '">'
+      + '<span class="butin-tag">RÉCOMPENSE DU CHAPITRE</span>'
+      + '<span class="butin-vue">'
+      + (c.thumb
+          ? '<img src="' + esc(c.thumb) + '" alt="" loading="lazy" decoding="async">'
+          : artSVG(c.title, t.color))
+      + '</span>'
+      + '<span class="butin-corps">'
+      + '<span class="butin-rang">' + esc(c.rank.toUpperCase()) + '</span>'
+      + '<span class="butin-nom">' + esc(c.title) + '</span>'
+      + '<span class="butin-st">ATQ ' + atkEff(c) + ' · DÉF ' + defEff(c) + ' · '
+      + (histButin.nouvelle ? 'nouvelle carte' : c.count + ' exemplaires')
+      + ' · touchez pour la fiche</span>'
+      + '</span></button>';
+  }
+
   function peindreChapitre(chapId) {
+    if (histButin && histButin.chap !== chapId) histButin = null;
     var ch = CHAPITRES.filter(function (c) { return c.id === chapId; })[0];
     if (!ch) { histChapOuvert = null; showHistoire(); return; }
     var prog = readProg();
@@ -3771,6 +3837,7 @@
       html += '<div class="win"><h3>Chapitre terminé</h3>'
         + '<p>Vous avez dompté « ' + esc(ch.niveaux[ch.niveaux.length - 1].art) + ' ».</p></div>';
     }
+    if (histButin && histButin.chap === ch.id) html += butinHTML();
     return html;
   }
 
@@ -3825,7 +3892,7 @@
 
     /* Battre le boss offre une carte du theme, garantie Épique ou mieux. */
     if (niv.boss) {
-      offrirCarteBoss(ch);
+      offrirCarteBoss(ch, niv);
     }
 
     refreshSucces();
@@ -3833,44 +3900,86 @@
     peindreChapitre(chapId);
   }
 
-  /* Ajoute a la collection une carte liee au chapitre, forcee en Épique
-     minimum. On pioche parmi les articles-adversaires du chapitre (deja
-     thematiques) et on va chercher ses vraies donnees sur Wikipedia. */
-  function offrirCarteBoss(ch) {
-    var candidats = ch.niveaux.map(function (n) { return n.art; });
-    var titre = candidats[Math.floor(Math.random() * candidats.length)];
-    var EPIQUE = 3;   /* indice du palier Épique */
+  /* Butin de boss : la carte de l'article-boss lui-meme, jamais en dessous
+     d'Épique. Le palier est tire au sort — le mode difficile ouvre bien plus
+     souvent sur du Légendaire et du Mythique. */
+  var histButin = null;
+  var BUTIN_POIDS = {
+    normal:    [[3, 70], [4, 24], [5, 6]],
+    difficile: [[3, 45], [4, 40], [5, 15]]
+  };
+  function tirerRangButin() {
+    var table = BUTIN_POIDS[histDiff === 'difficile' ? 'difficile' : 'normal'];
+    var total = table.reduce(function (s, e) { return s + e[1]; }, 0);
+    var r = Math.random() * total;
+    for (var i = 0; i < table.length; i++) {
+      r -= table[i][1];
+      if (r <= 0) return table[i][0];
+    }
+    return 3;
+  }
 
-    /* Donnees reelles de l'article pour une vraie carte (via le resume). */
-    fetchSummary(titre).then(function (sum) {
+  function offrirCarteBoss(ch, niv) {
+    var titre = niv.art;
+    var idx = tirerRangButin();
+    var t = TIERS[idx];
+    /* Un Mythique doit frapper comme un Mythique : les statistiques suivent
+       le palier tire, sinon la carte est un trophee creux. */
+    var bonus = idx >= 5 ? 1.14 : (idx >= 4 ? 1.06 : 1);
+
+    histButin = { chap: ch.id, etat: 'attente', titre: titre };
+    if (histChapOuvert === ch.id) peindreChapitre(ch.id);
+
+    function poser(sum, vues) {
       sum = sum || {};
-      var bytes = 45000;   /* estimation : les articles-boss sont consequents */
-      var carte = {
-        title: titre,
-        url: (sum.content_urls && sum.content_urls.desktop && sum.content_urls.desktop.page)
-             || ('https://' + WIKI + '.org/wiki/' + encodeURIComponent(titre.replace(/ /g, '_'))),
-        desc: sum.description || '', extract: (sum.extract || '').trim().slice(0, 1400),
-        thumb: (sum.thumbnail && sum.thumbnail.source)
-               || (sum.originalimage && sum.originalimage.source) || '',
-        bytes: bytes, views: 10000,
-        atk: Math.max(1, Math.round(Math.log10(10001) * 90)),
-        def: Math.max(1, Math.round(Math.log10(bytes + 1) * 90)),
-        score: TIERS[EPIQUE].max - 1,
-        domaine: ch.domaine, serie: detecterSerie(titre),
-        rank: TIERS[EPIQUE].name, count: 1, obtenu: Date.now(),
-        imgVerif: true
-      };
+      var bytes = 45000;                    /* les articles-boss sont consequents */
+      var vus = vues || 20000;
+      var atk = Math.max(1, Math.round(Math.log10(vus + 1) * 90 * bonus));
+      var def = Math.max(1, Math.round(Math.log10(bytes + 1) * 90 * bonus));
       var e = collection[titre];
+      var nouvelle = !e;
+
       if (e) {
-        /* Deja possedee : on la promeut au moins en Épique. */
-        if (rankIndex(e.rank) < EPIQUE) e.rank = TIERS[EPIQUE].name;
+        /* Deja possedee : on la promeut si le tirage fait mieux, et on ne
+           degrade jamais des statistiques deja acquises. */
+        if (rankIndex(e.rank) < idx) { e.rank = t.name; e.score = t.max - 1; }
+        if (atk > e.atk) e.atk = atk;
+        if (def > e.def) e.def = def;
         e.count += 1;
       } else {
-        collection[titre] = carte;
+        collection[titre] = {
+          title: titre,
+          url: (sum.content_urls && sum.content_urls.desktop && sum.content_urls.desktop.page)
+               || ('https://' + WIKI + '.org/wiki/' + encodeURIComponent(titre.replace(/ /g, '_'))),
+          desc: sum.description || '',
+          extract: (sum.extract || '').trim().slice(0, 1400),
+          thumb: (sum.thumbnail && sum.thumbnail.source)
+                 || (sum.originalimage && sum.originalimage.source) || '',
+          bytes: bytes, views: vus, atk: atk, def: def,
+          score: t.max - 1, domaine: ch.domaine, serie: detecterSerie(titre),
+          rank: t.name, count: 1, obtenu: Date.now(), imgVerif: true
+        };
       }
+
       save(); refreshCount(); refreshSucces(); refreshAlbums();
-      if (!collection[titre].thumb) rattraperImageCarte(collection[titre]);
-    }).catch(function () {});
+      var c = collection[titre];
+      if (!c.thumb) rattraperImageCarte(c);
+
+      histButin = { chap: ch.id, etat: 'pret', titre: titre,
+                    nouvelle: nouvelle, rang: c.rank };
+      toast('<b>' + esc(c.rank) + '</b> — ' + esc(titre), tierOf(c.rank).color);
+      vib(idx >= 5 ? [0, 30, 55, 30, 55, 70]
+                   : (idx >= 4 ? [0, 24, 50, 45] : [0, 18, 45, 26]));
+      if (histChapOuvert === ch.id) peindreChapitre(ch.id);
+    }
+
+    /* Le reseau ne doit pas pouvoir escamoter la recompense : en cas d'echec
+       on pose quand meme la carte, avec des valeurs estimees. */
+    Promise.all([
+      fetchSummary(titre)['catch'](function () { return null; }),
+      fetchViews(titre)['catch'](function () { return 0; })
+    ]).then(function (r) { poser(r[0], r[1]); })
+      ['catch'](function () { poser(null, 0); });
   }
 
   /* ---------- succes ---------- */
@@ -4810,6 +4919,8 @@
     if (dif) { histDiff = dif.getAttribute('data-diff'); histChapOuvert = null; showHistoire(); return; }
     var go = e.target.closest('[data-hist-go]');
     if (go) { combattreHist(go.getAttribute('data-hist-go')); return; }
+    var bt = e.target.closest('[data-butin]');
+    if (bt) { openSheet(bt.getAttribute('data-butin')); return; }
     var adv = e.target.closest('[data-adv]');
     if (adv) { ficheAdversaire(adv.getAttribute('data-adv')); return; }
     var ch = e.target.closest('[data-chap]');
