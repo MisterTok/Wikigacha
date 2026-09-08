@@ -436,40 +436,6 @@
   }
   .win p { margin: 0; font-size: 13px; color: var(--glass-dim); }
 
-
-  /* --- progression joueur / equipe --- */
-  .player-bar {
-    display: flex; align-items: center; gap: 10px; padding: 8px 0 0;
-    font-size: 11px; color: var(--glass-dim);
-  }
-  .player-level { flex: none; color: var(--ivory); font-family: var(--display); }
-  .xp-track { flex: 1 1 auto; height: 4px; background: var(--night-line); overflow: hidden; }
-  .xp-track span { display:block; height:100%; background:#c9992e; }
-  .xp-next { flex: none; font-variant-numeric: tabular-nums; }
-  #equipe-body { margin-top: 0; }
-  .team-head { margin-bottom: 14px; }
-  .team-title { font-family: var(--display); font-size: 22px; color: var(--ivory); margin: 0 0 5px; }
-  .team-intro { font-size: 13px; line-height: 1.6; color: var(--glass-dim); margin: 0; }
-  .team-power { display:flex; justify-content:space-between; gap:10px; margin:12px 0; padding:11px 13px;
-    background:var(--night-up); border:1px solid var(--night-line); }
-  .team-power b { color:var(--ivory); font-variant-numeric:tabular-nums; }
-  .team-slots { display:grid; grid-template-columns:1fr; gap:7px; margin-bottom:12px; }
-  .team-slot { display:flex; align-items:center; gap:10px; width:100%; padding:10px 12px; text-align:left;
-    background:var(--night-up); border:1px solid var(--night-line); border-left:4px solid var(--night-line); color:var(--ivory); cursor:pointer; font:inherit; }
-  .team-slot.filled { border-left-color:#c9992e; }
-  .team-slot.empty { color:var(--glass-dim); border-style:dashed; }
-  .team-slot-num { flex:none; width:22px; font-size:11px; color:var(--glass-dim); }
-  .team-slot-main { flex:1; min-width:0; }
-  .team-slot-name { display:block; font-family:var(--display); font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .team-slot-meta { display:block; font-size:10px; color:var(--glass-dim); margin-top:2px; }
-  .team-bonus { padding:10px 12px; margin:10px 0 14px; background:var(--night-up); border:1px solid var(--night-line); }
-  .team-bonus h3 { margin:0 0 6px; font-family:var(--display); font-size:14px; color:var(--ivory); }
-  .team-bonus p { margin:3px 0; font-size:12px; color:var(--glass-dim); }
-  .team-bonus b { color:#c9992e; }
-  .talent { margin-top:8px; padding-top:8px; border-top:1px solid var(--ivory-dim); }
-  .talent b { color:var(--ink); }
-  .team-help { font-size:11px; line-height:1.6; color:var(--glass-dim); margin-top:10px; }
-
   /* --- missions --- */
   #missions { margin-bottom: 18px; }
   .mission-tete {
@@ -612,36 +578,6 @@
     color: var(--ink); font-family: ui-monospace, Menlo, Consolas, monospace;
     font-size: 12px; line-height: 1.5; word-break: break-all; resize: vertical;
   }
-
-
-  /* --- social --- */
-  .social-wrap { max-width: 760px; margin: 0 auto; }
-  .social-card { border: 1px solid var(--night-line); background: var(--night-up); padding: 16px; margin-bottom: 14px; }
-  .social-card h2, .social-card h3 { margin: 0 0 8px; }
-  .social-card p { color: var(--glass-dim); font-size: 12px; line-height: 1.6; }
-  .social-profile { display:flex; align-items:center; gap:14px; }
-  .social-avatar { width:56px; height:56px; border:1px solid var(--ivory-dim); border-radius:50%; display:grid; place-items:center; font-size:24px; background:linear-gradient(145deg,#202536,#11141f); }
-  .social-name { font-family: Fraunces, Georgia, serif; font-size:22px; color:var(--ivory); }
-  .social-level { font-size:11px; color:var(--glass-dim); }
-  .social-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:14px; }
-  .social-stat { border:1px solid var(--night-line); padding:10px; text-align:center; }
-  .social-stat b { display:block; font-size:17px; color:var(--ivory); }
-  .social-stat span { display:block; font-size:10px; color:var(--glass-dim); margin-top:3px; }
-  .social-code { width:100%; box-sizing:border-box; min-height:74px; resize:vertical; background:#11141f; color:var(--ivory); border:1px solid var(--night-line); padding:10px; font:11px ui-monospace,Menlo,Consolas,monospace; word-break:break-all; }
-  .social-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-  .social-actions .btn { width:auto; margin:0; }
-  .social-form { display:flex; gap:8px; }
-  .social-form input { flex:1; min-width:0; }
-  .ami { display:flex; align-items:center; justify-content:space-between; gap:10px; border-top:1px solid var(--night-line); padding:11px 0; }
-  .ami:first-child { border-top:0; }
-  .ami-nom { font-family:Fraunces,Georgia,serif; color:var(--ivory); }
-  .ami-meta { display:block; color:var(--glass-dim); font-size:10px; margin-top:3px; }
-  .classement-row { display:grid; grid-template-columns:28px 1fr auto; gap:8px; align-items:center; border-top:1px solid var(--night-line); padding:11px 0; }
-  .classement-row:first-child { border-top:0; }
-  .classement-rang { color:var(--glass-dim); font-size:12px; }
-  .classement-puissance { color:var(--ivory); font-weight:700; }
-  .social-note { font-size:10px !important; }
-  @media (max-width:520px){ .social-stats{grid-template-columns:repeat(2,1fr)} .social-form{flex-direction:column} }
 
   /* --- outils de collection --- */
   .outils { margin-bottom: 16px; }
@@ -947,9 +883,7 @@
     <button id="tab-raid" class="tab">Jouer</button>
     <button id="tab-boutique" class="tab">Boutique</button>
     <button id="tab-succes" class="tab">Succès <span id="succes-count"></span></button>
-    <button id="tab-social" class="tab">Social</button>
   </nav>
-  <div id="player-bar" class="player-bar"></div>
 </header>
 
 <div id="offline-bandeau" class="offline-bandeau" hidden>
@@ -1050,21 +984,15 @@
 
 <main id="view-raid" hidden>
   <nav class="sous-tabs">
-    <button id="sub-equipe" class="sous-tab is-active">Équipe</button>
-    <button id="sub-raid" class="sous-tab">Raid</button>
+    <button id="sub-raid" class="sous-tab is-active">Raid</button>
     <button id="sub-duel" class="sous-tab">Duel</button>
     <button id="sub-hist" class="sous-tab">Histoire</button>
     <button id="sub-quiz" class="sous-tab">Quiz</button>
   </nav>
-  <div id="equipe-body"></div>
-  <div id="raid-body" hidden></div>
+  <div id="raid-body"></div>
   <div id="duel-body" hidden></div>
   <div id="histoire-body" hidden></div>
   <div id="quiz-body" hidden></div>
-</main>
-
-<main id="view-social" hidden>
-  <div id="social-body" class="social-wrap"></div>
 </main>
 
 <main id="view-succes" hidden>
@@ -1086,10 +1014,6 @@
   var KEY = 'wikigacha:collection';
   var collection = {};
   var queue = [], qi = 0;
-  var TEAM_KEY = 'wikigacha:equipe';
-  var XP_KEY = 'wikigacha:xp';
-  var SOCIAL_KEY = 'wikigacha:social';
-  var equipeActive = [];
 
   /* Sept paliers, calques sur ceux du jeu original.
      Le seuil porte sur le score de qualite WikiRank (0-100). */
@@ -1153,165 +1077,6 @@
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[m];
     });
   };
-
-  /* ---------- équipe / synergies / talents ---------- */
-  var TALENTS = {
-    geo:  { nom:'Explorateur', desc:'+10 % DÉF', atk:1, def:1.10 },
-    hist: { nom:'Conquérant', desc:'+10 % ATQ', atk:1.10, def:1 },
-    sci:  { nom:'Génie', desc:'+7 % ATQ et DÉF', atk:1.07, def:1.07 },
-    art:  { nom:'Muse', desc:'+12 % ATQ si ★3 ou plus', atk:1.12, def:1 },
-    sport:{ nom:'Athlète', desc:'+8 % ATQ et DÉF', atk:1.08, def:1.08 },
-    soc:  { nom:'Leader', desc:'+5 % ATQ et DÉF', atk:1.05, def:1.05 }
-  };
-  var TALENT_DEFAULT = { nom:'Curieux', desc:'+3 % ATQ et DÉF', atk:1.03, def:1.03 };
-
-  function lireEquipe() {
-    var a;
-    try { a = JSON.parse(localStorage.getItem(TEAM_KEY)); } catch (e) { a = null; }
-    if (!Array.isArray(a)) a = [];
-
-    /* La sauvegarde ne contient que les titres pour rester compacte et
-       compatible avec les anciennes versions. L'interface, elle, travaille
-       avec les objets carte complets. */
-    equipeActive = a.map(function(t) {
-      var titre = (typeof t === 'string') ? t : (t && t.title);
-      return titre && collection[titre] ? collection[titre] : null;
-    }).filter(Boolean).slice(0,5);
-
-    if (equipeActive.length !== a.length || a.some(function(t, i) {
-      var titre = (typeof t === 'string') ? t : (t && t.title);
-      return !equipeActive[i] || equipeActive[i].title !== titre;
-    })) ecrireEquipe();
-    return equipeActive;
-  }
-  function ecrireEquipe() {
-    try {
-      localStorage.setItem(TEAM_KEY, JSON.stringify(
-        equipeActive.slice(0,5).map(function(c) { return c.title; })
-      ));
-    } catch(e) {}
-  }
-  function talentDe(c) {
-    var t = TALENTS[c.domaine] || TALENT_DEFAULT;
-    var atk = t.atk, def = t.def;
-    if (c.domaine === 'art' && niveau(c) < 3) atk = 1;
-    return { nom:t.nom, desc:t.desc, atk:atk, def:def };
-  }
-  function bonusSynergie(equipe) {
-    var counts = {};
-    equipe.forEach(function(c){ counts[c.domaine || 'none'] = (counts[c.domaine || 'none'] || 0) + 1; });
-    var atk=1, def=1, lignes=[];
-    Object.keys(counts).forEach(function(d){
-      var n=counts[d];
-      if (d==='none') return;
-      var a = n>=5?1.24:n>=4?1.16:n>=3?1.10:n>=2?1.05:1;
-      var nom=domaineNom(d);
-      if (a>1) { atk*=a; def*=a; lignes.push(n+'× '+nom+' : +'+Math.round((a-1)*100)+' %'); }
-    });
-    var divers = Object.keys(counts).filter(function(d){return d!=='none';}).length;
-    if (divers >= 4 && equipe.length >= 4) { atk*=1.03; def*=1.03; lignes.push('Équipe éclectique : +3 %'); }
-    return { atk:atk, def:def, lignes:lignes, counts:counts };
-  }
-  function statsEquipe(equipe) {
-    var syn=bonusSynergie(equipe), atk=0, def=0;
-    equipe.forEach(function(c){ var t=talentDe(c); atk += atkEff(c)*t.atk; def += defEff(c)*t.def; });
-    return { atk:Math.round(atk*syn.atk), def:Math.round(def*syn.def), syn:syn };
-  }
-  function atkEquipe(c, equipe) {
-    var t=talentDe(c), syn=bonusSynergie(equipe);
-    return Math.max(1, Math.round(atkEff(c)*t.atk*syn.atk));
-  }
-  function defEquipe(c, equipe) {
-    var t=talentDe(c), syn=bonusSynergie(equipe);
-    return Math.max(1, Math.round(defEff(c)*t.def*syn.def));
-  }
-  function niveauXP(n) { return Math.round(100 * Math.pow(n, 1.35)); }
-  function readXP() {
-    var x; try { x=JSON.parse(localStorage.getItem(XP_KEY)); } catch(e) { x=null; }
-    if (!x || typeof x.xp!=='number') x={xp:0};
-    return x;
-  }
-  function ajouterXP(n) {
-    if (!n || n<0) return readXP();
-    var x=readXP(); x.xp += Math.round(n);
-    try { localStorage.setItem(XP_KEY, JSON.stringify(x)); } catch(e) {}
-    refreshPlayer(); return x;
-  }
-  function niveauJoueur() {
-    var xp=readXP().xp, n=1;
-    while (niveauXP(n+1) <= xp && n < 100) n++;
-    return n;
-  }
-  function refreshPlayer() {
-    var b=el('player-bar'); if(!b) return;
-    var x=readXP().xp, n=niveauJoueur(), cur=niveauXP(n), next=niveauXP(Math.min(100,n+1));
-    var pct=n>=100?100:Math.max(0,Math.min(100,(x-cur)/(next-cur)*100));
-    b.innerHTML='<span class="player-level">Niv. '+n+'</span><span class="xp-track"><span style="width:'+pct.toFixed(1)+'%"></span></span><span class="xp-next">'+(n>=100?'MAX':(x-cur)+' / '+(next-cur)+' XP')+'</span>';
-  }
-
-  function montrerEquipe() {
-    var equipe=lireEquipe();
-    var html='<div class="team-head"><h2 class="team-title">VOTRE ÉQUIPE</h2>'
-      +'<p class="team-intro">Cinq cartes maximum. Les domaines se combinent, et chaque carte apporte un talent propre.</p></div>';
-    var st=statsEquipe(equipe);
-    html+='<div class="team-power"><span>Puissance</span><b>'+st.atk.toLocaleString('fr-FR')+' ATQ · '+st.def.toLocaleString('fr-FR')+' DÉF</b></div>';
-    html+='<div class="team-slots">';
-    for(var i=0;i<5;i++){
-      var c=equipe[i], t=c?talentDe(c):null, tier=c?tierOf(c.rank):null;
-      html+='<button class="team-slot '+(c?'filled':'empty')+'" data-team-slot="'+i+'">'
-        +'<span class="team-slot-num">0'+(i+1)+'</span><span class="team-slot-main">'
-        +(c?'<span class="team-slot-name" style="color:'+tier.color+'">'+esc(c.title)+'</span><span class="team-slot-meta">'+esc(domaineNom(c.domaine))+' · '+esc(t.nom)+' · ATQ '+atkEquipe(c,equipe)+'</span>'
-          :'<span class="team-slot-name">Choisir une carte</span><span class="team-slot-meta">Emplacement libre</span>')
-        +'</span></button>';
-    }
-    html+='</div>';
-    html+='<div class="team-bonus"><h3>Synergies actives</h3>'
-      +(st.syn.lignes.length?st.syn.lignes.map(function(x){return '<p>◆ <b>'+esc(x)+'</b></p>';}).join(''):'<p>Aucune synergie pour le moment. Placez au moins deux cartes du même domaine.</p>')
-      +'</div>';
-    html+='<button class="btn" data-team-auto="1">Optimiser l’équipe</button>'
-      +(equipe.length?'<button class="btn" data-team-clear="1">Vider l’équipe</button>':'')
-      +'<p class="team-help">Les bonus d’équipe s’appliquent désormais au Duel, au Raid et au mode Histoire. L’optimisation cherche une équipe équilibrée en puissance et en synergie.</p>';
-    el('equipe-body').innerHTML=html;
-  }
-
-  function ouvrirSelecteurEquipe(slot) {
-    var equipe=lireEquipe();
-    var toutes=Object.keys(collection).map(function(k){return collection[k];}).sort(function(a,b){
-      return (atkEff(b)+defEff(b)+rankIndex(b.rank)*60)-(atkEff(a)+defEff(a)+rankIndex(a.rank)*60);
-    });
-    var html='<h2>Choisir la carte '+(slot+1)+'</h2><p class="sheet-sub">Équipe · '+(equipe.length<5?'':'équipe complète')+'</p><div class="sel-liste">';
-    toutes.forEach(function(c){
-      var prise=equipe.indexOf(c)!==-1 && equipe[slot]!==c;
-      var t=tierOf(c.rank), ta=talentDe(c);
-      html+='<button class="sel-carte '+(prise?'sel-pris':'')+'" data-team-sel="'+esc(c.title)+'" '+(prise?'disabled':'')+'>'
-        +'<span class="sel-nom" style="color:'+t.color+'">'+esc(c.title)+'</span>'
-        +'<span class="sel-st">'+esc(domaineNom(c.domaine))+' · '+esc(ta.nom)+' · ATQ '+atkEff(c)+' · DÉF '+defEff(c)+'</span></button>';
-    });
-    html+='</div><button class="btn" id="sheet-close">Fermer</button>';
-    el('sheet-inner').innerHTML=html; el('sheet').hidden=false; document.body.style.overflow='hidden';
-    el('sheet-close').addEventListener('click',closeSheet);
-    el('sheet-inner').setAttribute('data-team-slot',slot);
-  }
-
-  function optimiserEquipe() {
-    var toutes=Object.keys(collection).map(function(k){return collection[k];});
-    toutes.sort(function(a,b){
-      function score(c){ return atkEff(c)+defEff(c)+rankIndex(c.rank)*45; }
-      return score(b)-score(a);
-    });
-    var choix=[];
-    toutes.slice(0,Math.min(12,toutes.length)).forEach(function(c){
-      if(choix.length>=5) return;
-      if(!choix.length){ choix.push(c); return; }
-      var test=choix.concat([c]);
-      var s=statsEquipe(test);
-      var brute=choix.reduce(function(v,x){return v+atkEff(x)+defEff(x);},0);
-      var nv=s.atk+s.def;
-      if(nv >= brute*1.02 || choix.length<3) choix.push(c);
-    });
-    if(choix.length<5) toutes.slice(0,5).forEach(function(c){if(choix.length<5 && choix.indexOf(c)===-1) choix.push(c);});
-    equipeActive=choix.slice(0,5); ecrireEquipe(); ajouterXP(10); montrerEquipe();
-  }
 
   /* ---------- données ---------- */
 
@@ -1729,7 +1494,6 @@
       };
     }
     save(); refreshCount(); refreshSucces();
-    ajouterXP(e ? 3 : 12);
   }
   /* --- Reserve de paquets : dix au maximum, un de plus par minute. --- */
   var PKEY = 'wikigacha:paquets';
@@ -2021,6 +1785,29 @@
     }
   }
 
+  /* Retire des articles jusqu'a en trouver un qui atteint reellement le
+     palier garanti. Limite a quelques essais pour ne pas s'eterniser ;
+     si rien ne sort, on renvoie la meilleure trouvee. */
+  function chercherCarteGarantie(essai, meilleure) {
+    essai = essai || 1;
+    if (essai > 3) return Promise.resolve(meilleure || null);
+    return fetchPack()
+      .then(function (pages) {
+        return Promise.all(pages.slice(0, 6).map(function (p) {
+          return Promise.all([fetchViews(p.title), fetchQuality(p.pageid)])
+            .then(function (r) { return toCard(p, r[0], r[1]); });
+        }));
+      })
+      .then(function (lot) {
+        lot.sort(function (a, b) { return rankIndex(b.rank) - rankIndex(a.rank); });
+        var top = lot[0];
+        if (!meilleure || rankIndex(top.rank) > rankIndex(meilleure.rank)) meilleure = top;
+        if (rankIndex(top.rank) >= PITIE) return top;
+        return chercherCarteGarantie(essai + 1, meilleure);
+      })
+      .catch(function () { return meilleure || null; });
+  }
+
   var tirageEnCours = false;
 
   /* Le paquet a deja ete decompte par le geste d'ouverture ; openPack ne fait
@@ -2045,11 +1832,21 @@
       })
       .then(function (cards) {
         cards.sort(function (a, b) { return rankIndex(a.rank) - rankIndex(b.rank); });
+        /* Garantie : plutot que de promouvoir artificiellement une ebauche,
+           on retire jusqu'a trouver un article qui merite vraiment le palier. */
         if (pitie && rankIndex(cards[cards.length - 1].rank) < PITIE) {
-          var best = cards[cards.length - 1];
-          best.rank = TIERS[PITIE].name;
-          best.garantie = true;
+          return chercherCarteGarantie().then(function (bonne) {
+            if (bonne) {
+              bonne.garantie = true;
+              cards[0] = bonne;   /* remplace la plus faible du lot */
+              cards.sort(function (a, b) { return rankIndex(a.rank) - rankIndex(b.rank); });
+            }
+            return cards;
+          });
         }
+        return cards;
+      })
+      .then(function (cards) {
         queue = cards; qi = 0;
         /* On laisse l'animation de dechirure se terminer (600 ms) avant de
            montrer les cartes, mais on ne bloque pas si le reseau a ete plus
@@ -2251,7 +2048,6 @@
     c.star = n + 1;
     save();
     refreshCount(); refreshSucces();
-    ajouterXP(20 * n);
     openSheet(titre);      /* on rouvre la fiche a jour */
     if (!el('coll-cartes').hidden) showCollection();
   }
@@ -2260,78 +2056,6 @@
     el('sheet').hidden = true;
     document.body.style.overflow = '';
   }
-
-  /* ---------- social ----------
-     Mode social sans serveur : les profils/defis circulent par codes courts.
-     Le classement est donc local (joueur + amis importes). */
-  function readSocial() {
-    var d; try { d=JSON.parse(localStorage.getItem(SOCIAL_KEY)); } catch(e){ d=null; }
-    if(!d || typeof d!=='object') d={nom:'Archiviste', amis:[]};
-    if(typeof d.nom!=='string' || !d.nom.trim()) d.nom='Archiviste';
-    if(!Array.isArray(d.amis)) d.amis=[];
-    return d;
-  }
-  function writeSocial(d){ try{localStorage.setItem(SOCIAL_KEY,JSON.stringify(d));}catch(e){} }
-  function socialNom(){ return readSocial().nom; }
-  function socialStats(){
-    var equipe=lireEquipe(), st=statsEquipe(equipe), xp=readXP().xp, n=niveauJoueur();
-    var cartes=Object.keys(collection).length, total=0, myth=0;
-    Object.keys(collection).forEach(function(k){ var c=collection[k]; total+=(c.count||1); if(rankIndex(c.rank)>=5) myth++; });
-    return {niveau:n,xp:xp,puissance:st.atk+st.def,atk:st.atk,def:st.def,cartes:cartes,total:total,myth:myth};
-  }
-  function socialPayload(type){
-    var st=socialStats();
-    return {v:1,t:type,n:socialNom(),lv:st.n,p:st.puissance,a:st.atk,d:st.def,c:st.cartes,m:st.myth,team:lireEquipe().map(function(x){return x.title;})};
-  }
-  function faireCodeSocial(type){ return 'WG-S1-'+enc64(JSON.stringify(socialPayload(type))); }
-  function lireCodeSocial(code){
-    code=(code||'').trim().replace(/\s+/g,'');
-    if(code.indexOf('WG-S1-')!==0) throw new Error('Ce n’est pas un code social Wikigacha.');
-    var o=JSON.parse(dec64(code.slice(6)));
-    if(!o || o.v!==1 || !o.n) throw new Error('Code social abîmé.');
-    return o;
-  }
-  function montrerSocial(msg){
-    var d=readSocial(), st=socialStats(), code=faireCodeSocial('profil');
-    var amis=d.amis.slice().sort(function(a,b){return (b.p||0)-(a.p||0);});
-    var classement=[{n:d.nom,p:st.puissance,lv:st.n,me:true}].concat(amis.map(function(a){return {n:a.n,p:a.p||0,lv:a.lv||1,me:false};}));
-    classement.sort(function(a,b){return b.p-a.p || b.lv-a.lv || a.n.localeCompare(b.n,'fr');});
-    var html='<div class="social-card"><div class="social-profile">'
-      +'<div class="social-avatar">✦</div><div><div class="social-name">'+esc(d.nom)+'</div><div class="social-level">Niveau '+st.n+' · '+st.cartes+' cartes uniques</div></div></div>'
-      +'<div class="social-stats"><div class="social-stat"><b>'+st.puissance.toLocaleString('fr-FR')+'</b><span>Puissance</span></div>'
-      +'<div class="social-stat"><b>'+st.cartes+'</b><span>Collection</span></div><div class="social-stat"><b>'+st.myth+'</b><span>Mythiques</span></div></div>'
-      +'<h3 style="margin-top:16px">Votre code profil</h3><p>Partagez ce code pour apparaître dans la liste d’amis d’un autre joueur.</p>'
-      +'<textarea class="social-code" id="social-code" readonly>'+esc(code)+'</textarea><div class="social-actions"><button class="btn" data-social-copy="1">Copier</button><button class="btn" data-social-name="1">Changer mon pseudo</button></div>'
-      +'</div>';
-    html+='<div class="social-card"><h2>AMIS</h2><p>Ajoutez un joueur en collant son code profil. Les amis sont enregistrés sur cet appareil.</p>'
-      +'<div class="social-form"><input id="social-add-code" class="code-champ" placeholder="WG-S1-…" autocomplete="off"><button class="btn" data-social-add="1">Ajouter</button></div>'
-      +'<p id="social-msg" class="recompense-msg">'+(msg?esc(msg):'')+'</p>';
-    if(!amis.length) html+='<p>Votre liste est vide. Partagez votre code avec un ami pour commencer.</p>';
-    amis.forEach(function(a){ html+='<div class="ami"><div><span class="ami-nom">'+esc(a.n)+'</span><span class="ami-meta">Niv. '+(a.lv||1)+' · '+(a.p||0).toLocaleString('fr-FR')+' puissance · '+(a.c||0)+' cartes</span></div><button class="btn" style="width:auto;margin:0" data-social-remove="'+esc(a.id)+'">Retirer</button></div>'; });
-    html+='</div>';
-    html+='<div class="social-card"><h2>CLASSEMENT</h2><p>Classement entre vous et les profils importés sur cet appareil. Pour un classement mondial réel, il faudra un serveur.</p>';
-    classement.forEach(function(a,i){ html+='<div class="classement-row"><span class="classement-rang">#'+(i+1)+'</span><span><b>'+esc(a.n)+'</b>'+(a.me?' <small>Vous</small>':'')+'<span class="ami-meta">Niveau '+a.lv+'</span></span><span class="classement-puissance">'+a.p.toLocaleString('fr-FR')+'</span></div>'; });
-    html+='</div>';
-    html+='<div class="social-card"><h2>DÉFI D’ÉQUIPE</h2><p>Votre équipe actuelle peut être partagée comme défi asynchrone. Votre ami pourra comparer sa puissance et ses cartes à la vôtre.</p>'
-      +'<textarea class="social-code" id="social-team-code" readonly>'+esc(faireCodeSocial('defi'))+'</textarea><div class="social-actions"><button class="btn" data-social-team-copy="1">Copier le défi</button></div>'
-      +'<p class="social-note">Les échanges de cartes restent disponibles depuis la Collection. Les profils et défis ci-dessus fonctionnent sans serveur.</p></div>';
-    el('social-body').innerHTML=html;
-  }
-  function ajouterAmiCode(){
-    var input=el('social-add-code'), msg=el('social-msg'); if(!input)return;
-    try{
-      var o=lireCodeSocial(input.value); if(o.t==='defi') { msg.textContent='C’est un code de défi, pas un profil.'; return; }
-      var d=readSocial(); var id=enc64(o.n+'|'+o.p+'|'+o.lv).slice(0,16);
-      if(d.amis.some(function(a){return a.id===id;})){msg.textContent='Ce joueur est déjà dans vos amis.';return;}
-      if(o.n===d.nom){msg.textContent='Vous ne pouvez pas vous ajouter vous-même.';return;}
-      d.amis.push({id:id,n:o.n,lv:o.lv||1,p:o.p||0,a:o.a||0,d:o.d||0,c:o.c||0,m:o.m||0,team:o.team||[]}); writeSocial(d); montrerSocial('Ami ajouté.');
-    }catch(e){msg.textContent=e.message;}
-  }
-  function changerPseudo(){
-    var d=readSocial(), nom=prompt('Votre pseudo Wikigacha :',d.nom); if(nom===null)return;
-    nom=nom.trim().slice(0,24); if(!nom)return; d.nom=nom; writeSocial(d); montrerSocial('Pseudo mis à jour.');
-  }
-  function copierTexte(id){ var x=el(id); if(!x)return; var ok=false; if(navigator.clipboard) navigator.clipboard.writeText(x.value).then(function(){x.focus();}).catch(function(){x.select();}); else {x.select(); try{ok=document.execCommand('copy');}catch(e){}} }
 
   /* ---------- statistiques durables ---------- */
 
@@ -2416,9 +2140,7 @@
   function degats(c, boss) {
     var m = MULT[rankIndex(c.rank)] || 1;
     var reduction = 900 / (900 + boss.def);
-    var eq = lireEquipe();
-    var atk = eq.indexOf(c.title) !== -1 ? atkEquipe(c, eq) : atkEff(c);
-    return Math.max(1, Math.round(atk * m * reduction));
+    return Math.max(1, Math.round(atkEff(c) * m * reduction));
   }
 
   function readRaid() {
@@ -2888,12 +2610,9 @@
       .slice(0, 5);
   }
 
-  function manche(mien, sien, equipe) {
-    equipe = equipe || [];
-    var atkA = equipe.length ? atkEquipe(mien, equipe) : atkEff(mien);
-    var defA = equipe.length ? defEquipe(mien, equipe) : defEff(mien);
-    var perceeA = atkA - defEff(sien);
-    var perceeB = atkEff(sien) - defA;
+  function manche(mien, sien) {
+    var perceeA = atkEff(mien) - defEff(sien);
+    var perceeB = atkEff(sien) - defEff(mien);
     if (perceeA !== perceeB) return perceeA > perceeB ? 1 : -1;
     var r = rankIndex(mien.rank) - rankIndex(sien.rank);
     return r > 0 ? 1 : (r < 0 ? -1 : 0);
@@ -2931,7 +2650,7 @@
         /* Proposition de depart : les cinq meilleures, dans l'ordre. */
         duelCourant = {
           adverse: adverse,
-          choix: (lireEquipe().length === 5 ? lireEquipe() : equipeJoueur()).map(function (c) { return c.title; })
+          choix: equipeJoueur().map(function (c) { return c.title; })
         };
         peindrePlacement();
       })
@@ -2986,7 +2705,7 @@
 
     adverse.forEach(function (lui, i) {
       var moi = choix[i] ? collection[choix[i]] : null;
-      var r = moi ? manche(moi, lui, choix.map(function(t){ return collection[t]; }).filter(Boolean)) : 0;
+      var r = moi ? manche(moi, lui) : 0;
       if (moi && r > 0) prevu += 1;
       var tl = tierOf(lui.rank);
       var tm = moi ? tierOf(moi.rank) : null;
@@ -3052,11 +2771,10 @@
     if (!duelCourant) return;
     var adverse = duelCourant.adverse, choix = duelCourant.choix;
     var manches = [], gagnees = 0;
-    var equipeCombat = choix.map(function(t){ return collection[t]; }).filter(Boolean);
     for (var i = 0; i < 5; i++) {
       var moi = collection[choix[i]];
       if (!moi) return;
-      var r = manche(moi, adverse[i], equipeCombat);
+      var r = manche(moi, adverse[i]);
       if (r > 0) gagnees += 1;
       manches.push({ moi: moi, lui: adverse[i], r: r });
     }
@@ -3070,9 +2788,6 @@
     if (gagne) {
       recu = GAIN_DUEL;
       ajouterGold(recu);
-      ajouterXP(35);
-    } else {
-      ajouterXP(8);
     }
     duelCourant = null;
     peindreDuel(manches, gagnees, gagne, recu);
@@ -3125,8 +2840,8 @@
 
   function showDuel() {
     el('duel-body').innerHTML = '<p class="duel-titre">DUEL 5 CONTRE 5</p>'
-      + '<p class="duel-intro">Votre équipe active affronte cinq articles tirés au hasard. '
-      + 'Les synergies et talents s’appliquent. Trois manches gagnées suffisent.</p>'
+      + '<p class="duel-intro">Vos cinq meilleures cartes affrontent cinq articles '
+      + 'tirés au hasard. Trois manches gagnées suffisent.</p>'
       + boutonDuel();
   }
 
@@ -3284,10 +2999,9 @@
   /* Puissance d'attaque d'une equipe contre une defense donnee. */
   function forceEquipe(cartes, def) {
     var reduction = 900 / (900 + def);
-    var equipe = cartes.slice(0, 5);
-    return equipe.slice(0, 3).reduce(function (t, c) {
+    return cartes.slice(0, 3).reduce(function (t, c) {
       var m = MULT[rankIndex(c.rank)] || 1;
-      return t + atkEquipe(c, equipe) * m * reduction;
+      return t + atkEff(c) * m * reduction;
     }, 0);
   }
 
@@ -4146,7 +3860,7 @@
         + '<button class="btn" data-raz="1">Repartir de zéro</button></div>' : '';
   }
 
-  var TOUTES_CLES = [KEY, PKEY, RKEY, SKEY, JKEY, CKEY, VKEY, HKEY, TEAM_KEY, XP_KEY, SOCIAL_KEY];
+  var TOUTES_CLES = [KEY, PKEY, RKEY, SKEY, JKEY, CKEY, VKEY, HKEY];
 
   /* Rassemble tout l'etat du jeu en un objet unique. */
   function exporterTout() {
@@ -4243,15 +3957,14 @@
 
   var sousCartes = 'ouvrir';
   function switchTo(which) {
-    ['cartes', 'raid', 'boutique', 'succes', 'social'].forEach(function (v) {
+    ['cartes', 'raid', 'boutique', 'succes'].forEach(function (v) {
       el('view-' + v).hidden = (v !== which);
       el('tab-' + v).classList.toggle('is-active', v === which);
     });
     if (which === 'cartes') { basculerColl(sousCartes); refreshAlbums(); }
-    if (which === 'raid') montrerCombat(sousCombat === 'raid' ? 'equipe' : sousCombat);
+    if (which === 'raid') montrerCombat(sousCombat);
     if (which === 'boutique') showBoutique();
     if (which === 'succes') showSucces();
-    if (which === 'social') montrerSocial();
   }
 
   /* Ouverture par glissement : on tire la languette vers le bas. La variable
@@ -4381,7 +4094,6 @@
   el('tab-boutique').addEventListener('click', function () { switchTo('boutique'); });
   el('tab-raid').addEventListener('click', function () { switchTo('raid'); });
   el('tab-succes').addEventListener('click', function () { switchTo('succes'); });
-  el('tab-social').addEventListener('click', function () { switchTo('social'); });
   el('sub-ouvrir').addEventListener('click', function () { sousCartes = 'ouvrir'; basculerColl('ouvrir'); });
   el('sub-collec').addEventListener('click', function () { sousCartes = 'collec'; basculerColl('collec'); });
   el('sub-albums').addEventListener('click', function () { sousCartes = 'albums'; basculerColl('albums'); });
@@ -4396,13 +4108,6 @@
     var b = e.target.closest ? e.target.closest('[data-succes]') : null;
     if (b) reclamerSucces(b.getAttribute('data-succes'));
   });
-  el('equipe-body').addEventListener('click', function (e) {
-    if (!e.target.closest) return;
-    if (e.target.closest('[data-team-auto]')) { optimiserEquipe(); return; }
-    if (e.target.closest('[data-team-clear]')) { equipeActive=[]; ecrireEquipe(); montrerEquipe(); return; }
-    var slot=e.target.closest('[data-team-slot]');
-    if (slot) { ouvrirSelecteurEquipe(parseInt(slot.getAttribute('data-team-slot'),10)); return; }
-  });
   el('duel-body').addEventListener('click', function (e) {
     if (!e.target.closest) return;
     if (e.target.closest('#duel-lancer')) { lancerDuel(); return; }
@@ -4413,18 +4118,6 @@
   });
   /* Selection d'une carte depuis le panneau. */
   el('sheet-inner').addEventListener('click', function (e) {
-    var ts = e.target.closest ? e.target.closest('[data-team-sel]') : null;
-    if (ts) {
-      var slot=parseInt(el('sheet-inner').getAttribute('data-team-slot'),10);
-      var titre=ts.getAttribute('data-team-sel');
-      var eq=lireEquipe();
-      eq=eq.filter(function(c){return c && c.title !== titre;});
-      var carteChoisie=collection[titre];
-      if (!carteChoisie) return;
-      eq[slot]=carteChoisie;
-      eq=eq.filter(Boolean).slice(0,5);
-      equipeActive=eq; ecrireEquipe(); closeSheet(); montrerEquipe(); ajouterXP(2); return;
-    }
     var sc = e.target.closest ? e.target.closest('[data-sel-titre]') : null;
     if (!sc || !duelCourant) return;
     var slot = parseInt(sc.getAttribute('data-sel-slot'), 10);
@@ -4435,23 +4128,19 @@
   var sousCombat = 'raid';
   function montrerCombat(quoi) {
     sousCombat = quoi;
-    el('equipe-body').hidden = quoi !== 'equipe';
     el('raid-body').hidden = quoi !== 'raid';
     el('duel-body').hidden = quoi !== 'duel';
     el('histoire-body').hidden = quoi !== 'hist';
     el('quiz-body').hidden = quoi !== 'quiz';
-    el('sub-equipe').classList.toggle('is-active', quoi === 'equipe');
     el('sub-raid').classList.toggle('is-active', quoi === 'raid');
     el('sub-duel').classList.toggle('is-active', quoi === 'duel');
     el('sub-hist').classList.toggle('is-active', quoi === 'hist');
     el('sub-quiz').classList.toggle('is-active', quoi === 'quiz');
-    if (quoi === 'equipe') montrerEquipe();
     if (quoi === 'raid') showRaid();
     if (quoi === 'duel') showDuel();
     if (quoi === 'hist') showHistoire();
     if (quoi === 'quiz') showQuiz();
   }
-  el('sub-equipe').addEventListener('click', function () { montrerCombat('equipe'); });
   el('sub-raid').addEventListener('click', function () { montrerCombat('raid'); });
   el('sub-duel').addEventListener('click', function () { montrerCombat('duel'); });
   el('sub-hist').addEventListener('click', function () { montrerCombat('hist'); });
@@ -4524,16 +4213,6 @@
     vue.q = el('coll-q').value; showCollection();
   });
 
-  el('social-body').addEventListener('click', function(e){
-    if(!e.target.closest) return;
-    if(e.target.closest('[data-social-copy]')) { copierTexte('social-code'); return; }
-    if(e.target.closest('[data-social-team-copy]')) { copierTexte('social-team-code'); return; }
-    if(e.target.closest('[data-social-name]')) { changerPseudo(); return; }
-    if(e.target.closest('[data-social-add]')) { ajouterAmiCode(); return; }
-    var r=e.target.closest('[data-social-remove]');
-    if(r){ var d=readSocial(); d.amis=d.amis.filter(function(a){return a.id!==r.getAttribute('data-social-remove');}); writeSocial(d); montrerSocial('Ami retiré.'); }
-  });
-
   /* Bandeau discret quand la connexion tombe : l'ouverture de paquets a
      besoin de Wikipedia, le reste du jeu fonctionne normalement. */
   function majEtatReseau() {
@@ -4545,8 +4224,6 @@
   majEtatReseau();
 
   load();
-  lireEquipe();
-  refreshPlayer();
   pointerPresence();
   basculerColl('ouvrir');
   showMissions();
