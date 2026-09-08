@@ -521,7 +521,55 @@
 
   /* --- listes --- */
   .draw, .grid { display: grid; gap: 10px; padding: 10px 0 20px; }
-  @media (min-width: 470px) { .grid { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 470px) { .grid:not(.compact) { grid-template-columns: 1fr 1fr; } }
+
+  /* Affichage compact. Une liste de quatre cents lignes fait cinquante mille
+     pixels de defilement ; en vignettes sur trois colonnes, moins de vingt
+     mille — et l'oeil reconnait un article a son image bien plus vite qu'a
+     son titre. */
+  .grid.compact { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .grid.compact .card {
+    padding: 0; border-left-width: 1px;
+    border-bottom: 3px solid var(--tier, var(--t1));
+  }
+  .grid.compact .card-head { display: block; gap: 0; }
+  .grid.compact .card-thumb, .grid.compact .card-thumb-alt {
+    width: 100%; height: 88px; border: 0; border-bottom: 1px solid var(--night-line);
+  }
+  .grid.compact .card-title {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; padding: 5px 7px 0; font-size: 11px; line-height: 1.25;
+  }
+  .grid.compact .card-desc { display: none; }
+  .grid.compact .card-foot {
+    margin: 3px 0 0; padding: 0 7px 6px; border: 0; gap: 6px; font-size: 9.5px;
+  }
+  .grid.compact .card-foot > span:nth-child(1),
+  .grid.compact .card-foot > span:nth-child(2) { display: none; }
+  .grid.compact .neuve-chip { font-size: 8.5px; padding: 1px 4px; letter-spacing: .06em; }
+  /* Sur une vignette, l'etoile se pose sur la photo : il lui faut un
+     contraste propre. */
+  .grid.compact .fav {
+    top: 2px; right: 2px; font-size: 15px;
+    color: rgba(246,241,228,.55); text-shadow: 0 1px 3px rgba(0,0,0,.85);
+  }
+  .grid.compact .fav.on { color: #f0c556; }
+  .grid.compact .card-wrap .card { padding-right: 0; }
+  .grid.compact .card-wrap { contain-intrinsic-size: auto 150px; }
+
+  /* Retour en haut : indispensable des que la liste depasse quelques ecrans. */
+  .haut {
+    position: fixed; right: 16px; z-index: 17;
+    bottom: calc(var(--bar-h) + var(--safe-b) + 16px);
+    width: 46px; height: 46px; padding: 0; font: inherit; font-size: 18px;
+    color: var(--ivory); background: rgba(30,35,52,.96);
+    border: 1px solid #39415c; cursor: pointer;
+    box-shadow: 0 6px 18px rgba(0,0,0,.5);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    animation: hautEntre .2s ease-out both;
+  }
+  .haut[hidden] { display: none; }
+  @keyframes hautEntre { from { opacity: 0; transform: translateY(10px); } }
 
   .card {
     display: block; width: 100%; text-align: left; cursor: pointer;
@@ -1546,19 +1594,25 @@
         <option value="recent">Plus récentes d’abord</option>
         <option value="ancien">Plus anciennes d’abord</option>
       </select>
-      <button id="coll-favonly" class="tri-btn">★ Favoris</button>
+      <button id="coll-favonly" class="tri-btn" aria-label="Favoris">★</button>
+      <button id="coll-vue" class="tri-btn" aria-label="Affichage">▦</button>
+      <button id="coll-reglages-btn" class="tri-btn" aria-label="Réglages">⚙</button>
     </div>
     <div id="coll-actifs" class="actifs" hidden></div>
+  </div>
+  <!-- Réglages et sauvegarde : en haut, repliés. Au bas d'une liste de
+       quatre cents cartes, ils étaient hors d'atteinte. -->
+  <div id="coll-reglages" hidden>
+    <div class="reglages">
+      <button id="opt-vibr" class="tri-btn">Vibrations : activées</button>
+      <button id="opt-son" class="tri-btn">Sons : activés</button>
+    </div>
+    <div id="coll-zone-sauvegarde"></div>
+    <div id="coll-zone-raz"></div>
   </div>
   <div id="coll-grid" class="grid"></div>
   <div id="coll-sentinelle" hidden>Chargement de la suite…</div>
   <div id="coll-vide-filtre"></div>
-  <div id="coll-zone-sauvegarde"></div>
-  <div id="coll-zone-raz"></div>
-  <div class="reglages">
-    <button id="opt-vibr" class="tri-btn">Vibrations : activées</button>
-    <button id="opt-son" class="tri-btn">Sons : activés</button>
-  </div>
   </div>
   <div id="coll-albums" hidden></div>
 </main>
@@ -1587,6 +1641,8 @@
 <div id="sheet" class="sheet" hidden>
   <div class="sheet-inner" id="sheet-inner"></div>
 </div>
+
+<button class="haut" id="haut" hidden aria-label="Revenir en haut">↑</button>
 
 <div class="maj" id="maj" hidden>
   <span>Nouvelle version disponible.</span>
@@ -1885,7 +1941,10 @@
   function verserLot() {
     var g = el('coll-grid');
     if (!g) return;
-    var lot = OBS_OK ? listeRestante.splice(0, 24) : listeRestante.splice(0);
+    /* Les vignettes sont trois fois plus petites : on en peint davantage
+       par lot pour que le defilement ne rattrape jamais le rendu. */
+    var taille = vue.compact ? 45 : 24;
+    var lot = OBS_OK ? listeRestante.splice(0, taille) : listeRestante.splice(0);
     if (lot.length) {
       var d = document.createElement('div');
       d.innerHTML = lot.map(function (c) { return cardHTML(c, c.count); }).join('');
@@ -4718,17 +4777,19 @@
 
   /* Etat d'affichage : tri, recherche, filtre favoris. */
   var VKEY = 'wikigacha:vue';
-  var vue = { tri: 'rarete', q: '', favOnly: false, rang: '', dom: '' };
+  var vue = { tri: 'rarete', q: '', favOnly: false, rang: '', dom: '', compact: false };
   try {
     var vs = JSON.parse(localStorage.getItem(VKEY));
     if (vs) {
       vue.tri = vs.tri || 'rarete'; vue.favOnly = !!vs.favOnly;
       vue.rang = vs.rang || ''; vue.dom = vs.dom || '';
+      vue.compact = !!vs.compact;
     }
   } catch (e) {}
   function saveVue() {
     try { localStorage.setItem(VKEY, JSON.stringify({
-      tri: vue.tri, favOnly: vue.favOnly, rang: vue.rang, dom: vue.dom })); }
+      tri: vue.tri, favOnly: vue.favOnly, rang: vue.rang, dom: vue.dom,
+      compact: vue.compact })); }
     catch (e) {}
   }
 
@@ -4873,6 +4934,11 @@
     el('coll-outils').hidden = items.length < 6;
     el('coll-tri').value = vue.tri;
     el('coll-favonly').classList.toggle('actif', vue.favOnly);
+    el('coll-vue').classList.toggle('actif', vue.compact);
+    el('coll-vue').textContent = vue.compact ? '☰' : '▦';
+    el('coll-grid').classList.toggle('compact', vue.compact);
+    /* Sans la barre d'outils, les reglages resteraient inaccessibles. */
+    if (el('coll-outils').hidden) el('coll-reglages').hidden = false;
 
     if (items.length) {
       var total = items.reduce(function (s, c) { return s + c.count; }, 0);
@@ -5381,6 +5447,9 @@
   el('coll-tri').addEventListener('change', function () {
     vue.tri = el('coll-tri').value; saveVue(); showCollection();
   });
+  el('coll-vue').addEventListener('click', function () {
+    vue.compact = !vue.compact; saveVue(); showCollection(); hautDePage();
+  });
   el('coll-favonly').addEventListener('click', function () {
     vue.favOnly = !vue.favOnly; saveVue(); showCollection();
   });
@@ -5390,6 +5459,13 @@
     vue.q = el('coll-q').value;
     clearTimeout(minuteurQ);
     minuteurQ = setTimeout(showCollection, 160);
+  });
+
+  el('coll-reglages-btn').addEventListener('click', function () {
+    var z = el('coll-reglages');
+    z.hidden = !z.hidden;
+    el('coll-reglages-btn').classList.toggle('actif', !z.hidden);
+    if (!z.hidden) montrerSauvegarde();
   });
 
   el('opt-vibr').addEventListener('click', function () {
@@ -5417,6 +5493,24 @@
     }, { rootMargin: '700px 0px' });
     listeObs.observe(el('coll-sentinelle'));
   }
+
+  /* Le bouton de retour en haut n'apparait qu'une fois qu'on a vraiment
+     descendu : sinon il encombre en permanence. */
+  (function () {
+    var b = el('haut'), visible = false, attente = null;
+    function verifier() {
+      var v = (window.pageYOffset || document.documentElement.scrollTop || 0) > 1100;
+      if (v !== visible) { visible = v; b.hidden = !v; }
+      attente = null;
+    }
+    window.addEventListener('scroll', function () {
+      if (attente === null) attente = setTimeout(verifier, 120);
+    }, { passive: true });
+    b.addEventListener('click', function () {
+      try { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+      catch (e) { window.scrollTo(0, 0); }
+    });
+  })();
 
   /* Un appui sur un bouton se sent, partout dans le jeu. */
   document.addEventListener('click', function (e) {
