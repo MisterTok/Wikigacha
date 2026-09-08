@@ -1468,6 +1468,12 @@
     animation: majEntre .3s ease-out both;
   }
   .maj[hidden] { display: none; }
+  /* Décalée pour ne pas recouvrir le bandeau de mise à jour. */
+  .maj.alerte {
+    bottom: calc(var(--bar-h) + var(--safe-b) + 60px);
+    border-top-color: #8d5050;
+  }
+  .maj.alerte button { background: #cf7f7f; }
   @keyframes majEntre { from { opacity: 0; transform: translateY(14px); } }
   .maj button {
     flex: none; min-height: 38px; padding: 8px 14px; font: inherit; font-size: 12.5px;
@@ -1675,6 +1681,11 @@
 
 <button class="haut" id="haut" hidden aria-label="Revenir en haut">↑</button>
 
+<div class="maj alerte" id="alerte" hidden>
+  <span>Stockage plein : la progression n’est plus enregistrée.</span>
+  <button id="alerte-go">Sauvegarder</button>
+</div>
+
 <div class="maj" id="maj" hidden>
   <span>Nouvelle version disponible.</span>
   <button id="maj-go">Recharger</button>
@@ -1873,9 +1884,10 @@
   }
 
   /* --- publicité récompensée ---
-     Le seul format publicitaire que le joueur choisit vraiment. Plafonné à
-     cinq par jour : au-delà, ce n'est plus une récompense, c'est un travail. */
-  var PUB_RECOMPENSE_MAX = 5;
+     Le seul format publicitaire que le joueur choisit vraiment. Plafonné par
+     jour : sans plafond, ce n'est plus une récompense mais un travail, et
+     AdMob surveille les comptes dont un même joueur enchaîne les vidéos. */
+  var PUB_RECOMPENSE_MAX = 15;
   var recompenseEnCours = false;
 
   function pubRecompenseDisponible() {
@@ -2260,6 +2272,29 @@
     if (s) s.hidden = !listeRestante.length;
   }
 
+  /* ---------- accès à Wikipédia ----------
+     La politique Wikimedia demande un User-Agent descriptif avec un moyen de
+     contact. Un navigateur interdit de le modifier ; l'en-tête Api-User-Agent
+     existe pour ça. Il déclenche un contrôle CORS préalable, que tous les
+     points d'entrée n'acceptent pas : en cas de refus, on retente sans
+     l'en-tête et on retient le résultat pour cet hôte. */
+  var UA_WIKI = 'Wikigacha/1.0 (https://mistertok.github.io/Wikigacha/)';
+  var enTeteOk = {};
+
+  function fetchWiki(url) {
+    var hote = '';
+    try { hote = new URL(url, location.href).hostname; } catch (e) {}
+    if (enTeteOk[hote] === false) return fetch(url);
+    return fetch(url, { headers: { 'Api-User-Agent': UA_WIKI } })
+      .then(function (r) { enTeteOk[hote] = true; return r; })
+      ['catch'](function (err) {
+        /* L'en-tête avait déjà fonctionné : c'est une vraie panne réseau. */
+        if (enTeteOk[hote] === true) throw err;
+        enTeteOk[hote] = false;
+        return fetch(url);
+      });
+  }
+
   /* ---------- données ---------- */
 
   var MIN_AVEC_IMAGE = 3;   /* on vise au moins 3 cartes illustrees sur 5 */
@@ -2275,7 +2310,7 @@
       + '&prop=info|pageimages|description|extracts'
       + '&inprop=url&piprop=thumbnail&pithumbsize=500&pilicense=any'
       + '&exintro=1&explaintext=1&exlimit=max';
-    return fetch(url).then(function (r) {
+    return fetchWiki(url).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     }).then(function (d) {
@@ -2318,7 +2353,7 @@
     var url = 'https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/'
       + WIKI + '/all-access/user/' + encodeURIComponent(title.replace(/ /g, '_'))
       + '/monthly/' + r[0] + '/' + r[1];
-    return fetch(url)
+    return fetchWiki(url)
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (d) {
         if (!d || !d.items) return 0;
@@ -2332,7 +2367,7 @@
     var url = 'https://' + WIKI + '.org/w/api.php'
       + '?action=parse&format=json&origin=*&pageid=' + pageid
       + '&prop=sections|externallinks|images|categories';
-    return fetch(url)
+    return fetchWiki(url)
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         var pr = d && d.parse;
@@ -2544,7 +2579,7 @@
   function fetchSummary(title) {
     var url = 'https://' + WIKI + '.org/api/rest_v1/page/summary/'
       + encodeURIComponent(title.replace(/ /g, '_'));
-    return fetch(url).then(function (r) {
+    return fetchWiki(url).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     });
@@ -2561,7 +2596,7 @@
     var url = 'https://' + WIKI + '.org/w/api.php'
       + '?action=query&format=json&origin=*&prop=pageprops&ppprop=wikibase_item'
       + '&titles=' + encodeURIComponent(title.replace(/ /g, '_'));
-    return fetch(url)
+    return fetchWiki(url)
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         var pg = d && d.query && d.query.pages;
@@ -2573,7 +2608,7 @@
         /* 2) Lire la propriete P18 (image) de cette fiche Wikidata. */
         var u2 = 'https://www.wikidata.org/w/api.php'
           + '?action=wbgetclaims&format=json&origin=*&property=P18&entity=' + qid;
-        return fetch(u2)
+        return fetchWiki(u2)
           .then(function (r) { return r.ok ? r.json() : null; })
           .then(function (d2) {
             var cl = d2 && d2.claims && d2.claims.P18;
@@ -2587,7 +2622,7 @@
               + '?action=query&format=json&origin=*&prop=imageinfo'
               + '&iiprop=url&iiurlwidth=500'
               + '&titles=' + encodeURIComponent('File:' + fichier);
-            return fetch(u3)
+            return fetchWiki(u3)
               .then(function (r) { return r.ok ? r.json() : null; })
               .then(function (d3) {
                 var p3 = d3 && d3.query && d3.query.pages;
@@ -2676,8 +2711,77 @@
 
     if (migre) save();
   }
+  /* Écriture groupée.
+     Mesuré : avec 400 cartes, la collection pèse 540 Ko, et save() était
+     appelé une fois par carte révélée — 2,64 Mo sérialisés par paquet, en
+     synchrone, pendant l'animation. On regroupe donc les écritures d'une même
+     rafale, avec vidage forcé dès que la page passe en arrière-plan : rien ne
+     peut être perdu, même si le système tue l'application. */
+  var EXTRAIT_MAX = 400;
+  var sauveDiff = null, stockagePlein = false;
+
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(collection)); } catch (e) {}
+    if (sauveDiff !== null) return;
+    sauveDiff = setTimeout(function () { sauveDiff = null; sauverMaintenant(); }, 350);
+  }
+  function annulerSauve() {
+    if (sauveDiff !== null) { clearTimeout(sauveDiff); sauveDiff = null; }
+  }
+
+  function ecrireCollection() {
+    localStorage.setItem(KEY, JSON.stringify(collection));
+  }
+
+  /* Dernier recours quand le stockage déborde : les extraits d'articles
+     représentent l'essentiel du poids. On les raccourcit et on marque la
+     carte, pour que la fiche aille rechercher le texte complet au besoin. */
+  function compacter() {
+    var change = false;
+    Object.keys(collection).forEach(function (k) {
+      var c = collection[k];
+      if (c.extract && c.extract.length > EXTRAIT_MAX) {
+        c.extract = c.extract.slice(0, EXTRAIT_MAX).replace(/\s+\S*$/, '') + '…';
+        c.coupe = 1;
+        change = true;
+      }
+    });
+    return change;
+  }
+
+  function sauverMaintenant() {
+    annulerSauve();
+    try {
+      ecrireCollection();
+      if (stockagePlein) { stockagePlein = false; majAlerteStockage(); }
+      return true;
+    } catch (e) {
+      /* Le try/catch vide d'origine avalait ce cas : la progression était
+         perdue sans que le joueur en sache rien. */
+      if (compacter()) {
+        try {
+          ecrireCollection();
+          if (stockagePlein) { stockagePlein = false; majAlerteStockage(); }
+          return true;
+        } catch (e2) {}
+      }
+      stockagePlein = true;
+      majAlerteStockage();
+      return false;
+    }
+  }
+
+  function majAlerteStockage() {
+    var a = el('alerte');
+    if (!a) return;
+    a.hidden = !stockagePlein;
+  }
+
+  /* Le badge des succès repassait sur toute la collection cinq fois par
+     paquet ; une fois suffit. */
+  var succesDiff = null;
+  function refreshSuccesDiff() {
+    if (succesDiff !== null) return;
+    succesDiff = setTimeout(function () { succesDiff = null; refreshSucces(); }, 350);
   }
   function add(c) {
     var e = collection[c.title];
@@ -2693,7 +2797,7 @@
         rank: c.rank, count: 1, obtenu: Date.now()
       };
     }
-    save(); refreshCount(); refreshSucces();
+    save(); refreshCount(); refreshSuccesDiff();
   }
   /* --- Reserve de paquets : dix au maximum, un de plus par minute. --- */
   var PKEY = 'wikigacha:paquets';
@@ -3206,6 +3310,17 @@
       .replace('{views}', (c.views || 0).toLocaleString('fr-FR'));
   }
 
+  /* Si le compactage a raccourci l'extrait, la fiche va rechercher le texte
+     complet — sans le réenregistrer, sinon on regonflerait le stockage. */
+  function completerExtrait(c) {
+    if (!c.coupe) return;
+    fetchSummary(c.title).then(function (sum) {
+      var t = sum && sum.extract ? sum.extract.trim() : '';
+      var e = el('sheet-text');
+      if (t && e && !el('sheet').hidden) e.textContent = t;
+    })['catch'](function () {});
+  }
+
   function openSheet(title) {
     var c = collection[title];
     if (!c) return;
@@ -3245,6 +3360,7 @@
       + 'Offrir cette carte' + (c.count > 1 ? ' (vous en avez ' + c.count + ')' : '')
       + '</button>';
     ouvrirFeuille();
+    completerExtrait(c);
     el('sheet-close').addEventListener('click', closeSheet);
 
     /* Rattrapage : si le resume ou l'image manquent, on interroge Wikipedia
@@ -3407,7 +3523,7 @@
     var j = jour().split('-');
     var url = 'https://' + WIKI + '.org/api/rest_v1/feed/featured/'
       + j[0] + '/' + j[1] + '/' + j[2];
-    return fetch(url)
+    return fetchWiki(url)
       .then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         return r.json();
@@ -3424,7 +3540,7 @@
       + '?action=query&format=json&origin=*&pageids=' + pageid
       + '&prop=info|pageimages|description&inprop=url'
       + '&piprop=thumbnail&pithumbsize=600';
-    return fetch(url)
+    return fetchWiki(url)
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         var pg = d && d.query && d.query.pages;
@@ -5484,11 +5600,14 @@
       return;
     }
     if (etape === 'annule') { showCollection(); return; }
+    /* Une écriture en attente réécrirait la collection juste après l'effacement. */
+    annulerSauve();
     TOUTES_CLES.forEach(function (k) {
       try { localStorage.removeItem(k); } catch (e) {}
     });
     collection = {};
-    vue = { tri: 'rarete', q: '', favOnly: false };
+    stockagePlein = false; majAlerteStockage();
+    vue = { tri: 'rarete', q: '', favOnly: false, rang: '', dom: '', compact: false };
     el('coll-q').value = '';
     refreshCount(); refreshPacks(); refreshSucces(); showMissions();
     showCollection();
@@ -5932,6 +6051,14 @@
       if (!el('view-boutique').hidden) showBoutique();
     });
   });
+
+  /* Vidage forcé : une écriture en attente doit partir avant que l'onglet
+     passe en arrière-plan ou que le système ferme l'application. */
+  window.addEventListener('pagehide', sauverMaintenant);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'hidden') sauverMaintenant();
+  });
+  el('alerte-go').addEventListener('click', telechargerSauvegarde);
 
   try { history.replaceState({ wg: 'racine' }, ''); } catch (e) {}
 
