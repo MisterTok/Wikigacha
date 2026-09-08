@@ -667,6 +667,22 @@
   .duo-moi { cursor: pointer; background: #11141f; }
   .duo-moi:active { background: #1a1f30; }
   .duo-lui { text-align: right; }
+  /* Vignette de l'article, en bandeau : chaque camp devient une petite carte
+     plutot qu'une ligne de chiffres. Le liseré reprend la couleur du palier,
+     comme sur la face des cartes. */
+  .duo-vue {
+    display: block; height: 58px; margin: -10px -11px 9px; overflow: hidden;
+    background: #0b0e16;
+    border-bottom: 2px solid var(--tier, var(--night-line));
+  }
+  .duo-vue img, .duo-vue .art {
+    display: block; width: 100%; height: 100%; object-fit: cover;
+  }
+  .duo-vue.vide {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; line-height: 1; color: var(--night-line);
+    border-bottom-style: dashed;
+  }
   .duo-nom {
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
     overflow: hidden; font-family: var(--display); font-size: 14px; line-height: 1.25;
@@ -743,6 +759,13 @@
   }
   .sel-carte.sel-actif { border-left-color: var(--ink); }
   .sel-carte.sel-pris { opacity: .4; }
+  .sel-carte { display: flex; align-items: flex-start; gap: 11px; }
+  .sel-vue {
+    flex: none; width: 46px; height: 46px; overflow: hidden;
+    background: var(--ivory-dim); border: 1px solid var(--ivory-dim);
+  }
+  .sel-vue img, .sel-vue .art { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .sel-corps { flex: 1 1 auto; min-width: 0; }
   .sel-nom { display: block; font-family: var(--display); font-size: 15px; }
   .sel-st { display: block; font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
   .sel-carte.gagne { border-left-color: #4f8d72; }
@@ -3243,6 +3266,18 @@
     peindrePlacement();
   }
 
+  /* Vignette d'un camp du duel. Beaucoup d'articles tires au hasard n'ont
+     pas d'illustration : on retombe alors sur le motif genere, comme dans
+     la collection. */
+  function vueDuo(c, t) {
+    if (!c) return '<span class="duo-vue vide">+</span>';
+    return '<span class="duo-vue">'
+      + (c.thumb
+          ? '<img src="' + esc(c.thumb) + '" alt="" loading="lazy" decoding="async">'
+          : artSVG(c.title, t.color))
+      + '</span>';
+  }
+
   function peindrePlacement() {
     var adverse = duelCourant.adverse, choix = duelCourant.choix;
     var doublons = choix.filter(function (t, i) { return t && choix.indexOf(t) !== i; });
@@ -3278,7 +3313,9 @@
         + (moi ? (r > 0 ? 'GAGNÉE · +' + ecart : 'PERDUE · ' + ecart) : 'À PLACER')
         + '</span></div>'
         + '<div class="duo-corps">'
-        + '<button class="duo-moi" data-slot="' + i + '">'
+        + '<button class="duo-moi" data-slot="' + i + '"'
+        + (moi ? ' style="--tier:' + tm.color + '"' : '') + '>'
+        + vueDuo(moi, tm)
         + (moi
             ? '<span class="duo-nom" style="color:' + tm.color + '">' + esc(moi.title) + '</span>'
               + '<b class="duo-pui">' + pMoi + '</b>'
@@ -3289,7 +3326,8 @@
               + '<span class="duo-det">emplacement libre</span>')
         + '</button>'
         + '<div class="duo-sep">VS</div>'
-        + '<div class="duo-lui">'
+        + '<div class="duo-lui" style="--tier:' + tl.color + '">'
+        + vueDuo(lui, tl)
         + '<span class="duo-nom" style="color:' + tl.color + '">' + esc(lui.title) + '</span>'
         + '<b class="duo-pui">' + pLui + '</b>'
         + '<span class="duo-det">' + atkEff(lui) + ' ATQ · ' + defEff(lui)
@@ -3337,11 +3375,18 @@
             + (choix[slot] === c.title ? ' sel-actif' : '') + '" '
             + 'data-sel-slot="' + slot + '" data-sel-titre="' + esc(c.title) + '"'
             + (dejaAilleurs ? ' disabled' : '') + '>'
+            + '<span class="sel-vue">'
+            + (c.thumb
+                ? '<img src="' + esc(c.thumb) + '" alt="" loading="lazy" decoding="async">'
+                : artSVG(c.title, t.color))
+            + '</span>'
+            + '<span class="sel-corps">'
             + '<span class="sel-ecart">' + (pc - pLui > 0 ? '+' : '') + (pc - pLui) + '</span>'
             + '<span class="sel-nom" style="color:' + t.color + '">' + esc(c.title) + '</span>'
             + '<span class="sel-st">' + pc + ' au total · ' + atkEff(c) + ' ATQ · '
             + defEff(c) + ' DÉF · ' + t.short
             + (dejaAilleurs ? ' · déjà placée' : '') + '</span>'
+            + '</span>'
             + '</button>';
         }).join('')
       + '</div>'
