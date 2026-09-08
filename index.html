@@ -643,36 +643,98 @@
     font-variant-numeric: tabular-nums;
   }
   .verdict { flex: none; font-size: 13px; color: var(--glass-dim); }
-  .place {
-    display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px;
-    padding: 10px 11px; background: var(--night-up);
-    border: 1px solid var(--night-line); border-left: 3px solid var(--night-line);
-  }
-  .place-vs { margin-top: 6px; }
-  .place-lui { margin-top: 2px; }
-  .place.ok { border-left-color: #4f8d72; }
-  .place.ko { border-left-color: #8d5050; }
-  .place-moi { flex: 1 1 0; min-width: 0; }
-  .place-sel {
-    width: 100%; padding: 8px; background: #11141f;
+  /* --- placement du duel ---
+     Le calcul se ramene a une seule quantite : la manche revient a celui dont
+     le total ATQ + DÉF est le plus haut. Autant l'afficher en clair plutot que
+     de laisser le joueur soustraire quatre nombres de tete. */
+  .duo {
+    margin-bottom: 10px; background: var(--night-up);
     border: 1px solid var(--night-line);
-    color: var(--ivory); font: inherit; font-size: 13px;
   }
-  .place-st {
-    display: block; font-size: 11px; margin-top: 4px;
-    font-variant-numeric: tabular-nums;
+  .duo-tete {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 7px 11px; border-bottom: 1px solid var(--night-line);
+    font-size: 10.5px; letter-spacing: .1em; color: var(--glass-dim);
   }
-  .place-st.vide { color: var(--glass-dim); font-style: italic; }
-  .place-moi {
-    flex: 1 1 0; min-width: 0; text-align: left; cursor: pointer;
-    background: #11141f; border: 1px solid var(--night-line);
-    color: var(--ivory); font: inherit; padding: 8px 10px;
+  .duo-verdict { font-weight: 600; letter-spacing: .05em; font-variant-numeric: tabular-nums; }
+  .duo.ok .duo-verdict { color: #6fb894; }
+  .duo.ko .duo-verdict { color: #cf7f7f; }
+  .duo-corps { display: grid; grid-template-columns: 1fr 32px 1fr; }
+  .duo-moi, .duo-lui {
+    display: block; min-width: 0; padding: 10px 11px; text-align: left;
+    font: inherit; color: var(--ivory); background: none; border: 0;
   }
-  .place-nom {
-    display: block; font-family: var(--display); font-size: 14px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  .duo-moi { cursor: pointer; background: #11141f; }
+  .duo-moi:active { background: #1a1f30; }
+  .duo-lui { text-align: right; }
+  .duo-nom {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; font-family: var(--display); font-size: 14px; line-height: 1.25;
   }
-  .place-nom.vide { color: var(--glass-dim); font-family: var(--sans); font-size: 13px; }
+  .duo-nom.vide { font-family: var(--sans); font-size: 13px; color: var(--glass-dim); }
+  .duo-pui {
+    display: block; margin-top: 6px; font-size: 20px; font-weight: 600; line-height: 1;
+    font-variant-numeric: tabular-nums; color: var(--glass);
+  }
+  .duo.ok .duo-moi .duo-pui { color: #8ed3ae; }
+  .duo.ko .duo-lui .duo-pui { color: #e09b9b; }
+  .duo-det {
+    display: block; margin-top: 4px; font-size: 10.5px;
+    color: var(--glass-dim); font-variant-numeric: tabular-nums;
+  }
+  .duo-sep {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9.5px; letter-spacing: .08em; color: var(--glass-dim);
+    border-left: 1px solid var(--night-line); border-right: 1px solid var(--night-line);
+  }
+  /* Jauge d'avantage : le remplissage penche du cote de celui qui mene, et le
+     trait central rappelle ou se situe l'egalite. */
+  .duo-jauge {
+    position: relative; height: 4px; background: #0e111a;
+    border-top: 1px solid var(--night-line);
+  }
+  .duo-jauge i {
+    position: absolute; top: 0; bottom: 0; left: 0;
+    width: calc(var(--part, .5) * 100%);
+    background: #4f8d72; transition: width .25s ease;
+  }
+  .duo.ko .duo-jauge i { background: #8d5050; }
+  .duo.vide .duo-jauge i { background: var(--night-line); }
+  .duo-jauge::after {
+    content: ''; position: absolute; top: -3px; bottom: -3px; left: 50%;
+    width: 1px; background: var(--glass-dim); opacity: .45;
+  }
+
+  .duel-barre {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin-bottom: 6px;
+  }
+  .duel-barre .duel-titre { margin: 0; }
+  .duel-auto {
+    flex: none; min-height: 40px; padding: 9px 13px; font: inherit; font-size: 12px;
+    background: var(--night-up); border: 1px solid var(--night-line);
+    color: var(--glass); cursor: pointer; white-space: nowrap;
+  }
+  .duel-auto:active { background: #262c40; }
+
+  /* Le lancement reste sous la main : il n'y a plus a redescendre cinq
+     manches pour le retrouver. */
+  .duel-pied {
+    position: sticky; bottom: calc(var(--bar-h) + var(--safe-b));
+    margin: 14px -16px 0; padding: 12px 16px 14px;
+    background: rgba(20,24,38,.96);
+    -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+    border-top: 1px solid var(--night-line);
+  }
+  .duel-score { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .duel-pastilles { display: flex; gap: 4px; flex: none; }
+  .duel-pastilles i { width: 20px; height: 4px; background: var(--night-line); }
+  .duel-pastilles i.g { background: #4f8d72; }
+  .duel-pastilles i.p { background: #8d5050; }
+  .duel-score span { font-size: 12px; color: var(--glass-dim); }
+  .duel-score b { color: var(--ivory); font-variant-numeric: tabular-nums; }
+  .duel-pied .btn { margin: 0; }
+  .duel-alerte { margin: 0 0 8px; font-size: 12px; color: #cf7f7f; }
   .sel-liste { max-height: 60vh; overflow-y: auto; margin-bottom: 14px; }
   .sel-carte {
     display: block; width: 100%; text-align: left; cursor: pointer;
@@ -683,13 +745,17 @@
   .sel-carte.sel-pris { opacity: .4; }
   .sel-nom { display: block; font-family: var(--display); font-size: 15px; }
   .sel-st { display: block; font-size: 12px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-  .place-vs { flex: none; font-size: 14px; color: var(--glass-dim); }
-  .place.ok .place-vs { color: #4f8d72; }
-  .place.ko .place-vs { color: #8d5050; }
-  .place-lui { flex: 1 1 0; min-width: 0; text-align: right; }
-  .place-lui .cote-nom {
-    display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  .sel-carte.gagne { border-left-color: #4f8d72; }
+  .sel-carte.perd { border-left-color: #b08585; }
+  .sel-ecart { float: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .sel-carte.gagne .sel-ecart { color: #2f6a4d; }
+  .sel-carte.perd .sel-ecart { color: #9a4a4a; }
+  .sel-cible {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 10px; margin: -6px 0 12px; padding-bottom: 10px;
+    border-bottom: 1px solid var(--ivory-dim);
   }
+  .sel-cible b { font-size: 20px; font-variant-numeric: tabular-nums; }
   .duel-note {
     font-size: 11px; color: var(--glass-dim); line-height: 1.6; margin: 8px 0 0;
   }
@@ -3182,38 +3248,66 @@
     var doublons = choix.filter(function (t, i) { return t && choix.indexOf(t) !== i; });
     var complet = choix.filter(function (t) { return !!t; }).length === 5 && !doublons.length;
 
-    var prevu = 0;
-    var html = '<p class="duel-titre">PLACEZ VOS CARTES</p>'
-      + '<p class="duel-intro">Touchez un emplacement pour choisir votre carte, '
-      + 'ou laissez le placement automatique. Trois manches gagnées suffisent.</p>'
-      + '<button class="btn" data-duel-auto="1">Placement automatique</button>';
+    var prevu = 0, pastilles = '';
+    var html = '<div class="duel-barre">'
+      + '<p class="duel-titre">PLACEZ VOS CARTES</p>'
+      + '<button class="duel-auto" data-duel-auto="1">Placement auto</button>'
+      + '</div>'
+      + '<p class="duel-intro">La manche revient au plus haut total ATQ + DÉF. '
+      + 'Touchez une de vos cartes pour la changer ; trois manches suffisent.</p>';
 
     adverse.forEach(function (lui, i) {
       var moi = choix[i] ? collection[choix[i]] : null;
       var r = moi ? manche(moi, lui) : 0;
       if (moi && r > 0) prevu += 1;
-      var tl = tierOf(lui.rank);
-      var tm = moi ? tierOf(moi.rank) : null;
-      html += '<div class="place ' + (moi ? (r > 0 ? 'ok' : 'ko') : '') + '">'
-        + '<button class="place-moi" data-slot="' + i + '">'
+      pastilles += '<i class="' + (moi ? (r > 0 ? 'g' : 'p') : '') + '"></i>';
+
+      var tl = tierOf(lui.rank), tm = moi ? tierOf(moi.rank) : null;
+      var pLui = atkEff(lui) + defEff(lui);
+      var pMoi = moi ? atkEff(moi) + defEff(moi) : 0;
+      var ecart = pMoi - pLui;
+      /* On amplifie l'ecart autour du centre : sans ca, deux totaux proches
+         donnent une jauge plate ou l'on ne distingue rien. */
+      var part = moi
+        ? Math.max(.06, Math.min(.94, .5 + Math.max(-1, Math.min(1, ecart / 260)) * .44))
+        : .5;
+
+      html += '<div class="duo ' + (moi ? (r > 0 ? 'ok' : 'ko') : 'vide') + '">'
+        + '<div class="duo-tete"><span>MANCHE ' + (i + 1) + '</span>'
+        + '<span class="duo-verdict">'
+        + (moi ? (r > 0 ? 'GAGNÉE · +' + ecart : 'PERDUE · ' + ecart) : 'À PLACER')
+        + '</span></div>'
+        + '<div class="duo-corps">'
+        + '<button class="duo-moi" data-slot="' + i + '">'
         + (moi
-            ? '<span class="place-nom" style="color:' + tm.color + '">' + esc(moi.title) + '</span>'
-              + '<span class="place-st">ATQ ' + atkEff(moi) + ' · DÉF ' + defEff(moi)
-              + ' · ' + tm.short + '</span>'
-            : '<span class="place-nom vide">Choisir une carte ›</span>')
+            ? '<span class="duo-nom" style="color:' + tm.color + '">' + esc(moi.title) + '</span>'
+              + '<b class="duo-pui">' + pMoi + '</b>'
+              + '<span class="duo-det">' + atkEff(moi) + ' ATQ · ' + defEff(moi)
+              + ' DÉF · ' + tm.short + '</span>'
+            : '<span class="duo-nom vide">Choisir une carte ›</span>'
+              + '<b class="duo-pui">—</b>'
+              + '<span class="duo-det">emplacement libre</span>')
         + '</button>'
-        + '<div class="place-vs">' + (moi ? (r > 0 ? '▲' : '▼') : '·') + '</div>'
-        + '<div class="place-lui"><span class="cote-nom" style="color:' + tl.color + '">'
-        + esc(lui.title) + '</span>'
-        + '<span class="cote-st">ATQ ' + atkEff(lui) + ' · DÉF ' + defEff(lui) + '</span></div>'
+        + '<div class="duo-sep">VS</div>'
+        + '<div class="duo-lui">'
+        + '<span class="duo-nom" style="color:' + tl.color + '">' + esc(lui.title) + '</span>'
+        + '<b class="duo-pui">' + pLui + '</b>'
+        + '<span class="duo-det">' + atkEff(lui) + ' ATQ · ' + defEff(lui)
+        + ' DÉF · ' + tl.short + '</span>'
+        + '</div></div>'
+        + '<div class="duo-jauge"><i style="--part:' + part.toFixed(3) + '"></i></div>'
         + '</div>';
     });
 
-    html += '<p class="puissance">Manches gagnées d’avance : <b>' + prevu + '</b> sur 5'
-      + (doublons.length ? ' — une même carte est placée deux fois.' : '') + '</p>'
+    html += '<div class="duel-pied">'
+      + (doublons.length ? '<p class="duel-alerte">Une même carte est placée deux fois.</p>' : '')
+      + '<div class="duel-score"><span class="duel-pastilles">' + pastilles + '</span>'
+      + '<span><b>' + prevu + '</b> manche' + (prevu > 1 ? 's' : '') + ' gagnée'
+      + (prevu > 1 ? 's' : '') + ' d’avance sur 5</span></div>'
       + '<button class="btn' + (complet ? ' btn-solid' : '') + '" '
       + (complet ? 'data-duel-go="1"' : 'disabled') + '>'
-      + (complet ? 'Lancer le combat' : 'Placez vos cinq cartes') + '</button>';
+      + (complet ? 'Lancer le combat' : 'Placez vos cinq cartes') + '</button>'
+      + '</div>';
 
     el('duel-body').innerHTML = html;
   }
@@ -3222,6 +3316,7 @@
   function ouvrirSelecteur(slot) {
     var choix = duelCourant.choix;
     var lui = duelCourant.adverse[slot];
+    var pLui = atkEff(lui) + defEff(lui);
     var toutes = Object.keys(collection).map(function (k) { return collection[k]; })
       .sort(function (a, b) {
         return (atkEff(b) + defEff(b)) - (atkEff(a) + defEff(a));
@@ -3229,19 +3324,23 @@
     var inner = el('sheet-inner');
     inner.style.setProperty('--tier', tierOf(lui.rank).color);
     inner.innerHTML = '<h2>Face à ' + esc(lui.title) + '</h2>'
-      + '<p class="sheet-sub">DÉF ' + defEff(lui) + ' — choisissez votre carte</p>'
+      + '<div class="sel-cible"><span class="sheet-sub">Total à dépasser</span>'
+      + '<b>' + pLui + '</b></div>'
       + '<div class="sel-liste">'
       + toutes.map(function (c) {
           var dejaAilleurs = choix.indexOf(c.title) !== -1 && choix[slot] !== c.title;
           var gagne = manche(c, lui) > 0;
+          var pc = atkEff(c) + defEff(c);
           var t = tierOf(c.rank);
-          return '<button class="sel-carte' + (dejaAilleurs ? ' sel-pris' : '')
+          return '<button class="sel-carte ' + (gagne ? 'gagne' : 'perd')
+            + (dejaAilleurs ? ' sel-pris' : '')
             + (choix[slot] === c.title ? ' sel-actif' : '') + '" '
             + 'data-sel-slot="' + slot + '" data-sel-titre="' + esc(c.title) + '"'
             + (dejaAilleurs ? ' disabled' : '') + '>'
+            + '<span class="sel-ecart">' + (pc - pLui > 0 ? '+' : '') + (pc - pLui) + '</span>'
             + '<span class="sel-nom" style="color:' + t.color + '">' + esc(c.title) + '</span>'
-            + '<span class="sel-st">' + (gagne ? '▲ ' : '▼ ') + 'ATQ ' + atkEff(c)
-            + ' · DÉF ' + defEff(c) + ' · ' + t.short
+            + '<span class="sel-st">' + pc + ' au total · ' + atkEff(c) + ' ATQ · '
+            + defEff(c) + ' DÉF · ' + t.short
             + (dejaAilleurs ? ' · déjà placée' : '') + '</span>'
             + '</button>';
         }).join('')
