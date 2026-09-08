@@ -1458,6 +1458,24 @@
       if (typeof c.obtenu !== 'number') { c.obtenu = base + i * 1000; migre = true; }
     });
 
+    /* Recalcul des raretes : les cartes tirees avant les corrections de la
+       formule (promotion artificielle de la garantie, absence de plafond
+       d'audience) gardaient un palier aberrant. On le recalcule a partir des
+       donnees stockees, quand elles sont completes. */
+    cles.forEach(function (k) {
+      var c = collection[k];
+      if (typeof c.bytes !== 'number' || typeof c.views !== 'number') return;
+      if (c.refs === null || c.refs === undefined) return;
+      var q = { refs: c.refs, img: c.img || 0, sec: c.sec || 0 };
+      var sc = scoreRarete(c.bytes, c.views, q);
+      var t = paliersDe(sc, c.views, c.bytes, q);
+      if (t && t.name !== c.rank) {
+        c.rank = t.name;
+        c.score = Math.round(sc * 10) / 10;
+        migre = true;
+      }
+    });
+
     /* Nettoyage des images parasites heritees de l'ancien filet : une meme
        image sur plusieurs cartes differentes est forcement une illustration
        de modele, pas le sujet. On l'efface pour qu'elle soit redemandee
@@ -1788,24 +1806,26 @@
   /* Retire des articles jusqu'a en trouver un qui atteint reellement le
      palier garanti. Limite a quelques essais pour ne pas s'eterniser ;
      si rien ne sort, on renvoie la meilleure trouvee. */
-  function chercherCarteGarantie(essai, meilleure) {
+  /* Cherche un article atteignant reellement le palier garanti. On insiste
+     plus longtemps (jusqu'a 6 tirages) et on ne renvoie JAMAIS une carte qui
+     n'atteint pas le palier : mieux vaut pas de substitution qu'une ebauche
+     presentee comme recompense. */
+  function chercherCarteGarantie(essai) {
     essai = essai || 1;
-    if (essai > 3) return Promise.resolve(meilleure || null);
+    if (essai > 6) return Promise.resolve(null);
     return fetchPack()
       .then(function (pages) {
-        return Promise.all(pages.slice(0, 6).map(function (p) {
+        return Promise.all(pages.slice(0, 8).map(function (p) {
           return Promise.all([fetchViews(p.title), fetchQuality(p.pageid)])
             .then(function (r) { return toCard(p, r[0], r[1]); });
         }));
       })
       .then(function (lot) {
         lot.sort(function (a, b) { return rankIndex(b.rank) - rankIndex(a.rank); });
-        var top = lot[0];
-        if (!meilleure || rankIndex(top.rank) > rankIndex(meilleure.rank)) meilleure = top;
-        if (rankIndex(top.rank) >= PITIE) return top;
-        return chercherCarteGarantie(essai + 1, meilleure);
+        if (lot.length && rankIndex(lot[0].rank) >= PITIE) return lot[0];
+        return chercherCarteGarantie(essai + 1);
       })
-      .catch(function () { return meilleure || null; });
+      .catch(function () { return null; });
   }
 
   var tirageEnCours = false;
