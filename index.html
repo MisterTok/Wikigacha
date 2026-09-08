@@ -519,10 +519,43 @@
   }
   .coll-stats b { color: var(--ivory); font-variant-numeric: tabular-nums; }
   .ladder { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  /* Les compteurs de palier servaient deja de repere : ils deviennent le
+     filtre lui-meme, plutot que d'empiler une barre d'outils de plus. */
   .pip {
-    font-size: 10px; letter-spacing: .08em; padding: 3px 8px;
-    border: 1px solid currentColor; opacity: .85;
+    font: inherit; font-size: 10px; letter-spacing: .08em;
+    padding: 5px 9px; min-height: 30px;
+    background: none; border: 1px solid currentColor; opacity: .85;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: background .14s ease, opacity .14s ease;
   }
+  .pip[disabled] { opacity: .3; cursor: default; }
+  .pip.actif {
+    opacity: 1; color: #14161f;
+    background: color-mix(in srgb, var(--tier, var(--glass)) 78%, var(--ivory));
+  }
+  .pip-dom { color: var(--glass-dim); }
+  .pip-dom.actif { color: #14161f; background: var(--glass); }
+  .ladder-dom { margin-top: 6px; }
+
+  /* Rappel des filtres actifs dans la barre collante : on peut les retirer
+     sans avoir a remonter en haut de la collection. */
+  .actifs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+  .actifs[hidden] { display: none; }
+  .actif-chip {
+    min-height: 32px; padding: 5px 10px; font: inherit; font-size: 11px;
+    color: #14161f; background: #c9992e; border: 0;
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Revelation acceleree, pour le joueur qui en est a son 200e paquet. */
+  .reveal-vite {
+    display: block; margin: 12px auto 0; padding: 9px 16px; min-height: 40px;
+    font: inherit; font-size: 12px; letter-spacing: .04em;
+    background: none; color: var(--glass-dim);
+    border: 1px solid var(--night-line); cursor: pointer;
+  }
+  .reveal-vite[hidden] { display: none; }
+  .reveal-vite:active { background: var(--night-up); }
 
   /* --- raid --- */
   .boss {
@@ -1382,6 +1415,7 @@
       </div>
     </div>
     <p id="tap-on" class="tap-on">Touchez la carte pour la retourner</p>
+    <button id="tout-reveler" class="reveal-vite" hidden>Tout révéler ›</button>
   </div>
 
   <p id="packs" class="packs"></p>
@@ -1426,6 +1460,7 @@
       </select>
       <button id="coll-favonly" class="tri-btn">★ Favoris</button>
     </div>
+    <div id="coll-actifs" class="actifs" hidden></div>
   </div>
   <div id="coll-grid" class="grid"></div>
   <div id="coll-sentinelle" hidden>Chargement de la suite…</div>
@@ -2373,6 +2408,7 @@
   function showNext() {
     if (qi >= queue.length) {
       el('reveal').hidden = true;
+      el('tout-reveler').hidden = true;
       var nb = queue.filter(function (c) { return neuvesTirage[c.title]; }).length;
       el('draw').innerHTML = '<p class="draw-bilan">'
         + (nb
@@ -2398,6 +2434,21 @@
     el('flipper').className = 'flipper ' + t.fx;
     el('flipper').style.setProperty('--tier', t.color);
     el('tap-on').textContent = 'Touchez la carte pour la retourner';
+    /* Inutile de le proposer sur la derniere carte. */
+    el('tout-reveler').hidden = (queue.length - qi) <= 1;
+  }
+
+  /* Deroule le reste du paquet d'un coup. Les cartes sont bien ajoutees, une
+     par une : seule l'animation est sautee, pas le tirage. */
+  function toutReveler() {
+    if (qi >= queue.length) return;
+    var f = el('flipper');
+    /* La carte affichee retournee a deja ete ajoutee par onFlip. */
+    if (f.classList.contains('is-open')) qi += 1;
+    while (qi < queue.length) { add(queue[qi]); qi += 1; }
+    f.classList.remove('is-open');
+    vib([0, 18, 40, 26]);
+    showNext();
   }
 
   function onFlip(ev) {
@@ -4461,13 +4512,17 @@
 
   /* Etat d'affichage : tri, recherche, filtre favoris. */
   var VKEY = 'wikigacha:vue';
-  var vue = { tri: 'rarete', q: '', favOnly: false };
+  var vue = { tri: 'rarete', q: '', favOnly: false, rang: '', dom: '' };
   try {
     var vs = JSON.parse(localStorage.getItem(VKEY));
-    if (vs) { vue.tri = vs.tri || 'rarete'; vue.favOnly = !!vs.favOnly; }
+    if (vs) {
+      vue.tri = vs.tri || 'rarete'; vue.favOnly = !!vs.favOnly;
+      vue.rang = vs.rang || ''; vue.dom = vs.dom || '';
+    }
   } catch (e) {}
   function saveVue() {
-    try { localStorage.setItem(VKEY, JSON.stringify({ tri: vue.tri, favOnly: vue.favOnly })); }
+    try { localStorage.setItem(VKEY, JSON.stringify({
+      tri: vue.tri, favOnly: vue.favOnly, rang: vue.rang, dom: vue.dom })); }
     catch (e) {}
   }
 
@@ -4617,16 +4672,38 @@
       var total = items.reduce(function (s, c) { return s + c.count; }, 0);
       var pips = TIERS.map(function (t) {
         var n = items.filter(function (c) { return c.rank === t.name; }).length;
-        return '<span class="pip" style="--tier:' + t.color + '">'
-          + t.name.toUpperCase() + ' ' + n + '</span>';
+        return '<button class="pip' + (vue.rang === t.name ? ' actif' : '') + '" '
+          + 'style="--tier:' + t.color + '" data-rang="' + esc(t.name) + '"'
+          + (n ? '' : ' disabled') + '>'
+          + t.name.toUpperCase() + ' ' + n + '</button>';
       }).join('');
+
+      /* Domaines : on ne montre que ceux reellement presents en collection. */
+      var parDom = {};
+      items.forEach(function (c) {
+        var id = c.domaine || 'divers';
+        parDom[id] = (parDom[id] || 0) + 1;
+      });
+      var doms = DOMAINES.filter(function (dd) { return parDom[dd.id]; })
+        .map(function (dd) {
+          return '<button class="pip pip-dom' + (vue.dom === dd.id ? ' actif' : '') + '" '
+            + 'data-dom="' + esc(dd.id) + '">' + esc(dd.nom) + ' ' + parDom[dd.id] + '</button>';
+        }).join('');
+      if (parDom.divers) {
+        doms += '<button class="pip pip-dom' + (vue.dom === 'divers' ? ' actif' : '') + '" '
+          + 'data-dom="divers">Divers ' + parDom.divers + '</button>';
+      }
+
       el('coll-stats').innerHTML = '<b>' + items.length + '</b> articles distincts sur <b>'
-        + total + '</b> cartes tirées<div class="ladder">' + pips + '</div>';
+        + total + '</b> cartes tirées<div class="ladder">' + pips + '</div>'
+        + (doms ? '<div class="ladder ladder-dom">' + doms + '</div>' : '');
     }
 
     /* Filtres, puis tri : les favoris remontent toujours en tete. */
     var vus = items;
     if (vue.favOnly) vus = vus.filter(function (c) { return c.fav; });
+    if (vue.rang) vus = vus.filter(function (c) { return c.rank === vue.rang; });
+    if (vue.dom) vus = vus.filter(function (c) { return (c.domaine || 'divers') === vue.dom; });
     if (vue.q) {
       var q = sansAccent(vue.q);
       vus = vus.filter(function (c) { return sansAccent(c.title).indexOf(q) !== -1; });
@@ -4639,10 +4716,21 @@
       return (b.obtenu || 0) - (a.obtenu || 0);   /* egalite : plus recent d'abord */
     });
 
+    /* Rappel des filtres actifs, retirables d'un toucher. */
+    var act = [];
+    if (vue.rang) act.push(['rang', vue.rang]);
+    if (vue.dom) act.push(['dom', domaineNom(vue.dom)]);
+    if (vue.favOnly) act.push(['fav', 'Favoris']);
+    el('coll-actifs').hidden = !act.length;
+    el('coll-actifs').innerHTML = act.map(function (a) {
+      return '<button class="actif-chip" data-filtre-off="' + a[0] + '">'
+        + esc(a[1]) + ' ✕</button>';
+    }).join('');
+
     rendreListe(vus);
     el('coll-vide-filtre').innerHTML = (items.length && !vus.length)
       ? '<p class="status">Aucune carte ne correspond'
-        + (vue.favOnly ? ' (filtre favoris actif)' : '') + '.</p>' : '';
+        + (act.length ? ' aux filtres actifs' : '') + '.</p>' : '';
     montrerSauvegarde();
     el('coll-zone-raz').innerHTML = items.length
       ? '<div class="raz"><p class="raz-mot">Tout effacer supprime définitivement '
@@ -4897,6 +4985,7 @@
   })();
 
   el('flipper').addEventListener('click', onFlip);
+  el('tout-reveler').addEventListener('click', toutReveler);
   el('flipper').addEventListener('keydown', function (e) {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onFlip(null); }
   });
@@ -5048,6 +5137,26 @@
       if (quoi === 'export') telechargerSauvegarde();
       else if (quoi === 'import') { var f = el('fichier-import'); if (f) f.click(); }
       return;
+    }
+    var pr = e.target.closest('[data-rang]');
+    if (pr) {
+      var nom = pr.getAttribute('data-rang');
+      vue.rang = (vue.rang === nom) ? '' : nom;
+      saveVue(); showCollection(); return;
+    }
+    var pd = e.target.closest('[data-dom]');
+    if (pd) {
+      var idd = pd.getAttribute('data-dom');
+      vue.dom = (vue.dom === idd) ? '' : idd;
+      saveVue(); showCollection(); return;
+    }
+    var fo = e.target.closest('[data-filtre-off]');
+    if (fo) {
+      var quoiF = fo.getAttribute('data-filtre-off');
+      if (quoiF === 'rang') vue.rang = '';
+      else if (quoiF === 'dom') vue.dom = '';
+      else if (quoiF === 'fav') vue.favOnly = false;
+      saveVue(); showCollection(); return;
     }
     var card = e.target.closest('.card');
     if (card) openSheet(card.getAttribute('data-title'));
