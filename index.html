@@ -12,6 +12,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
+<!-- Ponts natifs : sans enveloppe Capacitor, ils ne définissent rien et le
+     jeu fonctionne exactement comme avant. -->
+<script src="pont-pub.js" defer></script>
 <style>
   :root {
     --night:     #141826;
@@ -403,6 +406,34 @@
     box-shadow: 0 16px 38px rgba(0,0,0,.55), inset 0 0 0 6px rgba(201,153,46,.13);
   }
   .face-back .pack-w { font-size: 84px; }
+  /* Dos doré : le seul signe visible du premium pendant le jeu. */
+  body.premium .face-back {
+    border-color: #6d5a2a;
+    background:
+      repeating-linear-gradient(135deg, transparent 0 9px, rgba(240,221,164,.05) 9px 18px),
+      linear-gradient(165deg, #37301f 0%, #1c1810 100%);
+    box-shadow: 0 16px 38px rgba(0,0,0,.55), inset 0 0 0 6px rgba(201,153,46,.3);
+  }
+
+  .edition-bloc {
+    margin-bottom: 20px; padding: 14px;
+    background: var(--night-up); border: 1px solid #6d5a2a;
+    box-shadow: inset 0 0 0 1px rgba(201,153,46,.12);
+  }
+  .edition-bloc.acquise { border-color: var(--night-line); }
+  .edition-bloc.sobre { border-color: var(--night-line); box-shadow: none; }
+  .edition-bloc.sobre .edition-tag { color: var(--glass-dim); }
+  .edition-tag {
+    margin: 0 0 8px; font-size: 10px; letter-spacing: .14em; color: #d9ab48;
+  }
+  .edition-mot {
+    margin: 0 0 10px; font-size: 13px; line-height: 1.6; color: var(--glass-dim);
+  }
+  .edition-liste {
+    margin: 0 0 12px; padding-left: 18px;
+    font-size: 12.5px; line-height: 1.75; color: var(--glass);
+  }
+  .edition-liste b { color: var(--ivory); }
   .face-back small { font-size: 10px; letter-spacing: .14em; color: var(--glass-dim); }
 
   .face-front {
@@ -1711,6 +1742,9 @@
   }
   var PITIE = 3;          /* palier garanti : Épique (indice 3) */
   var PITIE_TOUS = 10;    /* ... une fois tous les dix paquets */
+  /* Ces deux valeurs sont les seuls frottements du jeu, et les seules que
+     leve le premium. Rien n'est retire au joueur gratuit : c'est du confort,
+     jamais du contenu. Elles sont reecrites par appliquerAchats(). */
   var MAX_PAQUETS = 10;
   var REGEN_MS = 300000;   /* un paquet regenere toutes les 5 minutes */
 
@@ -1751,6 +1785,278 @@
   };
 
   /* ---------- confort de jeu ---------- */
+
+  /* ---------- édition complète ----------
+     Achat unique, non consommable, sans aucun aléatoire : rien de ce qui se
+     vend ici n'est un paquet. Un jeu qui vend du hasard devient une loot box,
+     avec tout ce que ça implique (taux à publier sur Play, interdiction en
+     Belgique et aux Pays-Bas). On vend du confort, pas de la chance.
+
+     Le paiement passe par Google Play Billing via l'API Digital Goods, seule
+     voie autorisée pour un bien numérique dans une application Play. Elle
+     n'existe que dans la TWA lancée par Chrome : sur le web ouvert, on
+     l'annonce sans la proposer. */
+  /* ---------- monétisation ----------
+     Trois niveaux, aucun aléatoire vendu :
+       gratuit  — réserve de 10, un paquet toutes les 10 min, une publicité
+                  tous les dix paquets ;
+       sans pub — achat unique, retire la publicité, rien d'autre ;
+       premium  — achat unique, retire la publicité, réserve de 20, un paquet
+                  toutes les 5 min, et une garantie Légendaire par jour.
+     Ce qui se vend est du confort et du silence, jamais du contenu ni de la
+     chance : un jeu qui vend du hasard devient une loot box, avec taux à
+     publier sur Play et interdiction en Belgique et aux Pays-Bas. */
+  var SKU_SANS_PUB = 'wikigacha_sans_pub';
+  var SKU_PREMIUM  = 'wikigacha_premium';
+  var SKU_MAJ      = 'wikigacha_premium_maj';   /* pour qui a déjà « sans pub » */
+  var EKEY = 'wikigacha:achats';
+  var PLAY = 'https://play.google.com/billing';
+  var PUB_TOUS = 10;               /* une publicité tous les dix paquets */
+  var PKEY_PUB = 'wikigacha:pub';
+  var PITIE_PREM = 4;              /* garantie quotidienne premium : Légendaire */
+
+  var achats = { sansPub: false, premium: false };
+  var prix = {};                   /* libellés renvoyés par Play */
+
+  function sansPub() { return achats.sansPub || achats.premium; }
+
+  function litAchats() {
+    try {
+      var a = JSON.parse(localStorage.getItem(EKEY));
+      if (a) { achats.sansPub = !!a.sansPub; achats.premium = !!a.premium; }
+    } catch (e) {}
+  }
+  function poseAchats() {
+    try { localStorage.setItem(EKEY, JSON.stringify(achats)); } catch (e) {}
+    appliquerAchats();
+  }
+
+  /* Les plafonds sont branchés en un seul endroit : aucun avantage ne peut
+     rester en arrière si l'état change en cours de partie. */
+  function appliquerAchats() {
+    MAX_PAQUETS = achats.premium ? 20 : 10;
+    REGEN_MS    = achats.premium ? 300000 : 600000;
+    document.body.classList.toggle('premium', achats.premium);
+    if (el('hud-packs')) refreshPacks();
+  }
+
+  /* --- publicité ---
+     Le jeu ne charge aucune régie lui-même : il appelle un pont que
+     l'enveloppe Android fournit. Sans pont, tout se passe comme si la
+     publicité avait été vue — le jeu n'est jamais bloqué par elle. */
+  function pubDisponible() {
+    return !!(window.WikigachaAds
+              && typeof window.WikigachaAds.interstitiel === 'function');
+  }
+  function litPub() {
+    try { return parseInt(localStorage.getItem(PKEY_PUB), 10) || 0; }
+    catch (e) { return 0; }
+  }
+  function posePub(n) {
+    try { localStorage.setItem(PKEY_PUB, String(n)); } catch (e) {}
+  }
+  function pubRestantes() {
+    return sansPub() ? 0 : Math.max(1, PUB_TOUS - litPub());
+  }
+  /* Appelée juste après la déchirure : la publicité occupe le temps de
+     chargement des cartes, qui est de toute façon une attente. */
+  function avantTirage() {
+    if (sansPub()) return Promise.resolve();
+    var n = litPub() + 1;
+    if (n < PUB_TOUS) { posePub(n); return Promise.resolve(); }
+    posePub(0);
+    if (!pubDisponible()) return Promise.resolve();
+    try {
+      return Promise.resolve(window.WikigachaAds.interstitiel())
+        ['catch'](function () {});
+    } catch (e) { return Promise.resolve(); }
+  }
+
+  /* --- publicité récompensée ---
+     Le seul format publicitaire que le joueur choisit vraiment. Plafonné à
+     cinq par jour : au-delà, ce n'est plus une récompense, c'est un travail. */
+  var PUB_RECOMPENSE_MAX = 5;
+  var recompenseEnCours = false;
+
+  function pubRecompenseDisponible() {
+    return !!(window.WikigachaAds
+              && typeof window.WikigachaAds.recompense === 'function');
+  }
+  function pubRecompenseRestantes() {
+    return Math.max(0, PUB_RECOMPENSE_MAX - (readJour().pubVues || 0));
+  }
+
+  function regarderPub() {
+    if (recompenseEnCours) return;
+    if (!pubRecompenseDisponible()) {
+      showBoutique('Disponible dans l’application Android.'); return;
+    }
+    if (pubRecompenseRestantes() <= 0) {
+      showBoutique('Vous avez vu vos publicités du jour. Revenez demain.'); return;
+    }
+    if (readPacks().n >= MAX_PAQUETS) {
+      showBoutique('Votre réserve est déjà pleine.'); return;
+    }
+    recompenseEnCours = true;
+    showBoutique('Chargement de la publicité…');
+    Promise.resolve(window.WikigachaAds.recompense()).then(function (gagne) {
+      recompenseEnCours = false;
+      /* On ne crédite que si la récompense a réellement été gagnée : fermer
+         la vidéo avant la fin ne donne rien. */
+      if (!gagne) { showBoutique('Publicité non terminée — aucun paquet ajouté.'); return; }
+      noterJour('pubVues', 1);
+      var d = readPacks();
+      d.n += 1;
+      writePacks(d);
+      refreshPacks();
+      son('gain'); vib([0, 18, 40, 26]);
+      showBoutique('Un paquet ajouté.');
+    })['catch'](function () {
+      recompenseEnCours = false;
+      showBoutique('Publicité indisponible pour le moment.');
+    });
+  }
+
+  /* --- achats Play ---
+     Google Play Billing via l'API Digital Goods, seule voie autorisée pour un
+     bien numérique dans une application Play. Elle n'existe que dans la TWA
+     lancée par Chrome : sur le web ouvert, on l'annonce sans la proposer. */
+  /* Deux enveloppes possibles, deux facturations : la TWA passe par l'API
+     Digital Goods du navigateur, l'enveloppe Capacitor par un pont natif.
+     L'API Digital Goods n'existe pas sous Capacitor — sans cette abstraction,
+     changer d'enveloppe cassait silencieusement tous les achats. */
+  function pontAchats() {
+    var b = window.WikigachaAchats;
+    return (b && typeof b.lister === 'function' && typeof b.acheter === 'function')
+      ? b : null;
+  }
+  function achatsDisponibles() {
+    return !!(pontAchats() || window.getDigitalGoodsService);
+  }
+
+  function servicePlay() {
+    if (!window.getDigitalGoodsService) return Promise.resolve(null);
+    return window.getDigitalGoodsService(PLAY)['catch'](function () { return null; });
+  }
+
+  function restaurerAchats(silencieux) {
+    var pont = pontAchats();
+    var source = pont
+      ? Promise.resolve(pont.lister())
+      : servicePlay().then(function (svc) {
+          return svc ? svc.listPurchases() : null;
+        });
+    return source.then(function (liste) {
+      if (!liste) return false;
+      return (function () {
+        var ids = (liste || []).map(function (x) { return x.itemId || x; });
+        var av = achats.sansPub + '/' + achats.premium;
+        achats.sansPub = ids.indexOf(SKU_SANS_PUB) !== -1;
+        achats.premium = ids.indexOf(SKU_PREMIUM) !== -1
+                      || ids.indexOf(SKU_MAJ) !== -1;
+        if (av !== achats.sansPub + '/' + achats.premium) poseAchats();
+        if (!silencieux) {
+          toast((achats.sansPub || achats.premium)
+            ? 'Achats restaurés.' : 'Aucun achat trouvé sur ce compte.');
+        }
+        return true;
+      })();
+    })['catch'](function () {
+      if (!silencieux) toast('Restauration impossible pour le moment.');
+      return false;
+    });
+  }
+
+  /* Les prix viennent de Play, dans la monnaie du joueur : jamais de valeur
+     écrite en dur. */
+  function chargerPrix() {
+    var pont = pontAchats();
+    var source = (pont && typeof pont.prix === 'function')
+      ? Promise.resolve(pont.prix([SKU_SANS_PUB, SKU_PREMIUM, SKU_MAJ]))
+      : servicePlay().then(function (svc) {
+          return svc ? svc.getDetails([SKU_SANS_PUB, SKU_PREMIUM, SKU_MAJ]) : null;
+        });
+    return source.then(function (items) {
+      if (!items) return null;
+      return (function () {
+        (items || []).forEach(function (it) {
+          if (!it.price) return;
+          try {
+            prix[it.itemId] = new Intl.NumberFormat(navigator.language,
+              { style: 'currency', currency: it.price.currency })
+              .format(Number(it.price.value));
+          } catch (e) { prix[it.itemId] = it.price.value + ' ' + it.price.currency; }
+        });
+        return prix;
+      })();
+    })['catch'](function () { return null; });
+  }
+
+  /* Nom distinct de acheter() : celui-la vend des paquets contre des
+     Wikigold, celui-ci passe par Play. Les confondre serait une collision
+     silencieuse — c'est arrive. */
+  function acheterPlay(sku) {
+    var pont = pontAchats();
+    if (pont) {
+      Promise.resolve(pont.acheter(sku)).then(function (ok) {
+        if (!ok) return;
+        if (sku === SKU_SANS_PUB) achats.sansPub = true; else achats.premium = true;
+        poseAchats();
+        son(sku === SKU_SANS_PUB ? 'legendaire' : 'mythique');
+        vib([0, 30, 55, 30, 55, 70]);
+        showBoutique('Merci — c’est actif.');
+      })['catch'](function () { showBoutique('Achat non abouti.'); });
+      return;
+    }
+    if (!window.PaymentRequest || !window.getDigitalGoodsService) {
+      showBoutique('Ces achats se font depuis l’application Android.');
+      return;
+    }
+    var req;
+    try {
+      req = new PaymentRequest(
+        [{ supportedMethods: PLAY, data: { sku: sku } }],
+        { total: { label: 'Wikigacha', amount: { currency: 'EUR', value: '0' } } });
+    } catch (e) { showBoutique('Paiement indisponible sur cet appareil.'); return; }
+
+    req.show().then(function (rep) {
+      /* Un achat unique est déjà acquitté par Play : aucun appel de
+         confirmation n'est requis, contrairement à un consommable. */
+      return rep.complete('success').then(function () {
+        if (sku === SKU_SANS_PUB) achats.sansPub = true;
+        else achats.premium = true;
+        poseAchats();
+        son(sku === SKU_SANS_PUB ? 'legendaire' : 'mythique');
+        vib([0, 30, 55, 30, 55, 70]);
+        showBoutique('Merci — c’est actif.');
+      });
+    })['catch'](function (err) {
+      if (err && err.name === 'AbortError') return;   /* annulation : silence */
+      showBoutique('Achat non abouti.');
+    });
+  }
+
+  /* Export tableur de la collection, réservé au premium. */
+  function exporterCSV() {
+    var lignes = [['Titre', 'Rareté', 'ATQ', 'DÉF', 'Exemplaires',
+                   'Domaine', 'Vues', 'Octets', 'Lien']];
+    Object.keys(collection).forEach(function (k) {
+      var c = collection[k];
+      lignes.push([c.title, c.rank, atkEff(c), defEff(c), c.count,
+                   domaineNom(c.domaine || 'divers'), c.views || 0,
+                   c.bytes || 0, c.url || '']);
+    });
+    var csv = '\uFEFF' + lignes.map(function (l) {
+      return l.map(function (v) {
+        return '"' + String(v).replace(/"/g, '""') + '"';
+      }).join(';');
+    }).join('\r\n');
+    var url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    var a = document.createElement('a');
+    a.href = url; a.download = 'wikigacha-collection.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
 
   /* ---------- son ----------
      Tout est synthetise a la volee : pas un octet a telecharger, et le
@@ -2446,8 +2752,16 @@
       txt += ' · prochain dans ' + Math.floor(sec / 60) + ':'
            + String(sec % 60).padStart(2, '0');
     }
-    var vers = PITIE_TOUS - (d.ouverts % PITIE_TOUS);
-    txt += ' · garantie dans ' + vers + (vers > 1 ? ' paquets' : ' paquet');
+    if (achats.premium && !readJour().garPrem) {
+      txt += ' · Légendaire garanti au prochain';
+    } else {
+      var vers = PITIE_TOUS - (d.ouverts % PITIE_TOUS);
+      txt += ' · garantie dans ' + vers + (vers > 1 ? ' paquets' : ' paquet');
+    }
+    if (!sansPub() && pubDisponible()) {
+      var pv = pubRestantes();
+      txt += ' · pub dans ' + pv + (pv > 1 ? ' paquets' : ' paquet');
+    }
     el('packs').textContent = txt;
     var hp = el('hud-packs');
     if (hp) {
@@ -2747,8 +3061,9 @@
      plus longtemps (jusqu'a 6 tirages) et on ne renvoie JAMAIS une carte qui
      n'atteint pas le palier : mieux vaut pas de substitution qu'une ebauche
      presentee comme recompense. */
-  function chercherCarteGarantie(essai) {
+  function chercherCarteGarantie(essai, seuil) {
     essai = essai || 1;
+    seuil = seuil || PITIE;
     if (essai > 6) return Promise.resolve(null);
     return fetchPack()
       .then(function (pages) {
@@ -2759,8 +3074,8 @@
       })
       .then(function (lot) {
         lot.sort(function (a, b) { return rankIndex(b.rank) - rankIndex(a.rank); });
-        if (lot.length && rankIndex(lot[0].rank) >= PITIE) return lot[0];
-        return chercherCarteGarantie(essai + 1);
+        if (lot.length && rankIndex(lot[0].rank) >= seuil) return lot[0];
+        return chercherCarteGarantie(essai + 1, seuil);
       })
       .catch(function () { return null; });
   }
@@ -2768,7 +3083,9 @@
   var tirageEnCours = false;
 
   /* Le paquet a deja ete decompte par le geste d'ouverture ; openPack ne fait
-     que charger les cartes. 'pitie' indique si ce tirage garantit une carte. */
+     que charger les cartes. 'pitie' vaut 0 (aucune garantie) ou l'indice du
+     palier garanti : 3 pour la pitie tous les dix paquets, 4 pour la garantie
+     quotidienne du premium. */
   function openPack(pitie) {
     if (tirageEnCours) return;   /* verrou : un seul tirage a la fois */
     tirageEnCours = true;
@@ -2791,8 +3108,8 @@
         cards.sort(function (a, b) { return rankIndex(a.rank) - rankIndex(b.rank); });
         /* Garantie : plutot que de promouvoir artificiellement une ebauche,
            on retire jusqu'a trouver un article qui merite vraiment le palier. */
-        if (pitie && rankIndex(cards[cards.length - 1].rank) < PITIE) {
-          return chercherCarteGarantie().then(function (bonne) {
+        if (pitie && rankIndex(cards[cards.length - 1].rank) < pitie) {
+          return chercherCarteGarantie(1, pitie).then(function (bonne) {
             if (bonne) {
               bonne.garantie = true;
               cards[0] = bonne;   /* remplace la plus faible du lot */
@@ -4723,8 +5040,77 @@
 
   function showBoutique(msg) {
     var or = readGold();
-    var html = '<p class="hist-titre">BOUTIQUE</p>'
-      + '<p class="duel-intro">Échangez vos Wikigold contre des paquets. '
+    var html = '<p class="hist-titre">BOUTIQUE</p>';
+
+    /* Les offres d'abord, mais sans insistance : des blocs, jamais de
+       fenetre surgissante, et rien qui bloque le jeu gratuit. */
+    var boutiquable = achatsDisponibles();
+
+    /* La récompense d'abord : c'est la seule ligne de la boutique qui ne
+       demande pas d'argent. */
+    if (pubRecompenseDisponible()) {
+      var reste = pubRecompenseRestantes();
+      var pleine = readPacks().n >= MAX_PAQUETS;
+      html += '<div class="edition-bloc sobre">'
+        + '<p class="edition-tag">UN PAQUET OFFERT</p>'
+        + '<p class="edition-mot">Regardez une publicité, recevez un paquet. '
+        + 'Il vous en reste <b>' + reste + '</b> sur ' + PUB_RECOMPENSE_MAX
+        + ' aujourd’hui.</p>'
+        + '<button class="btn" data-pub="1"'
+        + ((reste && !pleine) ? '' : ' disabled') + '>'
+        + (pleine ? 'Réserve pleine'
+                  : (reste ? 'Regarder une publicité — +1 paquet' : 'Revenez demain'))
+        + '</button></div>';
+    }
+
+    if (achats.premium) {
+      html += '<div class="edition-bloc acquise">'
+        + '<p class="edition-tag">PREMIUM</p>'
+        + '<p class="edition-mot">Actif. Merci de soutenir le jeu.</p></div>';
+    } else {
+      html += '<div class="edition-bloc">'
+        + '<p class="edition-tag">PREMIUM</p>'
+        + '<p class="edition-mot">Un achat unique. Rien n’est retiré à la '
+        + 'version gratuite : aucune carte, aucun paquet, aucun Wikigold ne se '
+        + 'vend ici. Seuls les temps d’attente s’allègent.</p>'
+        + '<ul class="edition-liste">'
+        + '<li>Réserve de <b>20 paquets</b> au lieu de 10</li>'
+        + '<li>Un paquet toutes les <b>5 minutes</b> au lieu de 10</li>'
+        + '<li>Un paquet <b>Légendaire garanti</b> chaque jour</li>'
+        + '<li>Aucune publicité, dos de carte doré, export tableur</li>'
+        + '</ul>'
+        + (boutiquable
+            ? '<button class="btn btn-solid" data-play="'
+              + (achats.sansPub ? SKU_MAJ : SKU_PREMIUM) + '">'
+              + (achats.sansPub ? 'Passer au premium' : 'Obtenir le premium')
+              + (prix[achats.sansPub ? SKU_MAJ : SKU_PREMIUM]
+                  ? ' — ' + esc(prix[achats.sansPub ? SKU_MAJ : SKU_PREMIUM]) : '')
+              + '</button>'
+            : '<p class="status">Disponible dans l’application Android.</p>')
+        + '</div>';
+
+      if (!achats.sansPub) {
+        html += '<div class="edition-bloc sobre">'
+          + '<p class="edition-tag">SANS PUBLICITÉ</p>'
+          + '<p class="edition-mot">Juste le silence : la publicité disparaît, '
+          + 'le reste du jeu ne change pas. Une publicité s’affiche aujourd’hui '
+          + 'tous les ' + PUB_TOUS + ' paquets.</p>'
+          + (boutiquable
+              ? '<button class="btn" data-play="' + SKU_SANS_PUB + '">Retirer la publicité'
+                + (prix[SKU_SANS_PUB] ? ' — ' + esc(prix[SKU_SANS_PUB]) : '') + '</button>'
+              : '')
+          + '</div>';
+      } else {
+        html += '<div class="edition-bloc acquise sobre">'
+          + '<p class="edition-tag">SANS PUBLICITÉ</p>'
+          + '<p class="edition-mot">Actif.</p></div>';
+      }
+    }
+    if (boutiquable) {
+      html += '<button class="btn" data-play="restaurer">Restaurer mes achats</button>';
+    }
+
+    html += '<p class="duel-intro">Échangez vos Wikigold contre des paquets. '
       + 'Vous gagnez des Wikigold en accomplissant missions, succès et albums.</p>'
       + '<p class="boutique-solde">Solde : <b>' + or.toLocaleString('fr-FR') + '</b> Wikigold</p>';
 
@@ -5061,6 +5447,9 @@
       + '<div class="sauve-ligne">'
       + '<button class="btn" data-sauve="export">Télécharger ma sauvegarde</button>'
       + '<button class="btn" data-sauve="import">Restaurer un fichier</button>'
+      + (achats.premium
+          ? '<button class="btn" data-sauve="csv">Exporter en tableur (CSV)</button>'
+          : '')
       + '</div>'
       + '<input type="file" id="fichier-import" accept="application/json,.json" hidden>'
       + (msg ? '<p class="recompense-msg">' + esc(msg) + '</p>' : '')
@@ -5190,7 +5579,14 @@
       noterJour('paquets', 1);
       if (etat.n === MAX_PAQUETS - 1) etat.ts = Date.now();
       writePacks(etat);
-      openPack(etat.ouverts % PITIE_TOUS === 0);
+      /* La garantie quotidienne du premium passe avant la pitié ordinaire. */
+      var seuil = 0;
+      if (achats.premium) {
+        var j = readJour();
+        if (!j.garPrem) { j.garPrem = 1; writeJour(j); seuil = PITIE_PREM; }
+      }
+      if (!seuil && etat.ouverts % PITIE_TOUS === 0) seuil = PITIE;
+      avantTirage().then(function () { openPack(seuil); });
     }
 
     pack.addEventListener('touchstart', function (e) {
@@ -5356,6 +5752,14 @@
     if (m) reclamerMission(m.getAttribute('data-mission'));
   });
   el('boutique-body').addEventListener('click', function (e) {
+    if (e.target.closest('[data-pub]')) { regarderPub(); return; }
+    var ed = e.target.closest('[data-play]');
+    if (ed) {
+      var sku = ed.getAttribute('data-play');
+      if (sku === 'restaurer') restaurerAchats(false).then(function () { showBoutique(); });
+      else acheterPlay(sku);
+      return;
+    }
     var a = e.target.closest ? e.target.closest('[data-achat]') : null;
     if (a) acheter(a.getAttribute('data-achat'));
   });
@@ -5418,6 +5822,7 @@
     if (sv) {
       var quoi = sv.getAttribute('data-sauve');
       if (quoi === 'export') telechargerSauvegarde();
+      else if (quoi === 'csv') exporterCSV();
       else if (quoi === 'import') { var f = el('fichier-import'); if (f) f.click(); }
       return;
     }
@@ -5517,6 +5922,16 @@
     if (!e.target.closest) return;
     if (e.target.closest('button, .btn, .card, .palier')) { vib(5); son('tic'); }
   }, true);
+
+  /* Etat local d'abord (le jeu doit marcher hors ligne), puis verification
+     aupres de Play en tache de fond — remboursement compris. */
+  litAchats();
+  appliquerAchats();
+  restaurerAchats(true).then(function () {
+    chargerPrix().then(function () {
+      if (!el('view-boutique').hidden) showBoutique();
+    });
+  });
 
   try { history.replaceState({ wg: 'racine' }, ''); } catch (e) {}
 

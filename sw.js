@@ -13,7 +13,7 @@
    reponse fausserait le jeu. Seules les IMAGES d'articles sont conservees,
    pour que la collection reste illustree hors ligne. */
 
-var VERSION = 'wikigacha-v1';
+var VERSION = 'wikigacha-v2';   /* a incrementer quand la liste change */
 var COQUILLE = VERSION + '-coquille';   /* le jeu lui-meme */
 var POLICES  = VERSION + '-polices';
 var IMAGES   = 'wikigacha-images';      /* survit aux versions : c'est lourd */
@@ -22,6 +22,7 @@ var IMAGES_MAX = 400;
 var A_PRECHARGER = [
   './',
   './index.html',
+  './pont-pub.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
