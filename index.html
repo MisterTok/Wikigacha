@@ -139,6 +139,10 @@
     touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
     border-radius: 4px; overflow: hidden;
     box-shadow: 0 14px 34px rgba(0,0,0,.5);
+    /* Le sachet se tend et bascule un peu sous la traction : le geste a du
+       repondant avant meme que la bande ne parte. */
+    transform: rotate(calc(var(--tear) * -1.7deg)) scale(calc(1 + var(--tear) * .016));
+    transition: transform .06s linear;
   }
   .pack:active { cursor: grabbing; }
   /* Le sachet : plus clair et satine que le dos des cartes, avec des reflets
@@ -156,8 +160,24 @@
       linear-gradient(100deg, transparent 0 76%, rgba(255,255,255,.09) 82%, transparent 90%),
       linear-gradient(180deg, #4a5578 0%, #2c3452 45%, #1d2338 100%);
     box-shadow:
-      inset 0 0 0 3px rgba(201,153,46,.35),
+      inset 0 0 0 3px rgba(201,153,46, calc(.35 + var(--tear) * .5)),
       inset 0 0 26px rgba(0,0,0,.45);
+  }
+  /* Un reflet lent traverse le plastique : le sachet a l'air pose sous une
+     lumiere, et l'oeil revient dessus sans qu'on ait besoin d'un bouton. */
+  .pack-corps::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(102deg,
+      transparent 36%, rgba(255,255,255,.05) 44%, rgba(255,255,255,.17) 48%,
+      rgba(255,255,255,.05) 53%, transparent 62%);
+    transform: translateX(-130%);
+    animation: lueurSachet 6s ease-in-out infinite;
+  }
+  .pack.ouvert .pack-corps::after,
+  .pack.inerte .pack-corps::after { animation: none; opacity: 0; }
+  @keyframes lueurSachet {
+    0%, 64% { transform: translateX(-130%); }
+    86%, 100% { transform: translateX(130%); }
   }
   /* Le nom du jeu imprime sur le sachet, comme sur un vrai emballage. */
   .pack-marque {
@@ -179,19 +199,68 @@
     transform: translateX(265px) rotate(10deg); opacity: 0;
     transition: transform .4s ease-in, opacity .4s ease-in;
   }
+  /* L'ouverture degagee par la bande : on regarde dans le sachet et on
+     apercoit la tranche des cartes. C'est ce qui manquait — la bande
+     glissait, mais rien ne s'ouvrait derriere. */
+  .pack-breche {
+    position: absolute; left: 0; top: 0; height: 44px; z-index: 2;
+    width: calc(var(--tear) * 215px); overflow: hidden; pointer-events: none;
+    background: linear-gradient(180deg, #05070c 0%, #0d1119 55%, #141a28 100%);
+    box-shadow: inset -6px 0 10px -6px #000;
+  }
+  /* La tranche des cinq cartes, entrevue dans l'ouverture. */
+  .pack-breche::before {
+    content: ''; position: absolute; left: -6px; right: -6px; bottom: 7px; height: 11px;
+    background: repeating-linear-gradient(90deg,
+      #efe8d6 0 13px, #b9ae94 13px 15px, #f6f1e4 15px 28px, #c6bca3 28px 30px);
+    box-shadow: 0 -5px 9px rgba(0,0,0,.6);
+  }
+  /* Le bord dechire du sachet, dents irregulieres le long de l'arrachage. */
+  .pack-dents {
+    position: absolute; left: 0; top: 36px; height: 9px; z-index: 2;
+    width: calc(var(--tear) * 215px); overflow: hidden; pointer-events: none;
+  }
+  .pack-dents::before {
+    content: ''; position: absolute; left: 0; right: -12px; top: 0; bottom: 0;
+    background:
+      linear-gradient(-52deg, #47527a 50%, transparent 50%) 0 0 / 11px 9px repeat-x,
+      linear-gradient(52deg, #47527a 50%, transparent 50%) 5px 0 / 11px 9px repeat-x;
+  }
+  /* Voile d'attente quand il ne reste plus de paquet : le joueur voit
+     immediatement pourquoi ca ne s'ouvre pas, et pour combien de temps. */
+  .pack-attente {
+    position: absolute; inset: 0; z-index: 5;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; text-align: center;
+    background: rgba(8,10,17,.72);
+    -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+  }
+  .pack-attente[hidden] { display: none; }
+  .pack-attente span { font-size: 11px; letter-spacing: .12em; color: var(--glass-dim); }
+  .pack-attente b {
+    font-family: var(--display); font-size: 30px; color: #f0dda4;
+    font-variant-numeric: tabular-nums;
+  }
+
   /* Les perforations, horizontales sous la bande. */
   .pack-fil {
     position: absolute; left: 5%; right: 5%; bottom: 4px; height: 2px;
     background: repeating-linear-gradient(90deg, rgba(26,29,41,.6) 0 5px, transparent 5px 10px);
   }
+  .pack-tirez {
+    font-size: 11px; letter-spacing: .22em; font-weight: 600;
+  }
   .pack-fleche {
-    font-size: 20px; line-height: 1;
+    font-size: 19px; line-height: 1; margin-left: 6px;
     animation: flecheBat 1.4s ease-in-out infinite;
   }
   @keyframes flecheBat {
-    0%,100%{ transform: translateX(0); }
-    50%    { transform: translateX(4px); }
+    0%,100%{ transform: translateX(0); opacity: .55; }
+    50%    { transform: translateX(5px); opacity: 1; }
   }
+  /* Passe le seuil, la bande annonce qu'on peut lacher. */
+  .pack.pret .pack-bande { background: linear-gradient(180deg, #fff3cf, #e0ae33); }
+  .pack.pret .pack-fleche { animation: none; opacity: 1; }
   /* Liseré clair révélé sous la bande. */
   .pack-bande::after {
     content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 3px;
@@ -213,7 +282,8 @@
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
   .pack-label { font-size: 11px; letter-spacing: .12em; color: var(--glass-dim); }
-  .pack.inerte { opacity: .4; pointer-events: none; }
+  .pack.inerte { pointer-events: none; }
+  .pack.inerte .pack-corps, .pack.inerte .pack-bande { opacity: .42; }
   .hint { font-size: 12px; color: var(--glass-dim); margin: 16px 0 0; }
   @media (prefers-reduced-motion: reduce) {
     .pack-fleche { animation: none; }
@@ -231,7 +301,25 @@
     position: absolute; inset: 0; transform-style: preserve-3d;
     transition: transform .6s cubic-bezier(.28,.9,.32,1);
   }
+  .flip-inner { z-index: 1; }
   .flipper.is-open .flip-inner { transform: rotateY(180deg); }
+  /* Halo a la couleur du palier : sur une Mythique, la lueur arrive avant
+     meme qu'on ait lu le titre. */
+  .flipper::before {
+    content: ''; position: absolute; inset: -14%; z-index: 0; opacity: 0;
+    pointer-events: none; border-radius: 50%;
+    background: radial-gradient(circle, var(--tier, transparent) 0%, transparent 62%);
+    transition: opacity .5s ease .25s;
+  }
+  .flipper.foil.is-open::before { opacity: .3; }
+  .flipper.holo.is-open::before { opacity: .5; animation: halo 2.6s ease-in-out infinite .6s; }
+  @keyframes halo { 50% { opacity: .78; transform: scale(1.06); } }
+  .flipper.foil.is-open .face-front {
+    box-shadow: 0 16px 38px rgba(0,0,0,.55), 0 0 24px -4px var(--tier);
+  }
+  .flipper.holo.is-open .face-front {
+    box-shadow: 0 16px 38px rgba(0,0,0,.55), 0 0 40px -3px var(--tier);
+  }
   .face {
     position: absolute; inset: 0; overflow: hidden;
     backface-visibility: hidden; -webkit-backface-visibility: hidden;
@@ -960,6 +1048,33 @@
   .reglages { margin-top: 18px; }
   .reglages .tri-btn { width: 100%; }
 
+  /* Bandeaux passagers : un gain silencieux est un gain qu'on ne savoure
+     pas. Ils s'empilent au-dessus de la barre d'onglets. */
+  .toasts {
+    position: fixed; left: 0; right: 0; z-index: 25;
+    bottom: calc(var(--bar-h) + var(--safe-b) + 14px);
+    display: flex; flex-direction: column-reverse; align-items: center; gap: 7px;
+    padding: 0 16px; pointer-events: none;
+  }
+  .toast {
+    max-width: 420px; padding: 10px 15px; font-size: 13.5px;
+    color: var(--ivory); background: rgba(30,35,52,.97);
+    border: 1px solid var(--night-line); border-left: 3px solid var(--accent, #c9992e);
+    box-shadow: 0 10px 28px rgba(0,0,0,.55);
+    animation: toastIn .24s cubic-bezier(.2,1.2,.4,1), toastOut .32s ease-in 2.1s forwards;
+  }
+  .toast b { color: var(--accent, #f0dda4); font-variant-numeric: tabular-nums; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(14px) scale(.96); } }
+  @keyframes toastOut { to { opacity: 0; transform: translateY(-8px); } }
+
+  /* Chaque ecran entre en scene au lieu d'apparaitre sec. */
+  main.entre { animation: vueEntre .2s ease-out; }
+  @keyframes vueEntre { from { opacity: 0; transform: translateY(6px); } }
+
+  /* Les cartes hors champ ne sont pas mises en page : la collection
+     defile sans a-coup meme a plusieurs centaines de cartes. */
+  .card-wrap { content-visibility: auto; contain-intrinsic-size: auto 122px; }
+
   .credit {
     font-size: 11px; color: var(--glass-dim); line-height: 1.7;
     border-top: 1px solid var(--night-line); padding-top: 14px; margin-top: 10px;
@@ -1008,11 +1123,17 @@
         <span class="pack-marque">Wikigacha</span>
         <span class="pack-label">POCHETTE DE 5 CARTES</span>
       </div>
+      <div class="pack-breche"></div>
+      <div class="pack-dents"></div>
       <div class="pack-bande" id="pack-bande">
         <span class="pack-fil"></span>
-        <span class="pack-fleche">⌄</span>
+        <span class="pack-tirez">TIREZ</span>
+        <span class="pack-fleche">›</span>
       </div>
       <div class="pack-eclat" id="pack-eclat"></div>
+      <div class="pack-attente" id="pack-attente" hidden>
+        <span>PROCHAIN PAQUET</span><b id="pack-chrono">0:00</b>
+      </div>
     </div>
     <p class="hint" id="hint">Tirez la languette vers la droite</p>
   </div>
@@ -1109,6 +1230,8 @@
 <div id="sheet" class="sheet" hidden>
   <div class="sheet-inner" id="sheet-inner"></div>
 </div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
 
 <nav class="tabbar" aria-label="Navigation principale">
   <div class="tabbar-in">
@@ -1224,6 +1347,29 @@
   function vib(motif) {
     if (!options.vibr || !navigator.vibrate) return;
     try { navigator.vibrate(motif); } catch (e) {}
+  }
+
+  /* Un gain s'annonce. On cumule 400 ms avant d'afficher : une recompense
+     versee en plusieurs fois ne produit qu'un seul bandeau. */
+  function toast(html, accent) {
+    var z = el('toasts');
+    if (!z) return;
+    var t = document.createElement('div');
+    t.className = 'toast';
+    if (accent) t.style.setProperty('--accent', accent);
+    t.innerHTML = html;
+    z.appendChild(t);
+    while (z.children.length > 3) z.removeChild(z.firstChild);
+    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 2600);
+  }
+  var orCumul = 0, orMinuteur = null;
+  function annoncerOr(n) {
+    orCumul += n;
+    clearTimeout(orMinuteur);
+    orMinuteur = setTimeout(function () {
+      toast('<b>+' + orCumul.toLocaleString('fr-FR') + '</b> Wikigold');
+      orCumul = 0;
+    }, 400);
   }
 
   /* Petit battement sur un compteur qui vient de changer : le gain se voit
@@ -1725,6 +1871,7 @@
     var v = Math.max(0, readGold() + n);
     try { localStorage.setItem(GKEY, String(v)); } catch (e) {}
     refreshGold();
+    if (n > 0) annoncerOr(n);
     return v;
   }
   function refreshGold() {
@@ -1777,6 +1924,16 @@
       el('hud-packs-max').textContent = d.n > MAX_PAQUETS ? '' : '/' + MAX_PAQUETS;
     }
     el('pack').classList.toggle('inerte', d.n < 1);
+    var att = el('pack-attente');
+    if (att) {
+      att.hidden = d.n >= 1;
+      if (d.n < 1) {
+        var r = Math.max(0, REGEN_MS - (Date.now() - d.ts));
+        var rs = Math.ceil(r / 1000);
+        el('pack-chrono').textContent = Math.floor(rs / 60) + ':'
+          + String(rs % 60).padStart(2, '0');
+      }
+    }
     return d;
   }
 
@@ -1989,6 +2146,7 @@
     el('front').innerHTML = frontHTML(c);
     el('front').style.setProperty('--tier', t.color);
     el('flipper').className = 'flipper ' + t.fx;
+    el('flipper').style.setProperty('--tier', t.color);
     el('tap-on').textContent = 'Touchez la carte pour la retourner';
   }
 
@@ -4220,6 +4378,11 @@
     vueCourante = which;
     ['cartes', 'raid', 'boutique', 'succes'].forEach(function (v) {
       el('view-' + v).hidden = (v !== which);
+      if (v === which) {
+        el('view-' + v).classList.remove('entre');
+        void el('view-' + v).offsetWidth;
+        el('view-' + v).classList.add('entre');
+      }
       el('tab-' + v).classList.toggle('is-active', v === which);
       el('tab-' + v).setAttribute('aria-selected', v === which ? 'true' : 'false');
     });
@@ -4256,6 +4419,7 @@
       setTear(d);
       var avant = ouvre;
       ouvre = d >= SEUIL;
+      pack.classList.toggle('pret', ouvre);
       /* Un cran sec au moment ou le paquet devient ouvrable : le doigt sait
          qu'il peut lacher. */
       if (ouvre && !avant) vib(14);
@@ -4263,6 +4427,7 @@
     function fin() {
       if (x0 === null) return;
       x0 = null;
+      pack.classList.remove('pret');
       if (ouvre) { declencher(); }
       else { setTear(0); }   /* pas assez tire : la bande revient */
     }
