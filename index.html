@@ -3861,7 +3861,9 @@
       txt += ' · prochain dans ' + Math.floor(sec / 60) + ':'
            + String(sec % 60).padStart(2, '0');
     }
-    if (achats.premium && !readJour().garPrem) {
+    if (d.garDue) {
+      txt += ' · ' + TIERS[d.garDue].name + ' garanti au prochain';
+    } else if (achats.premium && !readJour().garPrem) {
       txt += ' · Légendaire garanti au prochain';
     } else {
       var vers = PITIE_TOUS - (d.ouverts % PITIE_TOUS);
@@ -4285,6 +4287,19 @@
       .then(function () { prechargeEnCours = false; });
   }
 
+  /* Garantie reportee : conservee dans l'etat des paquets, donc elle survit a
+     la fermeture de l'appli. 0 ou absent = aucune dette. */
+  function noterGarantieDue(seuil) {
+    var d = readPacks();
+    if (d.garDue === seuil) return;
+    d.garDue = seuil; writePacks(d); refreshPacks();
+  }
+  function effacerGarantieDue() {
+    var d = readPacks();
+    if (!d.garDue) return;
+    delete d.garDue; writePacks(d); refreshPacks();
+  }
+
   function openPack(pitie) {
     if (tirageEnCours) return;   /* verrou : un seul tirage a la fois */
     tirageEnCours = true;
@@ -4317,7 +4332,11 @@
            on retire jusqu'a trouver un article qui merite vraiment le palier. */
         if (pitie && rankIndex(cards[cards.length - 1].rank) < pitie) {
           return quete.then(function (bonne) {
-            if (bonne && rankIndex(bonne.rank) > rankIndex(cards[0].rank)) {
+            /* La carte de remplacement doit ATTEINDRE le palier garanti.
+               L'ancienne condition se contentait qu'elle batte la plus faible
+               du lot : une Rare remplacait une Commune, portait la mention
+               GARANTIE, et le paquet « Épique garanti » n'avait rien d'Épique. */
+            if (bonne && rankIndex(bonne.rank) >= pitie) {
               bonne.garantie = true;
               cards[0] = bonne;   /* remplace la plus faible du lot */
               cards.sort(function (a, b) { return rankIndex(a.rank) - rankIndex(b.rank); });
@@ -4328,6 +4347,13 @@
         return cards;
       })
       .then(function (cards) {
+        /* Wikipedia ne fournit pas toujours un article assez bon dans le temps
+           imparti. Plutot que de perdre la garantie, on la reporte sur le
+           prochain paquet : le joueur finit toujours par l'obtenir. */
+        if (pitie) {
+          if (rankIndex(cards[cards.length - 1].rank) >= pitie) effacerGarantieDue();
+          else noterGarantieDue(pitie);
+        }
         queue = cards; qi = 0; neuvesTirage = {};
         /* On laisse l'animation de dechirure se terminer avant de montrer
            les cartes. La plus longue est l'eclat, à 500 ms : au-delà on
@@ -7469,6 +7495,8 @@
         if (!j.garPrem) { j.garPrem = 1; writeJour(j); seuil = PITIE_PREM; }
       }
       if (!seuil && etat.ouverts % PITIE_TOUS === 0) seuil = PITIE;
+      /* Une garantie non tenue au paquet precedent reprend la main ici. */
+      if (etat.garDue && etat.garDue > seuil) seuil = etat.garDue;
       avantTirage().then(function () { openPack(seuil); });
     }
 
