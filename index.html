@@ -1207,47 +1207,43 @@
   .bt-solde b { color: #f0dda4; }
   .bt-mot { margin: 0 0 14px; font-size: 12.5px; line-height: 1.6; color: var(--glass-dim); }
 
-  .prem {
-    margin-top: 14px; padding: 16px 15px 15px; background: var(--night-up);
-    border: 1px solid #6d5a2a;
-    box-shadow: inset 0 0 0 1px rgba(201,153,46,.12), 0 0 30px -14px rgba(201,153,46,.5);
+  /* Deux offres comparables, de hauteur égale, boutons alignés en bas. */
+  .prem-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .prem-carte {
+    display: flex; flex-direction: column;
+    padding: 13px 12px 12px; background: var(--night-up);
+    border: 1px solid var(--night-line);
   }
-  .prem.acquise { border-color: var(--night-line); box-shadow: none; }
-  .prem-tete {
-    display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
-    margin-bottom: 10px;
+  .prem-carte.vedette {
+    border-color: #6d5a2a;
+    box-shadow: inset 0 0 0 1px rgba(201,153,46,.1), 0 0 26px -14px rgba(201,153,46,.5);
   }
-  .prem-tag { font-size: 11px; letter-spacing: .16em; font-weight: 600; color: #d9ab48; }
-  .prem-prix { font-size: 15px; color: var(--ivory); font-variant-numeric: tabular-nums; }
-  .prem-mot { margin: 0 0 14px; font-size: 12.5px; line-height: 1.6; color: var(--glass-dim); }
+  .prem-carte.pleine { margin-top: 0; }
+  .prem-carte.acquise .prem-tag { color: var(--glass-dim); }
+  .prem-tag {
+    display: block; margin-bottom: 9px;
+    font-size: 10px; letter-spacing: .13em; font-weight: 600; color: #d9ab48;
+  }
+  .prem-mot { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--glass-dim); }
+  .prem-pts {
+    margin: 0; padding-left: 15px;
+    font-size: 11.5px; line-height: 1.6; color: var(--glass-dim);
+  }
+  .prem-pts li { margin-bottom: 4px; }
+  .prem-pts b { color: var(--ivory); }
+  .prem-prix {
+    display: block; margin-top: auto; padding-top: 12px;
+    font-size: 16px; color: var(--ivory); font-variant-numeric: tabular-nums;
+  }
+  .prem-carte .btn { margin: 8px 0 0; padding: 11px 8px; font-size: 13.5px; }
+  .prem-indispo { margin: 10px 0 0; font-size: 11.5px; }
 
-  .prem-tab { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-  .prem-tab th {
-    padding: 0 0 7px; font-size: 10px; letter-spacing: .1em; font-weight: 600;
-    color: var(--glass-dim); text-align: right;
+  .lien-mini {
+    display: block; width: 100%; margin: 12px 0 0; padding: 8px 0;
+    font: inherit; font-size: 11.5px; color: var(--glass-dim);
+    background: none; border: 0; cursor: pointer; text-align: center;
+    min-height: 36px;
   }
-  .prem-tab th:first-child { text-align: left; }
-  .prem-tab th:last-child { color: #d9ab48; }
-  .prem-tab td {
-    padding: 8px 0; font-size: 13px; text-align: right;
-    border-top: 1px solid var(--night-line);
-    color: var(--glass-dim); font-variant-numeric: tabular-nums;
-  }
-  .prem-tab td:first-child { text-align: left; color: var(--glass); }
-  .prem-tab td:last-child { color: var(--ivory); font-weight: 600; }
-  .prem .btn { margin: 0; }
-
-  /* Offre secondaire et restauration : présentes, jamais concurrentes. */
-  .lien-achat, .lien-mini {
-    display: block; width: 100%; margin: 10px 0 0; padding: 8px 0;
-    font: inherit; background: none; border: 0; cursor: pointer;
-    text-align: center;
-  }
-  .lien-achat {
-    font-size: 12.5px; color: var(--glass); text-decoration: underline;
-    text-underline-offset: 3px; min-height: 40px;
-  }
-  .lien-mini { font-size: 11.5px; color: var(--glass-dim); min-height: 36px; }
 
   /* Paquets contre Wikigold : trois colonnes, comparables d'un regard. */
   .or-grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
@@ -5653,7 +5649,30 @@
     var boutiquable = achatsDisponibles();
     var html = '<p class="hist-titre">BOUTIQUE</p>';
 
-    /* La ligne gratuite en premier : c'est la seule qui ne demande rien. */
+    /* --- la boutique de tous les jours, en premier ---
+       C'est ici que le joueur vient neuf fois sur dix : les Wikigold qu'il a
+       gagnés. Les offres payantes attendent plus bas. */
+    html += '<div class="bt-section"><h3>WIKIGOLD</h3>'
+      + '<span class="bt-solde"><b>' + or.toLocaleString('fr-FR') + '</b> en réserve</span></div>'
+      + '<p class="bt-mot">Gagnés en accomplissant missions, succès et albums, '
+      + 'puis échangés contre des paquets.</p>'
+      + '<div class="or-grille">';
+
+    OFFRES.forEach(function (o) {
+      var abordable = or >= o.prix;
+      var n = o.paquets;
+      html += '<button class="or-offre" '
+        + (abordable ? 'data-achat="' + o.id + '"' : 'disabled') + '>'
+        + '<span class="or-nb">' + n + '</span>'
+        + '<span class="or-mot">paquet' + (n > 1 ? 's' : '') + '</span>'
+        + '<span class="or-note">' + (o.note ? esc(o.note) : '') + '</span>'
+        + '<span class="or-prix">' + o.prix + ' or</span>'
+        + (abordable ? '' : '<span class="or-manque">−' + (o.prix - or) + '</span>')
+        + '</button>';
+    });
+    html += '</div>';
+
+    /* La ligne gratuite se range avec le reste des paquets. */
     if (pubRecompenseDisponible()) {
       var reste = pubRecompenseRestantes();
       var pleine = readPacks().n >= MAX_PAQUETS;
@@ -5669,63 +5688,61 @@
         + ((reste && !pleine) ? '' : ' disabled') + '>Regarder</button></div>';
     }
 
-    /* --- premium --- */
+    /* --- les deux achats, côte à côte ---
+       Deux vraies options comparables, et non une offre principale suivie
+       d'un lien discret : celui qui ne veut que le silence doit le trouver
+       aussi facilement que celui qui veut tout. */
+    html += '<div class="bt-section"><h3>ALLER PLUS LOIN</h3></div>';
+
     if (achats.premium) {
-      html += '<div class="prem acquise"><div class="prem-tete">'
-        + '<span class="prem-tag">PREMIUM</span><span class="prem-prix">actif</span></div>'
-        + '<p class="prem-mot">Merci de soutenir le jeu.</p></div>';
-    } else {
-      var sku = achats.sansPub ? SKU_MAJ : SKU_PREMIUM;
-      html += '<div class="prem"><div class="prem-tete">'
+      html += '<div class="prem-carte acquise pleine">'
         + '<span class="prem-tag">PREMIUM</span>'
-        + (prix[sku] ? '<span class="prem-prix">' + esc(prix[sku]) + '</span>' : '')
-        + '</div>'
-        + '<p class="prem-mot">Un achat unique. Aucune carte, aucun paquet, aucun '
-        + 'Wikigold ne se vend ici : seuls les temps d’attente s’allègent.</p>'
-        + '<table class="prem-tab">'
-        + '<tr><th></th><th>Gratuit</th><th>Premium</th></tr>'
-        + '<tr><td>Réserve</td><td>10</td><td>20</td></tr>'
-        + '<tr><td>Un paquet toutes les</td><td>10 min</td><td>5 min</td></tr>'
-        + '<tr><td>Légendaire garanti</td><td>—</td><td>1 par jour</td></tr>'
-        + '<tr><td>Publicité</td><td>1 / ' + PUB_TOUS + ' paquets</td><td>aucune</td></tr>'
-        + '</table>'
+        + '<p class="prem-mot">Actif. Merci de soutenir le jeu.</p></div>';
+    } else {
+      var skuP = achats.sansPub ? SKU_MAJ : SKU_PREMIUM;
+      html += '<div class="prem-duo">'
+
+        /* premium */
+        + '<div class="prem-carte vedette">'
+        + '<span class="prem-tag">PREMIUM</span>'
+        + '<ul class="prem-pts">'
+        + '<li><b>20</b> paquets au lieu de 10</li>'
+        + '<li>Un toutes les <b>5 min</b>, pas 10</li>'
+        + '<li><b>Légendaire</b> garanti par jour</li>'
+        + '<li>Sans publicité</li>'
+        + '<li>Dos doré, export tableur</li>'
+        + '</ul>'
+        + (prix[skuP] ? '<span class="prem-prix">' + esc(prix[skuP]) + '</span>' : '')
         + (boutiquable
-            ? '<button class="btn btn-solid" data-play="' + sku + '">'
-              + (achats.sansPub ? 'Passer au premium' : 'Obtenir le premium') + '</button>'
-              + (achats.sansPub
-                  ? ''
-                  : '<button class="lien-achat" data-play="' + SKU_SANS_PUB + '">'
-                    + 'Seulement retirer la publicité'
-                    + (prix[SKU_SANS_PUB] ? ' — ' + esc(prix[SKU_SANS_PUB]) : '')
-                    + '</button>')
-            : '<p class="status">' + motAchatsIndispo() + '</p>')
+            ? '<button class="btn btn-solid" data-play="' + skuP + '">'
+              + (achats.sansPub ? 'Passer au premium' : 'Obtenir') + '</button>'
+            : '<p class="status prem-indispo">' + motAchatsIndispo() + '</p>')
+        + '</div>'
+
+        /* sans publicité */
+        + (achats.sansPub
+            ? '<div class="prem-carte acquise">'
+              + '<span class="prem-tag">SANS PUBLICITÉ</span>'
+              + '<ul class="prem-pts"><li>Actif.</li></ul></div>'
+            : '<div class="prem-carte">'
+              + '<span class="prem-tag">SANS PUBLICITÉ</span>'
+              + '<ul class="prem-pts">'
+              + '<li>La publicité disparaît</li>'
+              + '<li>Le reste ne change pas</li>'
+              + '<li>Aujourd’hui : une pub tous les ' + PUB_TOUS + ' paquets</li>'
+              + '</ul>'
+              + (prix[SKU_SANS_PUB]
+                  ? '<span class="prem-prix">' + esc(prix[SKU_SANS_PUB]) + '</span>' : '')
+              + (boutiquable
+                  ? '<button class="btn" data-play="' + SKU_SANS_PUB + '">Retirer</button>'
+                  : '')
+              + '</div>')
         + '</div>';
     }
+
     if (boutiquable) {
       html += '<button class="lien-mini" data-play="restaurer">Restaurer mes achats</button>';
     }
-
-    /* --- Wikigold --- */
-    html += '<div class="bt-section"><h3>WIKIGOLD</h3>'
-      + '<span class="bt-solde"><b>' + or.toLocaleString('fr-FR') + '</b> en réserve</span></div>'
-      + '<p class="bt-mot">Gagnés en accomplissant missions, succès et albums, '
-      + 'puis échangés contre des paquets.</p>'
-      + '<div class="or-grille">';
-
-    OFFRES.forEach(function (o) {
-      var abordable = or >= o.prix;
-      /* OFFRES porte déjà le nombre : plus lisible qu'« Douze » en colonne. */
-      var n = o.paquets;
-      html += '<button class="or-offre" '
-        + (abordable ? 'data-achat="' + o.id + '"' : 'disabled') + '>'
-        + '<span class="or-nb">' + n + '</span>'
-        + '<span class="or-mot">paquet' + (n > 1 ? 's' : '') + '</span>'
-        + '<span class="or-note">' + (o.note ? esc(o.note) : '') + '</span>'
-        + '<span class="or-prix">' + o.prix + ' or</span>'
-        + (abordable ? '' : '<span class="or-manque">−' + (o.prix - or) + '</span>')
-        + '</button>';
-    });
-    html += '</div>';
 
     html += '<p class="recompense-msg" id="boutique-msg">' + (msg ? esc(msg) : '') + '</p>';
     el('boutique-body').innerHTML = html;
