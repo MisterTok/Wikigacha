@@ -4446,11 +4446,15 @@
   var MULT = [1, 1.35, 1.85, 2.5, 3.4, 4.6];    /* multiplicateur par rarete (6 paliers) */
   var MAX_COMBATTANTS = 10;   /* dix cartes par jour : la qualite prime sur le nombre */
   /* Paliers de degats : meme sans le vaincre, on progresse. */
+  /* Les paliers intermédiaires paient en Wikigold : ils tombaient sur une
+     réserve déjà pleine et le gain était perdu, alors que l'or s'accumule
+     toujours. Le paquet reste la récompense de l'adversaire abattu — c'est
+     le seul palier qui se mérite vraiment. */
   var PALIERS = [
-    { seuil: 0.25, gain: 1, nom: 'Quart des PV' },
-    { seuil: 0.50, gain: 1, nom: 'Moitié des PV' },
-    { seuil: 0.75, gain: 1, nom: 'Trois quarts' },
-    { seuil: 1.00, gain: 3, nom: 'Adversaire vaincu' }
+    { seuil: 0.25, or: 30, nom: 'Quart des PV' },
+    { seuil: 0.50, or: 50, nom: 'Moitié des PV' },
+    { seuil: 0.75, or: 70, nom: 'Trois quarts' },
+    { seuil: 1.00, gain: 1, nom: 'Adversaire vaincu' }
   ];
 
   function jour() {
@@ -4587,7 +4591,9 @@
           var pris = (etat.reclames || []).indexOf(i) !== -1;
           var cls = 'palier' + (pris ? ' pris' : (atteint ? ' pret' : ''));
           var lib = Math.round(pl.seuil * 100) + '%<br>'
-            + (pris ? 'reçu' : '+' + pl.gain + (pl.gain > 1 ? ' paquets' : ' paquet'));
+            + (pris ? 'reçu'
+                    : (pl.or ? '+' + pl.or + ' or'
+                             : '+' + pl.gain + (pl.gain > 1 ? ' paquets' : ' paquet')));
           return atteint && !pris
             ? '<button class="' + cls + '" data-claim="' + i + '">' + lib + '</button>'
             : '<span class="' + cls + '">' + lib + '</span>';
@@ -4707,17 +4713,22 @@
     if ((etat.paliers || []).indexOf(i) === -1) return;
     if (etat.reclames.indexOf(i) !== -1) return;
 
-    var pk = readPacks();
-    var gain = Math.min(PALIERS[i].gain, MAX_PAQUETS - pk.n);
-    if (gain <= 0) {
-      el('recompense-msg').textContent = 'Réserve pleine — ouvrez des paquets, puis revenez.';
-      return;
+    var pl = PALIERS[i];
+    if (pl.or) {
+      ajouterGold(pl.or);
+      etat.reclames.push(i);
+      etat.journal.push('<b>' + pl.nom + '</b> — ' + pl.or + ' Wikigold récupérés.');
+    } else {
+      /* Ce paquet-là passe au-dessus du plafond : il se mérite, il ne doit
+         pas se perdre parce que la réserve est pleine. La régénération, elle,
+         reste bloquée tant qu'on est au-dessus de dix. */
+      var pk = readPacks();
+      pk.n += pl.gain;
+      writePacks(pk);
+      etat.reclames.push(i);
+      etat.journal.push('<b>' + pl.nom + '</b> — ' + pl.gain
+        + (pl.gain > 1 ? ' paquets récupérés.' : ' paquet récupéré.'));
     }
-    pk.n += gain;
-    writePacks(pk);
-    etat.reclames.push(i);
-    etat.journal.push('<b>' + PALIERS[i].nom + '</b> — ' + gain
-      + (gain > 1 ? ' paquets récupérés.' : ' paquet récupéré.'));
     writeRaid(etat);
     refreshPacks();
     paintRaid(etat);
