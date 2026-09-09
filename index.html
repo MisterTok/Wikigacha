@@ -96,8 +96,8 @@
     white-space: nowrap; font-size: 12px; color: var(--ivory);
   }
   .hud-ecrou {
-    width: 13px; height: 13px; flex: none; stroke: var(--glass-dim);
-    fill: none; stroke-width: 1.8; stroke-linecap: round;
+    width: 15px; height: 15px; flex: none; stroke: var(--glass-dim);
+    fill: none; stroke-width: 1.9; stroke-linejoin: round;
   }
   .hud-res { display: flex; gap: 6px; flex: none; }
   .res {
@@ -725,7 +725,11 @@
     cursor: pointer; -webkit-tap-highlight-color: transparent;
     transition: background .14s ease, opacity .14s ease;
   }
-  .pip[disabled] { opacity: .3; cursor: default; }
+  /* Un palier à zéro dit ce qui manque encore. L'estomper le rendait
+     illisible — même à 85 % d'opacité on restait sous le seuil de lisibilité.
+     Le cadre en pointillés porte donc l'information à la place, et le texte
+     garde tout son contraste. */
+  .pip[disabled] { cursor: default; border-style: dashed; }
   .pip.actif {
     opacity: 1; color: #14161f;
     background: color-mix(in srgb, var(--tier, var(--glass)) 78%, var(--ivory));
@@ -1614,8 +1618,8 @@
     <span class="hud-ava" id="hud-ava"></span>
     <span class="hud-nom" id="hud-nom">Profil</span>
     <svg class="hud-ecrou" viewBox="0 0 24 24" aria-hidden="true">
-      <circle cx="12" cy="12" r="3.4"/>
-      <path d="M12 2.6v2.6M12 18.8v2.6M2.6 12h2.6M18.8 12h2.6M5.3 5.3l1.9 1.9M16.8 16.8l1.9 1.9M18.7 5.3l-1.9 1.9M7.2 16.8l-1.9 1.9"/>
+      <path d="M9.80 1.63L14.20 1.63L13.41 5.35L17.05 7.45L19.88 4.91L22.08 8.72L18.47 9.90L18.47 14.10L22.08 15.28L19.88 19.09L17.05 16.55L13.41 18.65L14.20 22.37L9.80 22.37L10.59 18.65L6.95 16.55L4.12 19.09L1.92 15.28L5.53 14.10L5.53 9.90L1.92 8.72L4.12 4.91L6.95 7.45L10.59 5.35Z"/>
+      <circle cx="12" cy="12" r="3.6"/>
     </svg>
   </button>
   <span class="hud-marque">Wikigacha</span>
@@ -5853,7 +5857,9 @@
 
     if (items.length) {
       var total = items.reduce(function (s, c) { return s + c.count; }, 0);
-      var pips = TIERS.map(function (t) {
+      /* Du plus rare au plus commun : c'est le haut de l'échelle que le
+         joueur cherche des yeux, pas les Communes. */
+      var pips = TIERS.slice().reverse().map(function (t) {
         var n = items.filter(function (c) { return c.rank === t.name; }).length;
         return '<button class="pip' + (vue.rang === t.name ? ' actif' : '') + '" '
           + 'style="--tier:' + t.color + '" data-rang="' + esc(t.name) + '"'
@@ -6400,6 +6406,16 @@
 
     i.addEventListener('touchmove', function (e) {
       if (y0 === null) return;
+      /* Le doigt a commencé par faire défiler la fiche : ce geste n'est plus
+         une fermeture. Sans ce contrôle, revenir vers le bas dans le même
+         mouvement faisait bondir la fiche de tout le trajet déjà parcouru —
+         la hauteur de course n'était vérifiée qu'au tout premier contact. */
+      if (i.scrollTop > 0) {
+        y0 = null;
+        i.classList.remove('glisse');
+        i.style.transform = '';
+        return;
+      }
       dy = e.touches[0].clientY - y0;
       if (dy <= 0) { i.style.transform = ''; return; }
       if (e.cancelable) e.preventDefault();
