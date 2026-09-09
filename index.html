@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Wikigacha</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#141826">
+<meta name="theme-color" content="#0f1220">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Ponts natifs : sans enveloppe Capacitor, ils ne définissent rien et le
      jeu fonctionne exactement comme avant. -->
 <script src="pont-pub.js" defer></script>
@@ -193,7 +193,7 @@
     --tear: 0;
     width: 184px; height: 256px; position: relative; margin: 0 auto;
     touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none;
-    border-radius: 4px; overflow: hidden;
+    border-radius: 8px; overflow: hidden;
     box-shadow: 0 14px 34px rgba(0,0,0,.5);
     /* Le sachet se tend et bascule un peu sous la traction : le geste a du
        repondant avant meme que la bande ne parte. */
@@ -209,7 +209,7 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 6px; padding-top: 30px;
     color: var(--ivory);
-    border: 1px solid #5b6a94; border-radius: 4px;
+    border: 1px solid #5b6a94; border-radius: 8px;
     /* peint sur toute la boite, pour que la languette tombe au pixel pres */
     background-origin: border-box;
     background:
@@ -253,7 +253,7 @@
     position: absolute; left: 0; right: 0; top: 0; height: 42px; z-index: 3;
     display: flex; align-items: center; justify-content: flex-start;
     padding-left: 15px; color: #d9d2bd;
-    border-radius: 4px 4px 0 0;
+    border-radius: 8px 8px 0 0;
     background:
       linear-gradient(100deg, transparent 0 8%, rgba(255,255,255,.10) 12%, transparent 18%),
       linear-gradient(100deg, transparent 0 42%, rgba(255,255,255,.07) 47%, transparent 54%),
@@ -1955,6 +1955,286 @@
     .sheet-inner, .flipper.foil.is-open .face-front::after,
     .flipper.holo.is-open .face-front::before { animation: none; }
   }
+
+  /* =====================================================================
+     PASSE PREMIUM — finition sobre.
+     Ce bloc vient en fin de feuille et affine les composants existants
+     sans en changer la structure : fond plus profond, surfaces posées
+     en couches, rayons discrets partout, typographie d'interface plus
+     tenue, ombres et lueurs réduites au strict nécessaire.
+     ===================================================================== */
+  :root {
+    --night:      #0f1220;
+    --night-up:   #181c2b;
+    --night-line: #262c3f;
+    --night-hi:   rgba(255,255,255,.045);   /* liseré haut des surfaces */
+    --or:         #c9992e;
+    --or-clair:   #ecd48f;
+    --r-xs: 5px; --r-s: 8px; --r-m: 12px; --r-l: 18px;
+    --sans: "Inter", -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --ombre-1: 0 1px 2px rgba(0,0,0,.35);
+    --ombre-2: 0 8px 24px -8px rgba(0,0,0,.55);
+  }
+  html { background: var(--night); }
+  body {
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv11", "ss01", "tnum" 0;
+    background:
+      radial-gradient(90% 46% at 50% -6%, #1c2237 0%, transparent 70%),
+      var(--night);
+  }
+
+  /* --- surfaces : un fond, un trait, un liseré de lumière en haut --- */
+  .card, .mission, .chapitre, .album, .boss, .duo, .eq-slot, .fighter,
+  .quiz-rep, .or-offre, .prem-carte, .butin, .cote-bandeau, .echange,
+  .offline-bandeau, .win, .hist-retour, .duel-auto, .pack-notif,
+  .hud-profil, .res, .tri, .tri-btn, .code-champ, .code-zone, .sous-tab,
+  .hist-diff-btn, .palier, .pip, .reveal-vite, .actif-chip, .neuve-chip {
+    border-radius: var(--r-s);
+  }
+  .card, .mission, .chapitre, .album, .boss, .duo, .eq-slot, .fighter,
+  .quiz-rep, .or-offre, .prem-carte, .cote-bandeau, .echange, .win {
+    background: linear-gradient(180deg, #1b2030 0%, #181c2b 100%);
+    box-shadow: inset 0 1px 0 var(--night-hi), var(--ombre-1);
+  }
+  .card:active, .chapitre:active, .quiz-rep:active, .fighter:active,
+  .mission:active, .eq-slot:active, .hist-retour:active, .duel-auto:active {
+    background: #212638;
+  }
+  .card-thumb, .card-thumb-alt, .album-case, .boss-art, .chap-embleme,
+  .butin-vue, .duo-vue, .eq-vue, .profil-vign, .pui-carte, .pui-vue,
+  .sel-vue, .adv-img, .hud-ava, .sheet-vue, .fig {
+    border-radius: var(--r-xs); overflow: hidden;
+  }
+  .hud-ava { border-radius: 7px; }
+  .boss-art, .sheet-vue { border-radius: var(--r-s); }
+  .butin, .sheet-art, .pui-carte { border-radius: var(--r-m); }
+
+  /* Le trait de rareté sur les cartes : plus fin, fondu dans la surface. */
+  .card { border-left-width: 3px; padding: 12px 14px 12px 13px; }
+  .chapitre, .fighter { border-left-width: 3px; }
+  .album, .mission { border-left-width: 3px; }
+  .card-title { font-size: 16.5px; letter-spacing: -0.005em; }
+  .card-desc { line-height: 1.45; }
+  .card-foot { border-top-color: rgba(255,255,255,.06); }
+  .card-wrap.neuve .card {
+    box-shadow: inset 0 0 0 1px rgba(201,153,46,.55), inset 0 1px 0 var(--night-hi), var(--ombre-1);
+  }
+  .grid { gap: 8px; }
+
+  /* --- HUD --- */
+  .hud {
+    height: var(--hud-h);
+    background: rgba(15,18,32,.88);
+    -webkit-backdrop-filter: blur(18px) saturate(1.3); backdrop-filter: blur(18px) saturate(1.3);
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .hud-profil {
+    height: 42px; padding: 0 10px 0 4px; border-radius: 12px;
+    background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.07);
+    box-shadow: inset 0 1px 0 var(--night-hi);
+  }
+  .hud-profil:active { background: rgba(255,255,255,.07); }
+  .hud-nom { font-weight: 500; letter-spacing: .005em; }
+  .hud-niv { letter-spacing: .02em; }
+  .hud-xp { border-radius: 2px; background: rgba(0,0,0,.45); }
+  .hud-xp i { border-radius: 2px; background: linear-gradient(90deg, var(--or), var(--or-clair)); }
+  .res {
+    padding: 0 9px; height: 34px; border-radius: 10px;
+    background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.07);
+    box-shadow: inset 0 1px 0 var(--night-hi);
+    color: #98a1b9;
+  }
+  .res b { font-weight: 600; letter-spacing: .01em; }
+  .res-or b { color: var(--or-clair); }
+  .hud-marque { font-weight: 600; letter-spacing: -0.02em; }
+
+  /* --- barre d'onglets : une surface flottante, sans trait doré brut --- */
+  .tabbar {
+    background: rgba(15,18,32,.86);
+    -webkit-backdrop-filter: blur(22px) saturate(1.4); backdrop-filter: blur(22px) saturate(1.4);
+    border-top: 1px solid rgba(255,255,255,.07);
+    box-shadow: 0 -10px 30px rgba(0,0,0,.35);
+  }
+  .tab { font-size: 10.5px; font-weight: 500; letter-spacing: .02em; color: #6f788f; }
+  .tab:not(.is-active) { color: #6f788f; }
+  .tab.is-active { color: var(--ivory); background: none; font-weight: 600; }
+  .tab.is-active::before {
+    top: 6px; width: 40px; height: 32px; margin-left: -20px;
+    border-radius: 10px; background: rgba(255,255,255,.06);
+  }
+  .tab svg { position: relative; z-index: 1; }
+  .tab span, .tab > *:not(svg) { position: relative; z-index: 1; }
+  .tab.is-active svg { stroke: var(--or-clair); }
+  .badge { border-radius: 8px; font-weight: 600; background: var(--or); color: #14161f; }
+
+  /* --- boutons --- */
+  .btn {
+    border-radius: 10px; font-size: 14.5px; font-weight: 500; letter-spacing: .005em;
+    background: linear-gradient(180deg, #1f2536, #1a1f2e);
+    border-color: rgba(255,255,255,.09);
+    box-shadow: inset 0 1px 0 var(--night-hi), var(--ombre-1);
+    transition: transform .12s ease, background .12s ease, box-shadow .12s ease;
+  }
+  .btn:active { background: #232939; transform: scale(.985); box-shadow: none; }
+  .btn-solid {
+    background: linear-gradient(180deg, #fbf7ec, #efe8d6); color: var(--ink);
+    border-color: transparent; font-weight: 600;
+    box-shadow: 0 1px 0 rgba(255,255,255,.35) inset, 0 6px 18px -8px rgba(246,241,228,.35);
+  }
+  .btn-solid:active { background: #e8e0cc; }
+  .sheet-actions .btn {
+    border-radius: 10px; background: #fff; border-color: #e3dac6;
+    box-shadow: 0 1px 2px rgba(38,33,25,.08);
+  }
+  .sheet-actions .btn:active { background: #f3eee0; }
+  .sheet-actions .btn-solid, .sheet-inner .btn-solid {
+    background: var(--ink); color: var(--ivory); border-color: var(--ink);
+    box-shadow: 0 6px 16px -8px rgba(38,33,25,.6);
+  }
+  .btn-offrir, .sheet-inner .btn-offrir {
+    border-radius: 10px; background: transparent; box-shadow: none;
+    border-color: #ddd3bd; color: var(--ink-soft); font-weight: 500;
+  }
+  .btn-offrir:active { background: #f3eee0; }
+  .sheet-inner .fusion .btn { background: var(--ink); color: var(--ivory); border-color: var(--ink); box-shadow: none; }
+  .sheet-inner .fusion .btn[disabled] { background: #e9e2cf; color: var(--ink-soft); border-color: #e9e2cf; opacity: 1; }
+  .raz .btn { border-radius: 10px; }
+
+  /* Boutons de filtre et petits sélecteurs */
+  .tri-btn, .sous-tab, .hist-diff-btn, .duel-auto, .reveal-vite, .hist-retour {
+    border-radius: 9px; font-weight: 500;
+  }
+  .tri { border-radius: 9px; padding-right: 28px;
+    -webkit-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b94ae' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+  }
+  .tri-btn.actif, .actif-chip {
+    background: linear-gradient(180deg, #f0d891, var(--or)); border-color: transparent;
+    color: #1a1508; font-weight: 600;
+    box-shadow: 0 1px 0 rgba(255,255,255,.35) inset;
+  }
+  .actif-chip { border-radius: 999px; }
+  .sous-tabs {
+    gap: 4px; padding: 8px 16px 10px;
+    background: rgba(15,18,32,.88);
+    -webkit-backdrop-filter: blur(18px) saturate(1.3); backdrop-filter: blur(18px) saturate(1.3);
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .sous-tab { border-color: transparent; background: transparent; min-height: 38px; font-size: 12.5px; }
+  .sous-tab.is-active {
+    background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.08);
+    box-shadow: inset 0 1px 0 var(--night-hi);
+  }
+  .pip { border-radius: 999px; padding: 5px 10px; min-height: 28px; opacity: .8; }
+  .pip.actif { opacity: 1; }
+  .palier { border-radius: 7px; }
+  .neuve-chip { border-radius: 4px; font-weight: 600; background: var(--or); }
+  .hist-diff-btn.actif { border-color: rgba(201,153,46,.55); background: rgba(201,153,46,.08); }
+
+  /* Titres de section : capitales espacées, sobres. */
+  .bt-section h3, .mission-tete, .hist-titre, .raid-title, .eq-titre, .duel-titre,
+  .duo-tete, .boss-tag, .prem-tag, .pui-lab {
+    font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+  }
+  .bt-section h3, .mission-tete, .hist-titre { color: #7d8699; font-size: 10.5px; }
+
+  /* Champs */
+  .code-champ, .code-zone {
+    border-radius: 9px; background: rgba(0,0,0,.28); border-color: rgba(255,255,255,.08);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,.3);
+  }
+  .code-champ:focus { outline: none; border-color: rgba(201,153,46,.6); box-shadow: 0 0 0 3px rgba(201,153,46,.15); }
+
+  /* Jauges */
+  .bar { border-radius: 999px; background: rgba(0,0,0,.4); border-color: rgba(255,255,255,.06); }
+  .bar span { border-radius: 999px; }
+  .duo-jauge, .duo-jauge i, .niv-jauge, .niv-jauge i, .pui-jauge, .pui-jauge i,
+  .hist-bilan-barre, .hist-bilan-barre i, .chap-barre, .chap-barre span,
+  .jauge, .jauge span, .album-prog i { border-radius: 999px; }
+
+  /* --- boutique : le premium se voit à la lueur, pas au cadre --- */
+  .prem-carte { border-radius: var(--r-m); padding: 15px 14px 14px; }
+  .prem-carte.vedette {
+    border-color: rgba(201,153,46,.35);
+    background: linear-gradient(180deg, rgba(201,153,46,.10) 0%, #181c2b 55%);
+    box-shadow: inset 0 1px 0 rgba(236,212,143,.22), 0 12px 32px -14px rgba(201,153,46,.35);
+  }
+  .prem-tag { color: var(--or-clair); font-size: 10px; }
+  .or-offre { border-radius: var(--r-m); border-top-width: 1px; padding-top: 14px; }
+  .or-offre::before {
+    content: ''; display: block; width: 28px; height: 2px; margin: 0 auto 10px;
+    border-radius: 2px; background: linear-gradient(90deg, var(--or), var(--or-clair));
+  }
+  .or-offre[disabled]::before { background: var(--night-line); }
+  .or-offre:active:not([disabled]) { background: #212638; }
+
+  /* --- fiche (feuille ivoire) --- */
+  .sheet { background: rgba(6,8,14,.62); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+  .sheet-inner {
+    border-radius: 20px 20px 0 0; border-top-width: 3px;
+    padding-top: 22px;
+    box-shadow: 0 -20px 50px rgba(0,0,0,.45);
+  }
+  .sheet-inner::before {
+    top: -22px; height: 24px; margin: -22px -18px 6px;
+    background: var(--ivory)
+      linear-gradient(#cfc5ad, #cfc5ad) no-repeat center 10px / 40px 4px;
+    border-radius: 20px 20px 0 0;
+  }
+  .sheet-inner h2 { letter-spacing: -0.015em; }
+  .sheet-sub { font-weight: 600; text-transform: uppercase; }
+  .sheet-vue { border-color: #e6dec9; }
+  .sheet-meta { border-top-color: #e6dec9; }
+  .fusion { border-top-color: #e6dec9; }
+  .fusion .btn { border-radius: 10px; }
+  .sel-carte, .opt-ligne { border-radius: 9px; }
+  .sel-carte { border: 1px solid #e6dec9; border-left-width: 3px; box-shadow: 0 1px 2px rgba(38,33,25,.06); }
+  .opt-ligne { border-radius: 0; }
+  .profil-vign { border-radius: var(--r-s); }
+  .profil-vign.choisi { box-shadow: 0 0 0 2px var(--ink); }
+
+  /* Carte révélée à l'ouverture : coins doux, ombre portée plus profonde. */
+  .face-front, .face-back { border-radius: 14px; }
+  .face-front { box-shadow: 0 18px 44px -12px rgba(0,0,0,.65); }
+  .face-back {
+    border-radius: 14px;
+    box-shadow: 0 16px 38px rgba(0,0,0,.55), inset 0 0 0 5px rgba(201,153,46,.12);
+  }
+  .fig { border-radius: 8px; }
+  .butin { box-shadow: 0 10px 30px -12px var(--tier, rgba(0,0,0,.4)), inset 0 1px 0 var(--night-hi); }
+
+  /* Divers */
+  .haut { border-radius: 14px; background: rgba(24,28,43,.94); border-color: rgba(255,255,255,.09); }
+  .toast {
+    border-radius: 12px; border-left-width: 1px; padding: 11px 16px;
+    background: rgba(22,26,40,.94); border-color: rgba(255,255,255,.09);
+    box-shadow: inset 0 1px 0 var(--night-hi), 0 12px 32px rgba(0,0,0,.5);
+    -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  }
+  .toast::before {
+    content: ''; display: inline-block; width: 6px; height: 6px; margin: 0 9px 2px 0;
+    border-radius: 50%; background: var(--accent, var(--or)); vertical-align: middle;
+  }
+  .maj { border-radius: 14px 14px 0 0; background: rgba(22,26,40,.96); }
+  .coll-stats, .boutique-solde, .credit, .raz, .sauvegarde, .journal { border-color: rgba(255,255,255,.06); }
+  .status { letter-spacing: .01em; }
+  .empty { letter-spacing: .01em; }
+  .hint { line-height: 1.5; }
+  :focus-visible { outline: 2px solid rgba(201,153,46,.7); outline-offset: 2px; border-radius: 6px; }
+
+  /* Écran de lancement : cartouche arrondi, lueur plus retenue. */
+  .splash { background: radial-gradient(90% 60% at 50% 34%, #1b2136 0%, #0f1220 72%); }
+  .splash-marque {
+    border-radius: 26px; border-width: 1px; border-color: rgba(201,153,46,.6);
+    box-shadow: 0 0 0 1px rgba(201,153,46,.12), 0 24px 60px -20px rgba(201,153,46,.45),
+                inset 0 1px 0 rgba(255,255,255,.08);
+    background: linear-gradient(165deg, #1e2334 0%, #141826 100%);
+  }
+  .splash-jauge { border-radius: 2px; }
+  .splash-jauge span { border-radius: 2px; }
+  .splash-credit { color: #444c62; }
 </style>
 </head>
 <body>
