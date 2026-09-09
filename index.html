@@ -1154,6 +1154,9 @@
     color: var(--glass-dim);
   }
 
+  /* L'attribut hidden ne fait rien face à un display déclaré : sans cette
+     règle, la barre restait affichée sur l'écran d'ouverture. */
+  .sous-tabs[hidden] { display: none; }
   .sous-tabs {
     position: sticky; top: var(--hud-h); z-index: 12;
     display: flex; gap: 6px; margin: 0 -16px 18px; padding: 8px 16px 10px;
