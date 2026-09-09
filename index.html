@@ -1531,9 +1531,19 @@
     display: block; height: 3px; background: var(--night-line); margin-top: 8px; position: relative;
   }
   .chap-barre span { position: absolute; inset: 0 auto 0 0; background: #c9992e; }
+  /* Un lien gris de treize pixels ne se voit pas : le retour devient un
+     vrai bouton, avec une cible tactile digne de ce nom. */
   .hist-retour {
-    background: none; border: 0; padding: 0 0 12px; cursor: pointer;
-    font: inherit; font-size: 13px; color: var(--glass-dim);
+    display: inline-flex; align-items: center; gap: 7px;
+    min-height: 42px; padding: 9px 14px 9px 11px; margin-bottom: 14px;
+    cursor: pointer; font: inherit; font-size: 13px; color: var(--ivory);
+    background: var(--night-up); border: 1px solid var(--night-line);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .hist-retour:active { background: #262c40; }
+  .hist-retour svg {
+    width: 15px; height: 15px; stroke: currentColor; fill: none;
+    stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
   }
   .niveau {
     position: relative; display: block; padding: 0 0 0 40px; margin-bottom: 8px;
@@ -5686,7 +5696,9 @@
     var fait = prog[ch.id] || 0;
     var cartes = cartesDomaine(ch.domaine);
 
-    var entete = '<button class="hist-retour" data-hist-retour="1">‹ Tous les chapitres</button>'
+    var entete = '<button class="hist-retour" data-hist-retour="1">'
+      + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>'
+      + 'Tous les chapitres</button>'
       + '<div class="chap-entete" style="--dom:' + teinteDom(ch.domaine) + '">'
       + '<span class="chap-embleme grand">' + esc(ch.nom.charAt(0)) + '</span>'
       + '<span><span class="chap-titre">' + esc(ch.nom) + '</span>'
@@ -6263,7 +6275,9 @@
   var QKEY_QUIZ = 'wikigacha:quiz';
   var QUIZ_TAILLE = 5;
   var QUIZ_GAIN = 15;      /* Wikigold par bonne reponse */
-  var QUIZ_BONUS = 30;     /* bonus si sans-faute */
+  /* Le sans-faute donne un paquet, pas des pièces : c'est la récompense qui
+     se voit. Il passe au-dessus du plafond de dix, comme celui du raid. */
+  var QUIZ_BONUS_PAQUET = 1;
   var QUIZ_PAR_JOUR = 2;
 
   var quizSession = null;
@@ -6306,7 +6320,7 @@
         body.innerHTML = '<p class="hist-titre">QUIZ DU JOUR</p>'
           + '<p class="duel-intro">Cinq questions de culture sur des articles de '
           + 'Wikipédia. Chaque bonne réponse rapporte ' + QUIZ_GAIN + ' Wikigold, '
-          + 'avec un bonus de ' + QUIZ_BONUS + ' pour un sans-faute. '
+          + 'et un <b>paquet</b> récompense le sans-faute. '
           + 'Il vous reste ' + reste + ' quiz aujourd’hui.</p>'
           + '<button class="btn btn-solid" id="quiz-start">Commencer le quiz</button>';
       }
@@ -6316,8 +6330,18 @@
     var s = quizSession;
     if (s.i >= s.questions.length) {
       /* Fin : on verse les gains et on verrouille pour la journee. */
-      var gain = s.bonnes * QUIZ_GAIN + (s.bonnes === QUIZ_TAILLE ? QUIZ_BONUS : 0);
+      var gain = s.bonnes * QUIZ_GAIN;
       ajouterGold(gain);
+      var parfait = s.bonnes === QUIZ_TAILLE;
+      if (parfait) {
+        /* Au-dessus du plafond : la régénération reste bloquée tant qu'on
+           dépasse dix, mais un paquet mérité ne se perd pas. */
+        var pkq = readPacks();
+        pkq.n += QUIZ_BONUS_PAQUET;
+        writePacks(pkq);
+        refreshPacks();
+        son('legendaire'); vib([0, 24, 50, 45]);
+      }
       try {
         localStorage.setItem(QKEY_QUIZ,
           JSON.stringify({ date: jour(), n: quizFaitsAujourdhui() + 1 }));
@@ -6325,7 +6349,7 @@
       body.innerHTML = '<p class="hist-titre">QUIZ TERMINÉ</p>'
         + '<div class="win"><h3>' + s.bonnes + ' / ' + QUIZ_TAILLE + ' bonnes réponses</h3>'
         + '<p>' + gain + ' Wikigold gagnés'
-        + (s.bonnes === QUIZ_TAILLE ? ' (sans-faute !)' : '') + '.</p>'
+        + (parfait ? ' <b>et un paquet</b> — sans-faute !' : '.') + '</p>'
         + '<p>' + (quizRestants() > 0
             ? 'Il vous reste ' + quizRestants() + ' quiz aujourd’hui.'
             : 'À demain pour de nouveaux quiz.') + '</p></div>'
