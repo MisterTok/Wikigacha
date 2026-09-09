@@ -60,20 +60,48 @@
      l'ecran. Le joueur n'a plus a remonter pour savoir ce qu'il possede. */
   .hud {
     position: sticky; top: 0; z-index: 15;
-    margin: 0 -16px 14px; padding: 0 16px; height: var(--hud-h);
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin: 0 -16px 14px; padding: 0 14px; height: var(--hud-h);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
     background: rgba(20,24,38,.93);
     -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--night-line);
   }
   .hud-marque {
-    font-family: var(--display); font-weight: 600; font-size: 20px;
+    font-family: var(--display); font-weight: 600; font-size: 19px;
     color: var(--ivory); letter-spacing: -0.015em; white-space: nowrap;
+    font-size: 17px; flex: 0 1 auto; min-width: 0; overflow: hidden;
   }
-  .hud-res { display: flex; gap: 7px; }
+  /* Sur les écrans les plus étroits, le profil et les ressources passent
+     avant la marque : elle est déjà portée par l'écran de lancement. */
+  @media (max-width: 379px) { .hud-marque { display: none; } }
+
+  .hud-profil {
+    display: flex; align-items: center; gap: 7px; flex: none;
+    height: 36px; padding: 0 8px 0 4px; margin-right: 2px;
+    font: inherit; color: var(--glass); cursor: pointer;
+    background: var(--night-up); border: 1px solid var(--night-line);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .hud-profil:active { background: #262c40; }
+  .hud-ava {
+    display: block; width: 26px; height: 26px; flex: none; overflow: hidden;
+    background: #0e111a; border: 1px solid var(--tier, var(--night-line));
+  }
+  .hud-ava img, .hud-ava .art {
+    display: block; width: 100%; height: 100%; object-fit: cover;
+  }
+  .hud-nom {
+    max-width: 62px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; font-size: 12px; color: var(--ivory);
+  }
+  .hud-ecrou {
+    width: 13px; height: 13px; flex: none; stroke: var(--glass-dim);
+    fill: none; stroke-width: 1.8; stroke-linecap: round;
+  }
+  .hud-res { display: flex; gap: 6px; flex: none; }
   .res {
-    display: inline-flex; align-items: center; gap: 5px;
-    padding: 5px 9px; font-size: 12px; color: var(--glass-dim);
+    display: inline-flex; align-items: center; gap: 4px; flex: none;
+    padding: 5px 7px; font-size: 11.5px; color: var(--glass-dim);
     background: var(--night-up); border: 1px solid var(--night-line);
     font-variant-numeric: tabular-nums; white-space: nowrap;
   }
@@ -1409,8 +1437,36 @@
   }
 
   .reglages { margin-top: 18px; }
-  .reglages { display: flex; flex-wrap: wrap; gap: 8px; }
-  .reglages .tri-btn { flex: 1 1 46%; }
+  .reglages { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+  .reglages .tri-btn {
+    flex: 1 1 30%; background: #fff; border-color: var(--ivory-dim);
+    color: var(--ink); min-height: 44px;
+  }
+  .reglages .tri-btn.actif {
+    color: #1a1d29; background: linear-gradient(160deg, #f3dfa4, #c9992e);
+    border-color: #c9992e;
+  }
+
+  .profil-titre { margin-top: 18px; }
+  #profil-nom {
+    width: 100%; background: #fff; border: 1px solid var(--ivory-dim);
+    color: var(--ink); font: inherit; font-size: 16px; padding: 11px;
+  }
+  .profil-ava {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px;
+    max-height: 210px; overflow-y: auto; padding: 2px;
+  }
+  .profil-vign {
+    position: relative; aspect-ratio: 1; padding: 0; overflow: hidden;
+    background: var(--ivory-dim); border: 1px solid var(--ivory-dim);
+    cursor: pointer; font: inherit; font-size: 11px; color: var(--ink-soft);
+  }
+  .profil-vign img, .profil-vign .art {
+    display: block; width: 100%; height: 100%; object-fit: cover;
+  }
+  .profil-vign.choisi {
+    outline: 3px solid var(--tier, var(--ink)); outline-offset: -3px;
+  }
 
   /* --- ecran de demarrage ---
      Il couvre le temps de chargement de la police et du premier rendu.
@@ -1552,6 +1608,14 @@
 </div>
 
 <header class="hud">
+  <button class="hud-profil" id="hud-profil" aria-label="Profil et réglages">
+    <span class="hud-ava" id="hud-ava"></span>
+    <span class="hud-nom" id="hud-nom">Profil</span>
+    <svg class="hud-ecrou" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="3.4"/>
+      <path d="M12 2.6v2.6M12 18.8v2.6M2.6 12h2.6M18.8 12h2.6M5.3 5.3l1.9 1.9M16.8 16.8l1.9 1.9M18.7 5.3l-1.9 1.9M7.2 16.8l-1.9 1.9"/>
+    </svg>
+  </button>
   <span class="hud-marque">Wikigacha</span>
   <span class="hud-res">
     <span class="res" id="res-packs">
@@ -1656,20 +1720,8 @@
       </select>
       <button id="coll-favonly" class="tri-btn" aria-label="Favoris">★</button>
       <button id="coll-vue" class="tri-btn" aria-label="Affichage">▦</button>
-      <button id="coll-reglages-btn" class="tri-btn" aria-label="Réglages">⚙</button>
     </div>
     <div id="coll-actifs" class="actifs" hidden></div>
-  </div>
-  <!-- Réglages et sauvegarde : en haut, repliés. Au bas d'une liste de
-       quatre cents cartes, ils étaient hors d'atteinte. -->
-  <div id="coll-reglages" hidden>
-    <div class="reglages">
-      <button id="opt-vibr" class="tri-btn">Vibrations : activées</button>
-      <button id="opt-son" class="tri-btn">Sons : activés</button>
-    <button id="opt-notif" class="tri-btn" hidden>Rappel : coupé</button>
-    </div>
-    <div id="coll-zone-sauvegarde"></div>
-    <div id="coll-zone-raz"></div>
   </div>
   <div id="coll-grid" class="grid"></div>
   <div id="coll-sentinelle" hidden>Chargement de la suite…</div>
@@ -1818,6 +1870,40 @@
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[m];
     });
   };
+
+  /* ---------- profil ----------
+     Un nom et un visage, choisis parmi les cartes déjà tirées : l'avatar
+     récompense la collection au lieu d'être un décor de plus. */
+  var PRKEY = 'wikigacha:profil';
+  var profil = { nom: '', avatar: '' };
+  try {
+    var _p = JSON.parse(localStorage.getItem(PRKEY));
+    if (_p) { profil.nom = _p.nom || ''; profil.avatar = _p.avatar || ''; }
+  } catch (e) {}
+  function saveProfil() {
+    try { localStorage.setItem(PRKEY, JSON.stringify(profil)); } catch (e) {}
+  }
+
+  function carteAvatar() {
+    return profil.avatar ? collection[profil.avatar] : null;
+  }
+
+  function majProfil() {
+    var nom = el('hud-nom'), ava = el('hud-ava');
+    if (!nom || !ava) return;
+    nom.textContent = profil.nom || 'Profil';
+    var c = carteAvatar();
+    if (c) {
+      var t = tierOf(c.rank);
+      ava.style.setProperty('--tier', t.color);
+      ava.innerHTML = c.thumb
+        ? '<img src="' + esc(c.thumb) + '" alt="" loading="lazy" decoding="async">'
+        : artSVG(c.title, t.color);
+    } else {
+      ava.style.removeProperty('--tier');
+      ava.innerHTML = '';
+    }
+  }
 
   /* ---------- confort de jeu ---------- */
 
@@ -3353,6 +3439,71 @@
     el('reveal').hidden = true;
     el('draw').innerHTML = '';
     el('hint').textContent = 'Tirez la languette vers la droite';
+  }
+
+  /* Feuille de profil : identité, réglages, sauvegarde, remise à zéro.
+     Tout ce qui n'est pas du jeu tient désormais ici, à un toucher du bandeau,
+     au lieu d'être enterré sous quatre cents cartes. */
+  function ouvrirProfil() {
+    var inner = el('sheet-inner');
+    var c = carteAvatar();
+    inner.style.setProperty('--tier', c ? tierOf(c.rank).color : '#c9992e');
+
+    var avatars = Object.keys(collection).map(function (k) { return collection[k]; })
+      .sort(function (a, b) {
+        return (rankIndex(b.rank) - rankIndex(a.rank))
+            || ((b.obtenu || 0) - (a.obtenu || 0));
+      }).slice(0, 48);
+
+    inner.innerHTML = '<h2>Profil</h2>'
+      + '<p class="sheet-sub">VOTRE NOM</p>'
+      + '<input id="profil-nom" class="code-champ" type="text" maxlength="18" '
+      + 'placeholder="Sans nom" autocomplete="off" value="' + esc(profil.nom) + '">'
+
+      + '<p class="sheet-sub profil-titre">VOTRE PORTRAIT</p>'
+      + (avatars.length
+          ? '<div class="profil-ava">'
+            + '<button class="profil-vign' + (profil.avatar ? '' : ' choisi')
+            + '" data-ava="">Aucun</button>'
+            + avatars.map(function (a) {
+                var t = tierOf(a.rank);
+                return '<button class="profil-vign'
+                  + (profil.avatar === a.title ? ' choisi' : '') + '" '
+                  + 'style="--tier:' + t.color + '" data-ava="' + esc(a.title) + '" '
+                  + 'title="' + esc(a.title) + '">'
+                  + (a.thumb
+                      ? '<img src="' + esc(a.thumb) + '" alt="" loading="lazy" decoding="async">'
+                      : artSVG(a.title, t.color))
+                  + '</button>';
+              }).join('')
+            + '</div>'
+          : '<p class="sheet-sub">Ouvrez un paquet pour avoir le choix.</p>')
+
+      + '<p class="sheet-sub profil-titre">RÉGLAGES</p>'
+      + '<div class="reglages">'
+      + '<button id="opt-vibr" class="tri-btn">Vibrations</button>'
+      + '<button id="opt-son" class="tri-btn">Sons</button>'
+      + '<button id="opt-notif" class="tri-btn" hidden>Rappel</button>'
+      + '</div>'
+
+      + '<p class="sheet-sub profil-titre">VOTRE PROGRESSION</p>'
+      + '<div id="coll-zone-sauvegarde"></div>'
+      + '<div id="coll-zone-raz"></div>'
+      + '<button class="btn" id="sheet-close">Fermer</button>';
+
+    montrerSauvegarde();
+    el('coll-zone-raz').innerHTML = Object.keys(collection).length
+      ? '<div class="raz"><p class="raz-mot">Tout effacer supprime définitivement '
+        + 'votre collection, vos succès et votre progression.</p>'
+        + '<button class="btn" data-raz="1">Repartir de zéro</button></div>' : '';
+    majOptions();
+
+    el('profil-nom').addEventListener('input', function () {
+      profil.nom = el('profil-nom').value.trim();
+      saveProfil(); majProfil();
+    });
+    ouvrirFeuille();
+    el('sheet-close').addEventListener('click', closeSheet);
   }
 
   /* ---------- fiche ---------- */
@@ -5521,8 +5672,6 @@
     el('coll-vue').classList.toggle('actif', vue.compact);
     el('coll-vue').textContent = vue.compact ? '☰' : '▦';
     el('coll-grid').classList.toggle('compact', vue.compact);
-    /* Sans la barre d'outils, les reglages resteraient inaccessibles. */
-    if (el('coll-outils').hidden) el('coll-reglages').hidden = false;
 
     if (items.length) {
       var total = items.reduce(function (s, c) { return s + c.count; }, 0);
@@ -5587,11 +5736,7 @@
     el('coll-vide-filtre').innerHTML = (items.length && !vus.length)
       ? '<p class="status">Aucune carte ne correspond'
         + (act.length ? ' aux filtres actifs' : '') + '.</p>' : '';
-    montrerSauvegarde();
-    el('coll-zone-raz').innerHTML = items.length
-      ? '<div class="raz"><p class="raz-mot">Tout effacer supprime définitivement '
-        + 'votre collection, vos succès et votre progression.</p>'
-        + '<button class="btn" data-raz="1">Repartir de zéro</button></div>' : '';
+
   }
 
   var TOUTES_CLES = [KEY, PKEY, RKEY, SKEY, JKEY, CKEY, VKEY, HKEY];
@@ -5639,6 +5784,9 @@
   }
 
   function montrerSauvegarde(msg) {
+    /* Ces zones ne vivent plus que dans la feuille de profil : hors de là,
+       il n'y a rien à peindre. */
+    if (!el('coll-zone-sauvegarde')) return;
     el('coll-zone-sauvegarde').innerHTML =
       '<div class="sauvegarde"><p class="raz-mot">Sauvegardez votre progression '
       + 'dans un fichier, ou restaurez-la sur un autre appareil.</p>'
@@ -5674,6 +5822,7 @@
   }
 
   function demanderRaz(etape) {
+    if (!el('coll-zone-raz')) return;
     if (etape === '1') {
       el('coll-zone-raz').innerHTML = '<div class="raz">'
         + '<p class="raz-mot">Sûr ? Il n’y a pas de retour possible.</p>'
@@ -5681,7 +5830,7 @@
         + '<button class="btn" data-raz="oui">Oui, tout effacer</button></div>';
       return;
     }
-    if (etape === 'annule') { showCollection(); return; }
+    if (etape === 'annule') { ouvrirProfil(); return; }
     /* Une écriture en attente réécrirait la collection juste après l'effacement. */
     annulerSauve();
     TOUTES_CLES.forEach(function (k) {
@@ -5692,7 +5841,9 @@
     vue = { tri: 'rarete', q: '', favOnly: false, rang: '', dom: '', compact: false };
     el('coll-q').value = '';
     refreshCount(); refreshPacks(); refreshSucces(); showMissions();
+    majProfil();
     showCollection();
+    closeSheet();
   }
 
   var sousCartes = 'ouvrir';
@@ -5898,6 +6049,7 @@
     f.addEventListener('mouseleave', fin);
   })();
 
+  el('hud-profil').addEventListener('click', ouvrirProfil);
   el('flipper').addEventListener('click', onFlip);
   el('tout-reveler').addEventListener('click', toutReveler);
   el('flipper').addEventListener('keydown', function (e) {
@@ -5931,6 +6083,22 @@
   });
   /* Selection d'une carte depuis le panneau. */
   el('sheet-inner').addEventListener('click', function (e) {
+    if (!e.target.closest) return;
+    var av = e.target.closest('[data-ava]');
+    if (av) {
+      profil.avatar = av.getAttribute('data-ava');
+      saveProfil(); majProfil(); ouvrirProfil();
+      return;
+    }
+    var opt = e.target.closest('#opt-vibr, #opt-son, #opt-notif');
+    if (opt) {
+      if (opt.id === 'opt-vibr') { options.vibr = !options.vibr; saveOptions(); majOptions(); vib(12); }
+      else if (opt.id === 'opt-son') {
+        options.son = !options.son; saveOptions(); majOptions();
+        if (options.son) son('gain');   /* on fait entendre ce qu'on allume */
+      } else activerNotif(!options.notif);
+      return;
+    }
     var sc = e.target.closest ? e.target.closest('[data-sel-titre]') : null;
     if (!sc || !duelCourant) return;
     var slot = parseInt(sc.getAttribute('data-sel-slot'), 10);
@@ -6101,41 +6269,29 @@
     minuteurQ = setTimeout(showCollection, 160);
   });
 
-  el('coll-reglages-btn').addEventListener('click', function () {
-    var z = el('coll-reglages');
-    z.hidden = !z.hidden;
-    el('coll-reglages-btn').classList.toggle('actif', !z.hidden);
-    if (!z.hidden) montrerSauvegarde();
-  });
-
-  el('opt-vibr').addEventListener('click', function () {
-    options.vibr = !options.vibr;
-    saveOptions(); majOptions(); vib(12);
-  });
-  el('opt-notif').addEventListener('click', function () {
-    activerNotif(!options.notif);
-  });
   el('pack-notif').addEventListener('click', function () {
     activerNotif(true);
   });
-  el('opt-son').addEventListener('click', function () {
-    options.son = !options.son;
-    saveOptions(); majOptions();
-    if (options.son) son('gain');   /* on fait entendre ce qu'on vient d'allumer */
-  });
+  /* Les boutons de réglage n'existent que pendant que la feuille de profil
+     est ouverte : tout est donc conditionnel. */
   function majOptions() {
     var n = el('opt-notif');
-    n.hidden = !notifDisponible();
-    n.textContent = 'Rappel : ' + (options.notif ? 'activé' : 'coupé');
-    n.classList.toggle('actif', options.notif);
+    if (n) {
+      n.hidden = !notifDisponible();
+      n.textContent = 'Rappel : ' + (options.notif ? 'activé' : 'coupé');
+      n.classList.toggle('actif', options.notif);
+    }
     var b = el('opt-vibr');
-    b.textContent = 'Vibrations : ' + (options.vibr ? 'activées' : 'coupées');
-    b.classList.toggle('actif', options.vibr);
+    if (b) {
+      b.textContent = 'Vibrations : ' + (options.vibr ? 'activées' : 'coupées');
+      b.classList.toggle('actif', options.vibr);
+    }
     var c = el('opt-son');
-    c.textContent = 'Sons : ' + (options.son ? 'activés' : 'coupés');
-    c.classList.toggle('actif', options.son);
+    if (c) {
+      c.textContent = 'Sons : ' + (options.son ? 'activés' : 'coupés');
+      c.classList.toggle('actif', options.son);
+    }
   }
-  majOptions();
 
   if (OBS_OK) {
     listeObs = new IntersectionObserver(function (ents) {
@@ -6170,6 +6326,7 @@
 
   /* Etat local d'abord (le jeu doit marcher hors ligne), puis verification
      aupres de Play en tache de fond — remboursement compris. */
+  majProfil();
   litAchats();
   appliquerAchats();
   restaurerAchats(true).then(function () {
