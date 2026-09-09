@@ -16,6 +16,7 @@
      jeu fonctionne exactement comme avant. -->
 <script src="pont-pub.js" defer></script>
 <script src="pont-notif.js" defer></script>
+<script src="pont-achats.js" defer></script>
 <style>
   :root {
     --night:     #141826;
@@ -2103,6 +2104,13 @@
   function achatsDisponibles() {
     return !!(pontAchats() || window.getDigitalGoodsService);
   }
+  /* Dire « disponible dans l'application Android » quand on EST dans
+     l'application Android n'aurait aucun sens. */
+  function motAchatsIndispo() {
+    return window.Capacitor
+      ? 'Achats bientôt disponibles.'
+      : 'Disponible dans l’application Android.';
+  }
 
   function servicePlay() {
     if (!window.getDigitalGoodsService) return Promise.resolve(null);
@@ -2179,7 +2187,7 @@
       return;
     }
     if (!window.PaymentRequest || !window.getDigitalGoodsService) {
-      showBoutique('Ces achats se font depuis l’application Android.');
+      showBoutique(motAchatsIndispo());
       return;
     }
     var req;
@@ -3506,6 +3514,174 @@
     el('sheet-close').addEventListener('click', closeSheet);
   }
 
+  /* ---------- partage d'une carte ----------
+     On peint la carte sur un canevas au format 4:5, celui qui s'affiche le
+     mieux dans les messageries et les réseaux. L'attribution Wikipédia est
+     gravée dans l'image : elle voyage avec elle, ce qui est exactement ce que
+     demande la licence CC BY-SA quand le contenu quitte l'application. */
+
+  /* Découpe en lignes, avec points de suspension quand ça déborde : une
+     phrase coupée net au milieu d'un mot fait négligé. */
+  function motCoupe(x, texte, large, max) {
+    var mots = String(texte).split(/\s+/), lignes = [], ligne = '', reste = false;
+    for (var i = 0; i < mots.length; i++) {
+      var essai = ligne ? ligne + ' ' + mots[i] : mots[i];
+      if (ligne && x.measureText(essai).width > large) {
+        if (lignes.length + 1 === max) { reste = true; break; }
+        lignes.push(ligne); ligne = mots[i];
+      } else ligne = essai;
+    }
+    if (ligne) lignes.push(ligne);
+    if (reste && lignes.length) {
+      lignes[lignes.length - 1] = lignes[lignes.length - 1].replace(/[,;:]$/, '') + '…';
+    }
+    return lignes;
+  }
+
+  function imageCarte(c) {
+    return new Promise(function (resolve) {
+      var W = 1080, H = 1350, M = 46;      /* marge du cadre */
+      var cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      var x = cv.getContext('2d');
+      var t = tierOf(c.rank);
+      var SERIF = '"Fraunces", Georgia, "Times New Roman", serif';
+      var SANS = 'system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
+
+      /* fond nuit + trame diagonale, comme la pochette */
+      var g = x.createLinearGradient(0, 0, W * 0.4, H);
+      g.addColorStop(0, '#232a41'); g.addColorStop(1, '#12151f');
+      x.fillStyle = g; x.fillRect(0, 0, W, H);
+      x.strokeStyle = 'rgba(255,255,255,.03)'; x.lineWidth = 8;
+      for (var k = -H; k < W + H; k += 34) {
+        x.beginPath(); x.moveTo(k, 0); x.lineTo(k + H, H); x.stroke();
+      }
+
+      var IX = M + 26, IY = M + 150, IW = W - 2 * (M + 26);
+      /* Le bloc de texte est calé sur le bas ; c'est la hauteur de l'image qui
+         s'ajuste selon que le titre tient sur une ou deux lignes. Sinon on
+         obtient soit un grand vide, soit un titre collé à la signature. */
+      x.font = '600 56px ' + SERIF;
+      var lignes = motCoupe(x, c.title, IW - 10, 2);
+      var yStats = H - M - 58 - 84;
+      var yDesc = yStats - 58;
+      var yTitre = yDesc - 56;                       /* dernière ligne du titre */
+      var IH = (yTitre - (lignes.length - 1) * 66) - 84 - IY;
+
+      function suite(img) {
+        /* visuel de l'article, recadré en remplissage */
+        x.save();
+        x.beginPath(); x.rect(IX, IY, IW, IH); x.clip();
+        if (img) {
+          var r = Math.max(IW / img.width, IH / img.height);
+          var w = img.width * r, h = img.height * r;
+          x.drawImage(img, IX + (IW - w) / 2, IY + (IH - h) / 2, w, h);
+        } else {
+          /* Pas d'illustration : l'initiale du titre, en grand et discrète.
+             Des rayures plein cadre faisaient trop de bruit. */
+          x.fillStyle = '#0d1119'; x.fillRect(IX, IY, IW, IH);
+          x.fillStyle = t.color; x.globalAlpha = 0.2;
+          x.font = '600 460px ' + SERIF;
+          x.textAlign = 'center'; x.textBaseline = 'middle';
+          x.fillText(c.title.charAt(0).toUpperCase(), IX + IW / 2, IY + IH / 2);
+          x.globalAlpha = 1;
+        }
+        x.restore();
+        x.textBaseline = 'alphabetic';
+
+        /* voile bas : le titre doit rester lisible sur n'importe quelle photo */
+        var v = x.createLinearGradient(0, IY + IH - 220, 0, IY + IH);
+        v.addColorStop(0, 'rgba(18,21,31,0)'); v.addColorStop(1, 'rgba(18,21,31,.9)');
+        x.fillStyle = v; x.fillRect(IX, IY + IH - 220, IW, 220);
+        x.strokeStyle = 'rgba(0,0,0,.5)'; x.lineWidth = 2;
+        x.strokeRect(IX, IY, IW, IH);
+
+        /* bandeau du palier, posé à l'intérieur du cadre doré */
+        x.fillStyle = t.color;
+        x.fillRect(M + 4, M + 62, W - 2 * (M + 4), 62);
+        x.fillStyle = '#14161f';
+        x.font = '600 30px ' + SERIF;
+        x.textAlign = 'center'; x.textBaseline = 'middle';
+        x.fillText(c.rank.toUpperCase(), W / 2, M + 94);
+        x.textBaseline = 'alphabetic';
+
+        /* titre, description et statistiques, aux hauteurs calculées plus haut */
+        x.textAlign = 'left';
+        x.fillStyle = '#f6f1e4';
+        x.font = '600 56px ' + SERIF;
+        var y0 = yTitre - (lignes.length - 1) * 66;
+        lignes.forEach(function (l, i) { x.fillText(l, IX, y0 + i * 66); });
+
+        if (c.desc) {
+          x.fillStyle = '#8b94ae';
+          x.font = '400 27px ' + SANS;
+          var dl = motCoupe(x, c.desc, IW - 10, 1);
+          if (dl.length) x.fillText(dl[0], IX, yDesc);
+        }
+
+        x.fillStyle = '#b9c0d4';
+        x.font = '400 32px ' + SANS;
+        x.fillText('ATQ ' + atkEff(c) + '   ·   DÉF ' + defEff(c), IX, yStats);
+
+        /* cadre doré */
+        x.strokeStyle = 'rgba(201,153,46,.75)'; x.lineWidth = 4;
+        x.strokeRect(M, M, W - 2 * M, H - 2 * M);
+
+        /* signature et attribution : elles partent avec l'image */
+        x.textAlign = 'center'; x.fillStyle = '#f0dda4';
+        x.font = '600 32px ' + SERIF;
+        x.fillText('Wikigacha', W / 2, H - M - 58);
+        x.fillStyle = '#6d7796';
+        x.font = '400 20px ' + SANS;
+        x.fillText('D’APRÈS WIKIPÉDIA · CC BY-SA 4.0', W / 2, H - M - 26);
+
+        try { cv.toBlob(function (b) { resolve(b); }, 'image/png'); }
+        catch (e) { resolve(null); }   /* canevas contaminé : on renonce */
+      }
+
+      if (c.thumb) {
+        var im = new Image();
+        /* Sans cette ligne le canevas serait contaminé et l'export refusé.
+           Les images de Wikimedia sont servies avec les en-têtes qu'il faut. */
+        im.crossOrigin = 'anonymous';
+        im.onload = function () { suite(im); };
+        im.onerror = function () { suite(null); };
+        im.src = c.thumb;
+      } else suite(null);
+    });
+  }
+
+  function partagerCarte(titre) {
+    var c = collection[titre];
+    if (!c) return;
+    var polices = (document.fonts && document.fonts.ready)
+      ? document.fonts.ready : Promise.resolve();
+    toast('Préparation de l’image…');
+    polices.then(function () { return imageCarte(c); }).then(function (blob) {
+      if (!blob) { toast('Image indisponible pour cette carte.'); return; }
+      var nom = 'wikigacha-' + c.title.toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) + '.png';
+      var f = null;
+      try { f = new File([blob], nom, { type: 'image/png' }); } catch (e) {}
+      if (f && navigator.canShare && navigator.canShare({ files: [f] })) {
+        return navigator.share({
+          files: [f],
+          text: c.title + ' — ' + c.rank + ', tirée sur Wikigacha.'
+        });
+      }
+      /* Pas de partage natif (navigateur de bureau) : on enregistre. */
+      var u = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = u; a.download = nom;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(u); }, 1000);
+      toast('Image enregistrée.');
+    })['catch'](function (err) {
+      if (err && err.name === 'AbortError') return;   /* partage annulé */
+      toast('Partage impossible.');
+    });
+  }
+
   /* ---------- fiche ---------- */
 
   /* Texte d'ambiance pour les hautes raretes (Épique et au-dessus).
@@ -3588,6 +3764,7 @@
       + '<button class="btn" id="sheet-close">Fermer</button>'
       + '<a class="btn" href="' + esc(c.url) + '" target="_blank" rel="noopener">Lire l’article</a>'
       + '</div>'
+      + '<button class="btn" data-partage="' + esc(c.title) + '">Partager cette carte</button>'
       + blocFusion(c)
       + '<button class="btn btn-offrir" id="sheet-offrir" data-offrir="' + esc(c.title) + '">'
       + 'Offrir cette carte' + (c.count > 1 ? ' (vous en avez ' + c.count + ')' : '')
@@ -5435,7 +5612,7 @@
               + (prix[achats.sansPub ? SKU_MAJ : SKU_PREMIUM]
                   ? ' — ' + esc(prix[achats.sansPub ? SKU_MAJ : SKU_PREMIUM]) : '')
               + '</button>'
-            : '<p class="status">Disponible dans l’application Android.</p>')
+            : '<p class="status">' + motAchatsIndispo() + '</p>')
         + '</div>';
 
       if (!achats.sansPub) {
@@ -6084,6 +6261,8 @@
   /* Selection d'une carte depuis le panneau. */
   el('sheet-inner').addEventListener('click', function (e) {
     if (!e.target.closest) return;
+    var pa = e.target.closest('[data-partage]');
+    if (pa) { partagerCarte(pa.getAttribute('data-partage')); return; }
     var av = e.target.closest('[data-ava]');
     if (av) {
       profil.avatar = av.getAttribute('data-ava');
@@ -6348,7 +6527,9 @@
   /* Service worker : le jeu doit s'ouvrir et se jouer sans reseau. La
      collection, les albums, les succes et le mode histoire ne demandent rien
      au reseau — seule la page manquait a l'appel. */
-  if ('serviceWorker' in navigator) {
+  /* Sous Capacitor, les fichiers sont déjà servis en local : un service
+     worker n'apporterait rien et chercherait un sw.js absent. */
+  if (!window.Capacitor && 'serviceWorker' in navigator) {
     window.addEventListener('load', function () {
       navigator.serviceWorker.register('sw.js').then(function (reg) {
         function surveiller(w) {
