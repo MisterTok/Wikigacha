@@ -77,6 +77,7 @@
   @media (max-width: 379px) { .hud-marque { display: none; } }
 
   .hud-profil {
+    position: relative;
     display: flex; align-items: center; gap: 7px; flex: none;
     height: 36px; padding: 0 8px 0 4px; margin-right: 2px;
     font: inherit; color: var(--glass); cursor: pointer;
@@ -159,6 +160,8 @@
     color: #1a1d29; background: #c9992e;
   }
   .badge:empty { display: none; }
+  /* Sur la pastille de profil, le compteur se pose en haut à droite. */
+  .badge-profil { top: -6px; left: auto; right: -6px; margin: 0; }
   :focus-visible { outline: 2px solid var(--t3); outline-offset: 2px; }
   #coll-count { opacity: .7; font-variant-numeric: tabular-nums; }
 
@@ -1522,6 +1525,23 @@
     border-color: #c9992e;
   }
 
+  /* Deux volets en tête de feuille : identité et succès. */
+  .profil-seg {
+    display: flex; gap: 6px; margin: -4px 0 16px;
+  }
+  .profil-seg .sous-tab {
+    flex: 1; min-height: 42px; border-color: var(--ivory-dim);
+    color: var(--ink-soft); background: #fff;
+  }
+  .profil-seg .sous-tab.is-active {
+    color: var(--ivory); background: var(--ink); border-color: var(--ink);
+  }
+  .seg-badge {
+    display: inline-block; min-width: 17px; padding: 1px 4px; margin-left: 4px;
+    font-size: 10.5px; color: #14161f; background: #c9992e;
+    font-variant-numeric: tabular-nums;
+  }
+
   .profil-titre { margin-top: 18px; }
   #profil-nom {
     width: 100%; background: #fff; border: 1px solid var(--ivory-dim);
@@ -1690,6 +1710,7 @@
   <button class="hud-profil" id="hud-profil" aria-label="Profil et réglages">
     <span class="hud-ava" id="hud-ava"></span>
     <span class="hud-nom" id="hud-nom">Profil</span>
+    <span id="succes-count" class="badge badge-profil"></span>
     <svg class="hud-ecrou" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M9.80 1.63L14.20 1.63L13.41 5.35L17.05 7.45L19.88 4.91L22.08 8.72L18.47 9.90L18.47 14.10L22.08 15.28L19.88 19.09L17.05 16.55L13.41 18.65L14.20 22.37L9.80 22.37L10.59 18.65L6.95 16.55L4.12 19.09L1.92 15.28L5.53 14.10L5.53 9.90L1.92 8.72L4.12 4.91L6.95 7.45L10.59 5.35Z"/>
       <circle cx="12" cy="12" r="3.6"/>
@@ -1713,9 +1734,8 @@
 </div>
 
 <main id="view-cartes">
-  <nav class="sous-tabs">
-    <button id="sub-ouvrir" class="sous-tab is-active">Ouvrir</button>
-    <button id="sub-collec" class="sous-tab">Collection <span id="coll-count">(0)</span></button>
+  <nav class="sous-tabs" id="sous-tabs-cartes" hidden>
+    <button id="sub-collec" class="sous-tab is-active">Collection <span id="coll-count">(0)</span></button>
     <button id="sub-albums" class="sous-tab">Albums <span id="albums-count"></span></button>
   </nav>
   <div id="view-open">
@@ -1826,10 +1846,6 @@
   <div id="quiz-body" hidden></div>
 </main>
 
-<main id="view-succes" hidden>
-  <div id="succes-body"></div>
-</main>
-
 <div id="sheet" class="sheet" hidden>
   <div class="sheet-inner" id="sheet-inner"></div>
 </div>
@@ -1851,8 +1867,12 @@
 <nav class="tabbar" aria-label="Navigation principale">
   <div class="tabbar-in">
     <button id="tab-cartes" class="tab is-active">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M4 11h16"/><path d="M12 7V3"/></svg>
+      <span>Ouvrir</span>
+    </button>
+    <button id="tab-collec" class="tab">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="11" height="15"/><path d="M8 3h10a2 2 0 0 1 2 2v12"/></svg>
-      <span>Cartes</span>
+      <span>Collection</span>
     </button>
     <button id="tab-raid" class="tab">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V3"/><path d="M5 4h13l-3 4 3 4H5"/></svg>
@@ -1861,11 +1881,6 @@
     <button id="tab-boutique" class="tab">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16l-1.2 12H5.2z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/></svg>
       <span>Boutique</span>
-    </button>
-    <button id="tab-succes" class="tab">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 5H5v1.5A3.5 3.5 0 0 0 8 10"/><path d="M16 5h3v1.5A3.5 3.5 0 0 1 16 10"/><path d="M12 13v4"/><path d="M9 20h6"/></svg>
-      <span>Succès</span>
-      <span id="succes-count" class="badge"></span>
     </button>
   </div>
 </nav>
@@ -3692,65 +3707,94 @@
   /* Feuille de profil : identité, réglages, sauvegarde, remise à zéro.
      Tout ce qui n'est pas du jeu tient désormais ici, à un toucher du bandeau,
      au lieu d'être enterré sous quatre cents cartes. */
-  function ouvrirProfil() {
+  /* La feuille de profil porte deux volets : l'identité et les succès. Les
+     succès occupaient un onglet entier de la barre du bas pour un écran qu'on
+     consulte, pas un écran où l'on joue — cet onglet est rendu à la
+     Collection. Deux volets plutôt qu'un long défilement : chacun reste
+     lisible d'un regard.
+     'garderPos' évite de remonter la feuille quand on ne fait que changer de
+     volet ou réclamer une récompense. */
+  var profilSeg = 'profil';
+
+  function ouvrirProfil(garderPos) {
     var inner = el('sheet-inner');
+    var pos = garderPos ? inner.scrollTop : 0;
     var c = carteAvatar();
     inner.style.setProperty('--tier', c ? tierOf(c.rank).color : '#c9992e');
 
-    var avatars = Object.keys(collection).map(function (k) { return collection[k]; })
-      .sort(function (a, b) {
-        return (rankIndex(b.rank) - rankIndex(a.rank))
-            || ((b.obtenu || 0) - (a.obtenu || 0));
-      }).slice(0, 48);
+    var prets = refreshSucces().prets;
 
-    inner.innerHTML = '<h2>Profil</h2>'
-      + '<p class="sheet-sub">VOTRE NOM</p>'
-      + '<input id="profil-nom" class="code-champ" type="text" maxlength="18" '
-      + 'placeholder="Sans nom" autocomplete="off" value="' + esc(profil.nom) + '">'
+    var tete = '<div class="profil-seg">'
+      + '<button class="sous-tab' + (profilSeg === 'profil' ? ' is-active' : '') + '" '
+      + 'data-profil-seg="profil">Profil</button>'
+      + '<button class="sous-tab' + (profilSeg === 'succes' ? ' is-active' : '') + '" '
+      + 'data-profil-seg="succes">Succès'
+      + (prets ? ' <span class="seg-badge">' + prets + '</span>' : '') + '</button>'
+      + '</div>';
 
-      + '<p class="sheet-sub profil-titre">VOTRE PORTRAIT</p>'
-      + (avatars.length
-          ? '<div class="profil-ava">'
-            + '<button class="profil-vign' + (profil.avatar ? '' : ' choisi')
-            + '" data-ava="">Aucun</button>'
-            + avatars.map(function (a) {
-                var t = tierOf(a.rank);
-                return '<button class="profil-vign'
-                  + (profil.avatar === a.title ? ' choisi' : '') + '" '
-                  + 'style="--tier:' + t.color + '" data-ava="' + esc(a.title) + '" '
-                  + 'title="' + esc(a.title) + '">'
-                  + (a.thumb
-                      ? '<img src="' + esc(a.thumb) + '" alt="" loading="lazy" decoding="async">'
-                      : artSVG(a.title, t.color))
-                  + '</button>';
-              }).join('')
-            + '</div>'
-          : '<p class="sheet-sub">Ouvrez un paquet pour avoir le choix.</p>')
+    if (profilSeg === 'succes') {
+      inner.innerHTML = tete
+        + '<div id="succes-body"></div>'
+        + '<button class="btn" id="sheet-close">Fermer</button>';
+      showSucces();
+    } else {
+      var avatars = Object.keys(collection).map(function (k) { return collection[k]; })
+        .sort(function (a, b) {
+          return (rankIndex(b.rank) - rankIndex(a.rank))
+              || ((b.obtenu || 0) - (a.obtenu || 0));
+        }).slice(0, 48);
 
-      + '<p class="sheet-sub profil-titre">RÉGLAGES</p>'
-      + '<div class="reglages">'
-      + '<button id="opt-vibr" class="tri-btn">Vibrations</button>'
-      + '<button id="opt-son" class="tri-btn">Sons</button>'
-      + '<button id="opt-notif" class="tri-btn" hidden>Rappel</button>'
-      + '</div>'
+      inner.innerHTML = tete
+        + '<p class="sheet-sub">VOTRE NOM</p>'
+        + '<input id="profil-nom" class="code-champ" type="text" maxlength="18" '
+        + 'placeholder="Sans nom" autocomplete="off" value="' + esc(profil.nom) + '">'
 
-      + '<p class="sheet-sub profil-titre">VOTRE PROGRESSION</p>'
-      + '<div id="coll-zone-sauvegarde"></div>'
-      + '<div id="coll-zone-raz"></div>'
-      + '<button class="btn" id="sheet-close">Fermer</button>';
+        + '<p class="sheet-sub profil-titre">VOTRE PORTRAIT</p>'
+        + (avatars.length
+            ? '<div class="profil-ava">'
+              + '<button class="profil-vign' + (profil.avatar ? '' : ' choisi')
+              + '" data-ava="">Aucun</button>'
+              + avatars.map(function (a) {
+                  var t = tierOf(a.rank);
+                  return '<button class="profil-vign'
+                    + (profil.avatar === a.title ? ' choisi' : '') + '" '
+                    + 'style="--tier:' + t.color + '" data-ava="' + esc(a.title) + '" '
+                    + 'title="' + esc(a.title) + '">'
+                    + (a.thumb
+                        ? '<img src="' + esc(a.thumb) + '" alt="" loading="lazy" decoding="async">'
+                        : artSVG(a.title, t.color))
+                    + '</button>';
+                }).join('')
+              + '</div>'
+            : '<p class="sheet-sub">Ouvrez un paquet pour avoir le choix.</p>')
 
-    montrerSauvegarde();
-    el('coll-zone-raz').innerHTML = Object.keys(collection).length
-      ? '<div class="raz"><p class="raz-mot">Tout effacer supprime définitivement '
-        + 'votre collection, vos succès et votre progression.</p>'
-        + '<button class="btn" data-raz="1">Repartir de zéro</button></div>' : '';
-    majOptions();
+        + '<p class="sheet-sub profil-titre">RÉGLAGES</p>'
+        + '<div class="reglages">'
+        + '<button id="opt-vibr" class="tri-btn">Vibrations</button>'
+        + '<button id="opt-son" class="tri-btn">Sons</button>'
+        + '<button id="opt-notif" class="tri-btn" hidden>Rappel</button>'
+        + '</div>'
 
-    el('profil-nom').addEventListener('input', function () {
-      profil.nom = el('profil-nom').value.trim();
-      saveProfil(); majProfil();
-    });
-    ouvrirFeuille();
+        + '<p class="sheet-sub profil-titre">VOTRE PROGRESSION</p>'
+        + '<div id="coll-zone-sauvegarde"></div>'
+        + '<div id="coll-zone-raz"></div>'
+        + '<button class="btn" id="sheet-close">Fermer</button>';
+
+      montrerSauvegarde();
+      el('coll-zone-raz').innerHTML = Object.keys(collection).length
+        ? '<div class="raz"><p class="raz-mot">Tout effacer supprime définitivement '
+          + 'votre collection, vos succès et votre progression.</p>'
+          + '<button class="btn" data-raz="1">Repartir de zéro</button></div>' : '';
+      majOptions();
+
+      el('profil-nom').addEventListener('input', function () {
+        profil.nom = el('profil-nom').value.trim();
+        saveProfil(); majProfil();
+      });
+    }
+
+    if (!garderPos) ouvrirFeuille();
+    inner.scrollTop = pos;
     el('sheet-close').addEventListener('click', closeSheet);
   }
 
@@ -5557,7 +5601,7 @@
       return (a.m(x) || 0) >= a.v && st.reclames.indexOf(a.id) === -1;
     }).length;
     el('succes-count').textContent = prets ? String(prets) : '';
-    return { x: x, st: st, faits: faits };
+    return { x: x, st: st, faits: faits, prets: prets };
   }
 
   var QUIZ_BANQUE = [
@@ -6062,7 +6106,8 @@
         + '<span class="succes-gain">' + (pris ? 'reçu' : '+' + (a.gain * 20)) + '</span>'
         + '</' + (fait && !pris ? 'button' : 'div') + '>';
     });
-    el('succes-body').innerHTML = html;
+    var cible = el('succes-body');
+    if (cible) cible.innerHTML = html;
   }
 
   /* ---------- collection ---------- */
@@ -6219,7 +6264,9 @@
     el('view-open').hidden = quoi !== 'ouvrir';
     el('coll-cartes').hidden = quoi !== 'collec';
     el('coll-albums').hidden = quoi !== 'albums';
-    el('sub-ouvrir').classList.toggle('is-active', quoi === 'ouvrir');
+    /* L'écran d'ouverture n'a plus de sous-onglets : il gagne les soixante
+       pixels que la barre lui prenait. */
+    el('sous-tabs-cartes').hidden = (quoi === 'ouvrir');
     el('sub-collec').classList.toggle('is-active', quoi === 'collec');
     el('sub-albums').classList.toggle('is-active', quoi === 'albums');
     if (quoi === 'collec') showCollection();
@@ -6422,6 +6469,10 @@
   }
 
   var sousCartes = 'ouvrir';
+  /* Quatre onglets, trois écrans : « Ouvrir » et « Collection » partagent le
+     même conteneur, ce sont deux façons d'y entrer. */
+  var ONGLETS = ['cartes', 'collec', 'raid', 'boutique'];
+
   function switchTo(which, viaRetour) {
     if (which === vueCourante) { hautDePage(); return; }
     if (!viaRetour) {
@@ -6429,21 +6480,28 @@
       if (which !== 'cartes' && vueCourante === 'cartes') pousserHist('vue');
     }
     vueCourante = which;
-    ['cartes', 'raid', 'boutique', 'succes'].forEach(function (v) {
-      el('view-' + v).hidden = (v !== which);
-      if (v === which) {
-        el('view-' + v).classList.remove('entre');
-        void el('view-' + v).offsetWidth;
-        el('view-' + v).classList.add('entre');
+    var principal = (which === 'collec') ? 'cartes' : which;
+    ['cartes', 'raid', 'boutique'].forEach(function (v) {
+      var e = el('view-' + v);
+      e.hidden = (v !== principal);
+      if (v === principal) {
+        e.classList.remove('entre');
+        void e.offsetWidth;
+        e.classList.add('entre');
       }
+    });
+    ONGLETS.forEach(function (v) {
       el('tab-' + v).classList.toggle('is-active', v === which);
       el('tab-' + v).setAttribute('aria-selected', v === which ? 'true' : 'false');
     });
     hautDePage();
-    if (which === 'cartes') { basculerColl(sousCartes); refreshAlbums(); }
+    if (which === 'cartes') basculerColl('ouvrir');
+    if (which === 'collec') {
+      basculerColl(sousCartes === 'albums' ? 'albums' : 'collec');
+      refreshAlbums();
+    }
     if (which === 'raid') montrerCombat(sousCombat);
     if (which === 'boutique') showBoutique();
-    if (which === 'succes') showSucces();
   }
 
   /* Ouverture par glissement : on tire la languette vers le bas. La variable
@@ -6624,17 +6682,19 @@
     f.addEventListener('mouseleave', fin);
   })();
 
-  el('hud-profil').addEventListener('click', ouvrirProfil);
+  /* Sans cette enveloppe, l'événement de clic était passé comme premier
+     argument — donc pris pour « garder la position », et la feuille ne
+     s'ouvrait jamais vraiment. */
+  el('hud-profil').addEventListener('click', function () { ouvrirProfil(); });
   el('flipper').addEventListener('click', onFlip);
   el('tout-reveler').addEventListener('click', toutReveler);
   el('flipper').addEventListener('keydown', function (e) {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onFlip(null); }
   });
   el('tab-cartes').addEventListener('click', function () { switchTo('cartes'); });
+  el('tab-collec').addEventListener('click', function () { switchTo('collec'); });
   el('tab-boutique').addEventListener('click', function () { switchTo('boutique'); });
   el('tab-raid').addEventListener('click', function () { switchTo('raid'); });
-  el('tab-succes').addEventListener('click', function () { switchTo('succes'); });
-  el('sub-ouvrir').addEventListener('click', function () { sousCartes = 'ouvrir'; basculerColl('ouvrir'); });
   el('sub-collec').addEventListener('click', function () { sousCartes = 'collec'; basculerColl('collec'); });
   el('sub-albums').addEventListener('click', function () { sousCartes = 'albums'; basculerColl('albums'); });
   el('coll-albums').addEventListener('click', function (e) {
@@ -6643,10 +6703,6 @@
     if (go) { reclamerAlbum(go.getAttribute('data-album-go')); return; }
     var c = e.target.closest('[data-album-carte]');
     if (c) { openSheet(c.getAttribute('data-album-carte')); }
-  });
-  el('succes-body').addEventListener('click', function (e) {
-    var b = e.target.closest ? e.target.closest('[data-succes]') : null;
-    if (b) reclamerSucces(b.getAttribute('data-succes'));
   });
   el('duel-body').addEventListener('click', function (e) {
     if (!e.target.closest) return;
@@ -6659,6 +6715,14 @@
   /* Selection d'une carte depuis le panneau. */
   el('sheet-inner').addEventListener('click', function (e) {
     if (!e.target.closest) return;
+    var rs = e.target.closest('[data-succes]');
+    if (rs) {
+      reclamerSucces(rs.getAttribute('data-succes'));
+      ouvrirProfil(true);   /* la pastille du volet doit suivre */
+      return;
+    }
+    var seg = e.target.closest('[data-profil-seg]');
+    if (seg) { profilSeg = seg.getAttribute('data-profil-seg'); ouvrirProfil(true); return; }
     var pa = e.target.closest('[data-partage]');
     if (pa) { partagerCarte(pa.getAttribute('data-partage')); return; }
     var av = e.target.closest('[data-ava]');
