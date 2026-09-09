@@ -1530,6 +1530,9 @@
   #profil-nom {
     width: 100%; background: #fff; border: 1px solid var(--ivory-dim);
     color: var(--ink); font: inherit; font-size: 16px; padding: 11px;
+    /* Quand le clavier s'ouvre, le navigateur cadre le champ lui-même :
+       cette marge évite qu'il le colle au bord haut de la feuille. */
+    scroll-margin: 24px;
   }
   .profil-ava {
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px;
@@ -2486,6 +2489,7 @@
   /* Bouton retour d'Android : il ferme la fiche, puis ramene a l'onglet
      Cartes. Sans ca, un retour reflexe quittait le jeu. */
   var vueCourante = 'cartes', sautsIgnores = 0, ficheDansHist = false;
+  var feuilleOuverteA = 0;   /* instant d'ouverture de la feuille courante */
   function pousserHist(tag) {
     try { history.pushState({ wg: tag }, ''); } catch (e) {}
   }
@@ -3935,6 +3939,7 @@
     i.scrollTop = 0;
     i.style.transform = '';
     i.classList.remove('glisse', 'rentre');
+    feuilleOuverteA = Date.now();
     f.hidden = false;
     document.body.style.overflow = 'hidden';
     vib(8);
@@ -6443,8 +6448,9 @@
      une feuille qui monte du bas de l'ecran. */
   (function () {
     var i = el('sheet-inner');
-    var y0 = null, dy = 0, t0 = 0;
+    var y0 = null, x0 = null, dy = 0, t0 = 0, actif = false;
     var SEUIL_PX = 96, SEUIL_VIT = 0.6;
+    var ZONE_MORTE = 10;   /* en deçà, on ne bouge rien : c'est du tremblement */
 
     /* Une zone qui défile à l'intérieur de la feuille (la grille de
        portraits, par exemple) doit garder ses gestes : sans ce garde-fou, le
@@ -6463,10 +6469,16 @@
     }
 
     i.addEventListener('touchstart', function (e) {
+      /* Pendant les 350 ms de l'animation d'ouverture, on ne touche à rien :
+         armer le glissement coupait l'animation en plein vol et la feuille
+         sautait d'un coup à sa position finale. */
+      if (Date.now() - feuilleOuverteA < 350) { y0 = null; return; }
       if (i.scrollTop > 0 || e.touches.length !== 1
           || dansUneListe(e.target)) { y0 = null; return; }
-      y0 = e.touches[0].clientY; dy = 0; t0 = Date.now();
-      i.classList.add('glisse'); i.classList.remove('rentre');
+      y0 = e.touches[0].clientY;
+      x0 = e.touches[0].clientX;
+      dy = 0; t0 = Date.now(); actif = false;
+      i.classList.remove('rentre');
     }, { passive: true });
 
     i.addEventListener('touchmove', function (e) {
@@ -6475,23 +6487,31 @@
          une fermeture. Sans ce contrôle, revenir vers le bas dans le même
          mouvement faisait bondir la fiche de tout le trajet déjà parcouru —
          la hauteur de course n'était vérifiée qu'au tout premier contact. */
-      if (i.scrollTop > 0) {
-        y0 = null;
+      if (i.scrollTop > 0 || dansUneListe(e.target)) {
+        y0 = null; actif = false;
         i.classList.remove('glisse');
         i.style.transform = '';
         return;
       }
       dy = e.touches[0].clientY - y0;
+      var dx = e.touches[0].clientX - x0;
+      /* Geste plutôt horizontal : ce n'est pas une fermeture. */
+      if (!actif && Math.abs(dx) > Math.abs(dy)) { y0 = null; return; }
+      /* Zone morte : sans elle, le moindre tremblement du doigt pendant une
+         lecture décalait la feuille de quelques pixels. */
+      if (!actif && dy <= ZONE_MORTE) { return; }
+      if (!actif) { actif = true; i.classList.add('glisse'); }
       if (dy <= 0) { i.style.transform = ''; return; }
       if (e.cancelable) e.preventDefault();
-      /* Resistance progressive : la fiche suit le doigt sans le devancer. */
-      i.style.transform = 'translateY(' + (dy * 0.82) + 'px)';
+      /* Resistance progressive : la fiche suit le doigt sans le devancer.
+         On retranche la zone morte pour que le mouvement parte de zéro. */
+      i.style.transform = 'translateY(' + ((dy - ZONE_MORTE) * 0.82) + 'px)';
     }, { passive: false });
 
     function relacher() {
-      if (y0 === null) return;
+      if (y0 === null || !actif) { y0 = null; actif = false; return; }
       var vitesse = dy / Math.max(1, Date.now() - t0);
-      y0 = null;
+      y0 = null; actif = false;
       i.classList.remove('glisse');
       if (dy > SEUIL_PX || vitesse > SEUIL_VIT) { vib(10); closeSheet(); return; }
       i.classList.add('rentre');
