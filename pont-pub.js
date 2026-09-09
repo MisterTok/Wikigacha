@@ -16,9 +16,30 @@
 (function () {
   'use strict';
 
-  var ID_INTERSTITIEL = 'ca-app-pub-3940256099942544/1033173712'; /* bloc de test Google */
-  var ID_RECOMPENSE   = 'ca-app-pub-3940256099942544/5224354917'; /* bloc de test Google */
-  var TEST = true;   /* passer à false avec vos vrais identifiants */
+  /* ------------------------------------------------------------------
+     TROIS RÉGLAGES, et il ne faut pas les confondre.
+
+     ID_INTERSTITIEL / ID_RECOMPENSE
+       Vos blocs, copiés depuis la console AdMob. Ceux qui sont là sont les
+       blocs de démonstration de Google : ils se remplissent toujours, ne
+       rapportent rien, et ne présentent aucun risque.
+
+     TEST
+       true  = TOUT LE MONDE voit des annonces de test. À garder pendant le
+               développement et pendant le test fermé avec vos testeurs.
+       false = les vraies annonces, pour tout le monde. Uniquement en
+               production.
+
+     MES_APPAREILS
+       Vos propres téléphones. Ils reçoivent des annonces de test MÊME quand
+       TEST vaut false — c'est ce qui vous permet de jouer à votre propre jeu
+       et de cliquer sans risquer votre compte. Voir le LISEZMOI pour
+       récupérer l'identifiant.
+     ------------------------------------------------------------------ */
+  var ID_INTERSTITIEL = 'ca-app-pub-3940256099942544/1033173712'; /* démo Google */
+  var ID_RECOMPENSE   = 'ca-app-pub-3940256099942544/5224354917'; /* démo Google */
+  var TEST = true;
+  var MES_APPAREILS = [];   /* ex. ['33BE2250B43518CCDA7DE426D04EE231'] */
 
   var AdMob = window.Capacitor
            && window.Capacitor.Plugins
@@ -33,7 +54,13 @@
      dans la console. */
   var demarrage = Promise.resolve()
     .then(function () {
-      return AdMob.initialize({ initializeForTesting: TEST });
+      /* initializeForTesting doit être vrai pour que la liste d'appareils
+         soit prise en compte ; elle est vide en production, donc sans effet
+         sur les joueurs. */
+      return AdMob.initialize({
+        initializeForTesting: TEST || MES_APPAREILS.length > 0,
+        testingDevices: MES_APPAREILS
+      });
     })
     .then(function () {
       if (typeof AdMob.requestConsentInfo !== 'function') return null;
