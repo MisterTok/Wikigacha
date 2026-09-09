@@ -465,25 +465,6 @@
     box-shadow: 0 16px 38px rgba(0,0,0,.55), inset 0 0 0 6px rgba(201,153,46,.3);
   }
 
-  .edition-bloc {
-    margin-bottom: 20px; padding: 14px;
-    background: var(--night-up); border: 1px solid #6d5a2a;
-    box-shadow: inset 0 0 0 1px rgba(201,153,46,.12);
-  }
-  .edition-bloc.acquise { border-color: var(--night-line); }
-  .edition-bloc.sobre { border-color: var(--night-line); box-shadow: none; }
-  .edition-bloc.sobre .edition-tag { color: var(--glass-dim); }
-  .edition-tag {
-    margin: 0 0 8px; font-size: 10px; letter-spacing: .14em; color: #d9ab48;
-  }
-  .edition-mot {
-    margin: 0 0 10px; font-size: 13px; line-height: 1.6; color: var(--glass-dim);
-  }
-  .edition-liste {
-    margin: 0 0 12px; padding-left: 18px;
-    font-size: 12.5px; line-height: 1.75; color: var(--glass);
-  }
-  .edition-liste b { color: var(--ivory); }
   .face-back small { font-size: 10px; letter-spacing: .14em; color: var(--glass-dim); }
 
   .face-front {
@@ -1209,15 +1190,108 @@
     padding-bottom: 12px; border-bottom: 1px solid var(--night-line);
   }
   .boutique-solde b { color: #f0dda4; font-variant-numeric: tabular-nums; }
-  .offre {
-    display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
-    padding: 14px; background: var(--night-up);
-    border: 1px solid var(--night-line); border-left: 4px solid #c9992e;
+  /* --- boutique ---
+     Un pavé de prose ne se lit pas dans une boutique. Le premium se compare,
+     donc il s'affiche en tableau : deux colonnes, quatre lignes, tout est vu
+     d'un coup d'œil. Les paquets se choisissent, donc ils s'alignent côte à
+     côte plutôt qu'en liste. */
+  .bt-section {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 10px; margin: 26px 0 4px;
   }
-  .offre-txt { flex: 1 1 auto; min-width: 0; }
-  .offre-nom { display: block; font-family: var(--display); font-size: 17px; color: var(--ivory); }
-  .offre-note { display: block; font-size: 12px; color: #c9992e; margin-top: 2px; }
-  .offre .btn { margin: 0; width: auto; flex: none; padding: 10px 16px; font-variant-numeric: tabular-nums; }
+  .bt-section h3 {
+    margin: 0; font-size: 11px; letter-spacing: .16em;
+    font-weight: 600; color: var(--glass-dim);
+  }
+  .bt-solde { font-size: 12.5px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
+  .bt-solde b { color: #f0dda4; }
+  .bt-mot { margin: 0 0 14px; font-size: 12.5px; line-height: 1.6; color: var(--glass-dim); }
+
+  .prem {
+    margin-top: 14px; padding: 16px 15px 15px; background: var(--night-up);
+    border: 1px solid #6d5a2a;
+    box-shadow: inset 0 0 0 1px rgba(201,153,46,.12), 0 0 30px -14px rgba(201,153,46,.5);
+  }
+  .prem.acquise { border-color: var(--night-line); box-shadow: none; }
+  .prem-tete {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+    margin-bottom: 10px;
+  }
+  .prem-tag { font-size: 11px; letter-spacing: .16em; font-weight: 600; color: #d9ab48; }
+  .prem-prix { font-size: 15px; color: var(--ivory); font-variant-numeric: tabular-nums; }
+  .prem-mot { margin: 0 0 14px; font-size: 12.5px; line-height: 1.6; color: var(--glass-dim); }
+
+  .prem-tab { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+  .prem-tab th {
+    padding: 0 0 7px; font-size: 10px; letter-spacing: .1em; font-weight: 600;
+    color: var(--glass-dim); text-align: right;
+  }
+  .prem-tab th:first-child { text-align: left; }
+  .prem-tab th:last-child { color: #d9ab48; }
+  .prem-tab td {
+    padding: 8px 0; font-size: 13px; text-align: right;
+    border-top: 1px solid var(--night-line);
+    color: var(--glass-dim); font-variant-numeric: tabular-nums;
+  }
+  .prem-tab td:first-child { text-align: left; color: var(--glass); }
+  .prem-tab td:last-child { color: var(--ivory); font-weight: 600; }
+  .prem .btn { margin: 0; }
+
+  /* Offre secondaire et restauration : présentes, jamais concurrentes. */
+  .lien-achat, .lien-mini {
+    display: block; width: 100%; margin: 10px 0 0; padding: 8px 0;
+    font: inherit; background: none; border: 0; cursor: pointer;
+    text-align: center;
+  }
+  .lien-achat {
+    font-size: 12.5px; color: var(--glass); text-decoration: underline;
+    text-underline-offset: 3px; min-height: 40px;
+  }
+  .lien-mini { font-size: 11.5px; color: var(--glass-dim); min-height: 36px; }
+
+  /* Paquets contre Wikigold : trois colonnes, comparables d'un regard. */
+  .or-grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .or-offre {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 14px 6px 12px; font: inherit; cursor: pointer;
+    color: var(--glass); background: var(--night-up);
+    border: 1px solid var(--night-line); border-top: 3px solid #c9992e;
+    transition: transform .12s ease, background .12s ease;
+  }
+  .or-offre:active:not([disabled]) { transform: scale(.98); background: #262c40; }
+  .or-offre[disabled] { cursor: default; border-top-color: var(--night-line); opacity: .75; }
+  .or-nb {
+    font-family: var(--display); font-size: 30px; line-height: 1;
+    color: var(--ivory); font-variant-numeric: tabular-nums;
+  }
+  .or-offre[disabled] .or-nb { color: var(--glass); }
+  .or-mot { font-size: 11px; color: var(--glass-dim); }
+  .or-note {
+    margin-top: 4px; font-size: 9.5px; letter-spacing: .06em;
+    padding: 2px 6px; color: #14161f; background: #c9992e;
+  }
+  .or-note:empty { display: none; }
+  /* Poussé en bas de la carte : sans ça, l'offre sans mention remontait son
+     prix et les trois colonnes ne s'alignaient plus. */
+  .or-prix {
+    margin-top: auto; padding-top: 10px; font-size: 13px; font-weight: 600;
+    color: #f0dda4; font-variant-numeric: tabular-nums;
+  }
+  .or-offre[disabled] .or-prix { color: var(--glass-dim); }
+  .or-manque { font-size: 10px; color: #cf7f7f; margin-top: 2px; }
+
+  /* Le paquet offert contre une publicité : la seule ligne gratuite. */
+  .bt-offert {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 12px 14px; margin-bottom: 4px;
+    background: var(--night-up); border: 1px solid var(--night-line);
+  }
+  .bt-offert-txt { flex: 1 1 auto; min-width: 0; }
+  .bt-offert-nom { display: block; font-size: 13.5px; color: var(--ivory); }
+  .bt-offert-note { display: block; font-size: 11.5px; color: var(--glass-dim); margin-top: 2px; }
+  .bt-offert .btn {
+    margin: 0; width: auto; flex: none; padding: 10px 14px; font-size: 13px;
+  }
 
   /* --- albums (series) --- */
   #albums-count { font-variant-numeric: tabular-nums; }
@@ -5571,91 +5645,82 @@
 
   function showBoutique(msg) {
     var or = readGold();
+    var boutiquable = achatsDisponibles();
     var html = '<p class="hist-titre">BOUTIQUE</p>';
 
-    /* Les offres d'abord, mais sans insistance : des blocs, jamais de
-       fenetre surgissante, et rien qui bloque le jeu gratuit. */
-    var boutiquable = achatsDisponibles();
-
-    /* La récompense d'abord : c'est la seule ligne de la boutique qui ne
-       demande pas d'argent. */
+    /* La ligne gratuite en premier : c'est la seule qui ne demande rien. */
     if (pubRecompenseDisponible()) {
       var reste = pubRecompenseRestantes();
       var pleine = readPacks().n >= MAX_PAQUETS;
-      html += '<div class="edition-bloc sobre">'
-        + '<p class="edition-tag">UN PAQUET OFFERT</p>'
-        + '<p class="edition-mot">Regardez une publicité, recevez un paquet. '
-        + 'Il vous en reste <b>' + reste + '</b> sur ' + PUB_RECOMPENSE_MAX
-        + ' aujourd’hui.</p>'
-        + '<button class="btn" data-pub="1"'
-        + ((reste && !pleine) ? '' : ' disabled') + '>'
-        + (pleine ? 'Réserve pleine'
-                  : (reste ? 'Regarder une publicité — +1 paquet' : 'Revenez demain'))
-        + '</button></div>';
+      html += '<div class="bt-offert"><span class="bt-offert-txt">'
+        + '<b class="bt-offert-nom">Un paquet offert</b>'
+        + '<span class="bt-offert-note">'
+        + (pleine ? 'Votre réserve est pleine.'
+                  : (reste ? 'Contre une publicité · ' + reste + ' sur '
+                             + PUB_RECOMPENSE_MAX + ' aujourd’hui'
+                           : 'Revenez demain.'))
+        + '</span></span>'
+        + '<button class="btn' + ((reste && !pleine) ? ' btn-solid' : '') + '" data-pub="1"'
+        + ((reste && !pleine) ? '' : ' disabled') + '>Regarder</button></div>';
     }
 
+    /* --- premium --- */
     if (achats.premium) {
-      html += '<div class="edition-bloc acquise">'
-        + '<p class="edition-tag">PREMIUM</p>'
-        + '<p class="edition-mot">Actif. Merci de soutenir le jeu.</p></div>';
+      html += '<div class="prem acquise"><div class="prem-tete">'
+        + '<span class="prem-tag">PREMIUM</span><span class="prem-prix">actif</span></div>'
+        + '<p class="prem-mot">Merci de soutenir le jeu.</p></div>';
     } else {
-      html += '<div class="edition-bloc">'
-        + '<p class="edition-tag">PREMIUM</p>'
-        + '<p class="edition-mot">Un achat unique. Rien n’est retiré à la '
-        + 'version gratuite : aucune carte, aucun paquet, aucun Wikigold ne se '
-        + 'vend ici. Seuls les temps d’attente s’allègent.</p>'
-        + '<ul class="edition-liste">'
-        + '<li>Réserve de <b>20 paquets</b> au lieu de 10</li>'
-        + '<li>Un paquet toutes les <b>5 minutes</b> au lieu de 10</li>'
-        + '<li>Un paquet <b>Légendaire garanti</b> chaque jour</li>'
-        + '<li>Aucune publicité, dos de carte doré, export tableur</li>'
-        + '</ul>'
+      var sku = achats.sansPub ? SKU_MAJ : SKU_PREMIUM;
+      html += '<div class="prem"><div class="prem-tete">'
+        + '<span class="prem-tag">PREMIUM</span>'
+        + (prix[sku] ? '<span class="prem-prix">' + esc(prix[sku]) + '</span>' : '')
+        + '</div>'
+        + '<p class="prem-mot">Un achat unique. Aucune carte, aucun paquet, aucun '
+        + 'Wikigold ne se vend ici : seuls les temps d’attente s’allègent.</p>'
+        + '<table class="prem-tab">'
+        + '<tr><th></th><th>Gratuit</th><th>Premium</th></tr>'
+        + '<tr><td>Réserve</td><td>10</td><td>20</td></tr>'
+        + '<tr><td>Un paquet toutes les</td><td>10 min</td><td>5 min</td></tr>'
+        + '<tr><td>Légendaire garanti</td><td>—</td><td>1 par jour</td></tr>'
+        + '<tr><td>Publicité</td><td>1 / ' + PUB_TOUS + ' paquets</td><td>aucune</td></tr>'
+        + '</table>'
         + (boutiquable
-            ? '<button class="btn btn-solid" data-play="'
-              + (achats.sansPub ? SKU_MAJ : SKU_PREMIUM) + '">'
-              + (achats.sansPub ? 'Passer au premium' : 'Obtenir le premium')
-              + (prix[achats.sansPub ? SKU_MAJ : SKU_PREMIUM]
-                  ? ' — ' + esc(prix[achats.sansPub ? SKU_MAJ : SKU_PREMIUM]) : '')
-              + '</button>'
+            ? '<button class="btn btn-solid" data-play="' + sku + '">'
+              + (achats.sansPub ? 'Passer au premium' : 'Obtenir le premium') + '</button>'
+              + (achats.sansPub
+                  ? ''
+                  : '<button class="lien-achat" data-play="' + SKU_SANS_PUB + '">'
+                    + 'Seulement retirer la publicité'
+                    + (prix[SKU_SANS_PUB] ? ' — ' + esc(prix[SKU_SANS_PUB]) : '')
+                    + '</button>')
             : '<p class="status">' + motAchatsIndispo() + '</p>')
         + '</div>';
-
-      if (!achats.sansPub) {
-        html += '<div class="edition-bloc sobre">'
-          + '<p class="edition-tag">SANS PUBLICITÉ</p>'
-          + '<p class="edition-mot">Juste le silence : la publicité disparaît, '
-          + 'le reste du jeu ne change pas. Une publicité s’affiche aujourd’hui '
-          + 'tous les ' + PUB_TOUS + ' paquets.</p>'
-          + (boutiquable
-              ? '<button class="btn" data-play="' + SKU_SANS_PUB + '">Retirer la publicité'
-                + (prix[SKU_SANS_PUB] ? ' — ' + esc(prix[SKU_SANS_PUB]) : '') + '</button>'
-              : '')
-          + '</div>';
-      } else {
-        html += '<div class="edition-bloc acquise sobre">'
-          + '<p class="edition-tag">SANS PUBLICITÉ</p>'
-          + '<p class="edition-mot">Actif.</p></div>';
-      }
     }
     if (boutiquable) {
-      html += '<button class="btn" data-play="restaurer">Restaurer mes achats</button>';
+      html += '<button class="lien-mini" data-play="restaurer">Restaurer mes achats</button>';
     }
 
-    html += '<p class="duel-intro">Échangez vos Wikigold contre des paquets. '
-      + 'Vous gagnez des Wikigold en accomplissant missions, succès et albums.</p>'
-      + '<p class="boutique-solde">Solde : <b>' + or.toLocaleString('fr-FR') + '</b> Wikigold</p>';
+    /* --- Wikigold --- */
+    html += '<div class="bt-section"><h3>WIKIGOLD</h3>'
+      + '<span class="bt-solde"><b>' + or.toLocaleString('fr-FR') + '</b> en réserve</span></div>'
+      + '<p class="bt-mot">Gagnés en accomplissant missions, succès et albums, '
+      + 'puis échangés contre des paquets.</p>'
+      + '<div class="or-grille">';
 
     OFFRES.forEach(function (o) {
       var abordable = or >= o.prix;
-      html += '<div class="offre">'
-        + '<div class="offre-txt"><span class="offre-nom">' + esc(o.nom) + '</span>'
-        + (o.note ? '<span class="offre-note">' + esc(o.note) + '</span>' : '')
-        + '</div>'
-        + '<button class="btn' + (abordable ? ' btn-solid' : '') + '" '
+      /* OFFRES porte déjà le nombre : plus lisible qu'« Douze » en colonne. */
+      var n = o.paquets;
+      html += '<button class="or-offre" '
         + (abordable ? 'data-achat="' + o.id + '"' : 'disabled') + '>'
-        + o.prix + ' or</button>'
-        + '</div>';
+        + '<span class="or-nb">' + n + '</span>'
+        + '<span class="or-mot">paquet' + (n > 1 ? 's' : '') + '</span>'
+        + '<span class="or-note">' + (o.note ? esc(o.note) : '') + '</span>'
+        + '<span class="or-prix">' + o.prix + ' or</span>'
+        + (abordable ? '' : '<span class="or-manque">−' + (o.prix - or) + '</span>')
+        + '</button>';
     });
+    html += '</div>';
 
     html += '<p class="recompense-msg" id="boutique-msg">' + (msg ? esc(msg) : '') + '</p>';
     el('boutique-body').innerHTML = html;
