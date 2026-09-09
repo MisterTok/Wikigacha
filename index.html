@@ -4218,9 +4218,51 @@
      lieu de cinq, deux vagues au maximum, chaque appel borné dans le temps,
      et un plafond global de six secondes. Si rien n'atteint le palier, on
      garde tout de même la meilleure carte croisée. */
+  /* Articles les plus lus de la veille. C'est le seul vivier de la Wikipedia
+     francophone ou l'audience est garantie elevee : un tirage aleatoire tombe
+     presque toujours sur un article a quelques dizaines de vues, donc plafonne
+     a Rare, ce qui rendait la garantie Épique intenable. */
+  function fetchPopulaires() {
+    var d = new Date(Date.now() - 86400000);   /* la veille : classement consolide */
+    var url = 'https://' + WIKI + '.org/api/rest_v1/feed/featured/'
+      + d.getFullYear() + '/'
+      + String(d.getMonth() + 1).padStart(2, '0') + '/'
+      + String(d.getDate()).padStart(2, '0');
+    return fetchWiki(url)
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d2) {
+        var liste = (d2 && d2.mostread && d2.mostread.articles) || [];
+        return liste.filter(function (a) {
+          if (!a.pageid) return false;
+          var t = a.normalizedtitle || a.title || '';
+          /* Pages de service : l'accueil et les portails trustent toujours le
+             haut du classement et ne feraient pas des cartes. */
+          return !/^(Wikip[ée]dia|Sp[ée]cial|Portail|Cat[ée]gorie|Aide|Accueil)[: ]/.test(t)
+              && t.indexOf('Accueil principal') < 0;
+        });
+      })
+      ['catch'](function () { return []; });
+  }
+
+  function carteDepuisPopulaire(a) {
+    var titre = a.normalizedtitle || a.title || '';
+    return Promise.all([
+      avecDelai(fetchInfo(a.pageid), 3500, null),
+      avecDelai(fetchViews(titre), 3500, 0),
+      avecDelai(fetchQuality(a.pageid), 3500, null)
+    ]).then(function (r) {
+      var info = r[0];
+      if (!info) return null;
+      /* Le flux fournit deja extrait et vignette : on evite un appel de plus. */
+      if (!info.extract && a.extract) info.extract = a.extract;
+      if (!info.thumbnail && a.thumbnail) info.thumbnail = a.thumbnail;
+      return toCard(info, r[1] || a.views || 0, r[2]);
+    })['catch'](function () { return null; });
+  }
+
   function chercherCarteGarantie(essai, seuil) {
     seuil = seuil || PITIE;
-    var limite = Date.now() + 6000;
+    var limite = Date.now() + 9000;
     var meilleure = null;
 
     function vague(n) {
@@ -4250,7 +4292,40 @@
         })
         ['catch'](function () { return meilleure; });
     }
-    return vague(1);
+
+    /* Premiere passe : les articles les plus lus. On y retient la carte la
+       PLUS FAIBLE qui atteint quand meme le palier promis — une garantie
+       Épique doit rendre une Épique, pas une Mythique tous les dix paquets. */
+    function viaPopulaires() {
+      return avecDelai(fetchPopulaires(), 3500, [])
+        .then(function (liste) {
+          if (!liste.length) return null;
+          for (var i = liste.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var t = liste[i]; liste[i] = liste[j]; liste[j] = t;
+          }
+          return Promise.all(liste.slice(0, 5).map(carteDepuisPopulaire));
+        })
+        .then(function (lot) {
+          if (!lot) return null;
+          var bonnes = [];
+          lot.forEach(function (c) {
+            if (!c) return;
+            if (!meilleure || rankIndex(c.rank) > rankIndex(meilleure.rank)) meilleure = c;
+            if (rankIndex(c.rank) >= seuil) bonnes.push(c);
+          });
+          if (!bonnes.length) return null;
+          bonnes.sort(function (a, b) { return rankIndex(a.rank) - rankIndex(b.rank); });
+          return bonnes[0];
+        })
+        ['catch'](function () { return null; });
+    }
+
+    return viaPopulaires().then(function (c) {
+      if (c) return c;
+      if (Date.now() > limite - 3000) return meilleure;
+      return vague(1);
+    });
   }
 
   var tirageEnCours = false;
