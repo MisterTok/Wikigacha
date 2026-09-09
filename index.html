@@ -765,11 +765,26 @@
     font-family: var(--display); font-weight: 600; font-size: 23px;
     line-height: 1.15; margin: 0 0 8px; color: var(--ivory);
   }
-  .boss-img {
-    width: 100%; height: 130px; object-fit: cover;
-    border: 1px solid var(--night-line); margin-bottom: 12px;
+  .boss-vue {
+    position: relative; height: 230px; overflow: hidden;
+    background: #0b0e16; border: 1px solid var(--night-line); margin-bottom: 12px;
   }
-  .boss-art { height: 130px; overflow: hidden; border: 1px solid var(--night-line); margin-bottom: 12px; }
+  /* Le fond flouté évite les bandes noires sans rien rogner du sujet. */
+  .boss-fond {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; transform: scale(1.15);
+    filter: blur(20px) brightness(.45) saturate(1.1);
+  }
+  /* Par défaut l'image est affichée entière : rien n'est coupé. Une photo
+     plus large que haute peut remplir le cadre sans risque, on la bascule
+     alors en remplissage — le sujet y gagne en taille. */
+  .boss-img {
+    position: relative; display: block; width: 100%; height: 100%;
+    object-fit: contain;
+  }
+  .boss-img.large { object-fit: cover; object-position: 50% 32%; }
+  .boss-img.large + .boss-fond, .boss-vue.pleine .boss-fond { opacity: 0; }
+  .boss-art { height: 210px; overflow: hidden; border: 1px solid var(--night-line); margin-bottom: 12px; }
   .boss-art .art { width: 100%; height: 100%; display: block; }
   .boss p { margin: 0 0 12px; font-size: 13px; line-height: 1.6; color: var(--glass-dim); }
   .bar {
@@ -4559,9 +4574,27 @@
   function paintRaid(etat) {
     var b = etat.boss, t = tierOf(b.rank);
     var pct = Math.max(0, etat.pv / etat.pvMax * 100);
+    /* Deux fois la même image : l'une floutée remplit le cadre, l'autre est
+       affichée entière par-dessus. Les vignettes de Wikipédia sont souvent des
+       portraits ; les recadrer au centre coupait les visages. */
     var visuel = b.thumb
-      ? '<img class="boss-img" src="' + esc(b.thumb) + '" alt="">'
+      ? '<div class="boss-vue">'
+        + '<img class="boss-fond" src="' + esc(b.thumb) + '" alt="" aria-hidden="true">'
+        + '<img class="boss-img" src="' + esc(b.thumb) + '" alt="">'
+        + '</div>'
       : '<div class="boss-art">' + artSVG(b.title, t.color) + '</div>';
+    /* Le rapport de l'image n'est connu qu'une fois chargée. */
+    var caler = function () {
+      var im = el('raid-body') && el('raid-body').querySelector('.boss-img');
+      if (!im) return;
+      var poser = function () {
+        if (!im.naturalWidth || !im.naturalHeight) return;
+        var large = im.naturalWidth / im.naturalHeight >= 1.15;
+        im.classList.toggle('large', large);
+        im.parentNode.classList.toggle('pleine', large);
+      };
+      if (im.complete) poser(); else im.addEventListener('load', poser);
+    };
 
     var dispo = Object.keys(collection)
       .map(function (k) { return collection[k]; })
@@ -4648,6 +4681,7 @@
     }
 
     el('raid-body').innerHTML = html;
+    caler();
   }
 
   function toutAttaquer() {
