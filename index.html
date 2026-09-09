@@ -6648,7 +6648,6 @@
 
   /* Etat local d'abord (le jeu doit marcher hors ligne), puis verification
      aupres de Play en tache de fond — remboursement compris. */
-  majProfil();
   litAchats();
   appliquerAchats();
   restaurerAchats(true).then(function () {
@@ -6741,6 +6740,11 @@
   majEtatReseau();
 
   load();
+  /* Le portrait est une carte de la collection : il ne peut être dessiné
+     qu'une fois celle-ci chargée. Appelé avant, il trouvait une collection
+     vide et effaçait la vignette — la préférence, elle, n'avait jamais
+     bougé. */
+  majProfil();
   pointerPresence();
   basculerColl('ouvrir');
   showMissions();
