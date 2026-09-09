@@ -2800,7 +2800,8 @@
      articles en privilegiant ceux qui ont deja une vignette. Les statistiques
      (vues, qualite) ne sont demandees que pour les cinq retenus : le surcout
      reseau est donc quasi nul. */
-  function fetchPack() {
+  function fetchPack(nb) {
+    nb = nb || 5;
     var url = 'https://' + WIKI + '.org/w/api.php'
       + '?action=query&format=json&origin=*'
       + '&generator=random&grnnamespace=0&grnlimit=12'
@@ -2826,7 +2827,7 @@
         var j = Math.floor(Math.random() * (i + 1));
         var t = reste[i]; reste[i] = reste[j]; reste[j] = t;
       }
-      choix = choix.concat(reste).slice(0, 5);
+      choix = choix.concat(reste).slice(0, nb);
 
       /* On melange l'ordre final pour ne pas montrer les illustrees en premier. */
       for (var k = choix.length - 1; k > 0; k--) {
@@ -3770,23 +3771,46 @@
      plus longtemps (jusqu'a 6 tirages) et on ne renvoie JAMAIS une carte qui
      n'atteint pas le palier : mieux vaut pas de substitution qu'une ebauche
      presentee comme recompense. */
+  /* Recherche d'une carte au palier garanti.
+     L'ancienne version enchaînait jusqu'à SIX tirages complets, l'un après
+     l'autre, sans délai maximal : c'est ce qui faisait des ouvertures à vingt
+     secondes tous les dix paquets. Désormais : huit candidats par vague au
+     lieu de cinq, deux vagues au maximum, chaque appel borné dans le temps,
+     et un plafond global de six secondes. Si rien n'atteint le palier, on
+     garde tout de même la meilleure carte croisée. */
   function chercherCarteGarantie(essai, seuil) {
-    essai = essai || 1;
     seuil = seuil || PITIE;
-    if (essai > 6) return Promise.resolve(null);
-    return fetchPack()
-      .then(function (pages) {
-        return Promise.all(pages.slice(0, 8).map(function (p) {
-          return Promise.all([fetchViews(p.title), fetchQuality(p.pageid)])
-            .then(function (r) { return toCard(p, r[0], r[1]); });
-        }));
-      })
-      .then(function (lot) {
-        lot.sort(function (a, b) { return rankIndex(b.rank) - rankIndex(a.rank); });
-        if (lot.length && rankIndex(lot[0].rank) >= seuil) return lot[0];
-        return chercherCarteGarantie(essai + 1, seuil);
-      })
-      .catch(function () { return null; });
+    var limite = Date.now() + 6000;
+    var meilleure = null;
+
+    function vague(n) {
+      /* On n'entame une seconde vague que s'il reste de quoi la finir :
+         vérifier le plafond seulement à l'entrée laissait démarrer une vague
+         qui le dépassait largement. */
+      if (n > 2 || Date.now() > limite - (n > 1 ? 2500 : 0)) {
+        return Promise.resolve(meilleure);
+      }
+      return avecDelai(fetchPack(8), 4000, [])
+        .then(function (pages) {
+          return Promise.all(pages.map(function (p) {
+            return Promise.all([
+              avecDelai(fetchViews(p.title), 3500, 0),
+              avecDelai(fetchQuality(p.pageid), 3500, null)
+            ]).then(function (r) { return toCard(p, r[0], r[1]); });
+          }));
+        })
+        .then(function (lot) {
+          lot.sort(function (a, b) { return rankIndex(b.rank) - rankIndex(a.rank); });
+          if (lot.length && (!meilleure
+              || rankIndex(lot[0].rank) > rankIndex(meilleure.rank))) {
+            meilleure = lot[0];
+          }
+          if (meilleure && rankIndex(meilleure.rank) >= seuil) return meilleure;
+          return vague(n + 1);
+        })
+        ['catch'](function () { return meilleure; });
+    }
+    return vague(1);
   }
 
   var tirageEnCours = false;
@@ -3844,14 +3868,18 @@
       source = chargerCartes();
     }
 
+    /* La recherche de garantie part en même temps que le tirage plutôt qu'après :
+       le temps total devient le plus long des deux, au lieu de leur somme. */
+    var quete = pitie ? chercherCarteGarantie(1, pitie) : null;
+
     source
       .then(function (cards) {
         cards.sort(function (a, b) { return rankIndex(a.rank) - rankIndex(b.rank); });
         /* Garantie : plutot que de promouvoir artificiellement une ebauche,
            on retire jusqu'a trouver un article qui merite vraiment le palier. */
         if (pitie && rankIndex(cards[cards.length - 1].rank) < pitie) {
-          return chercherCarteGarantie(1, pitie).then(function (bonne) {
-            if (bonne) {
+          return quete.then(function (bonne) {
+            if (bonne && rankIndex(bonne.rank) > rankIndex(cards[0].rank)) {
               bonne.garantie = true;
               cards[0] = bonne;   /* remplace la plus faible du lot */
               cards.sort(function (a, b) { return rankIndex(a.rank) - rankIndex(b.rank); });
