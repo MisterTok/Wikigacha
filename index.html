@@ -1706,34 +1706,54 @@
     padding: 13px 13px 11px; background: #fff;
     border: 1px solid var(--ivory-dim);
   }
-  .pui-tete {
-    display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
-  }
-  .pui-rang { font-family: var(--display); font-size: 20px; color: var(--ink); }
-  .pui-total {
-    font-size: 22px; font-weight: 600; color: var(--ink);
-    font-variant-numeric: tabular-nums;
+  .pui-rang {
+    display: block; margin-top: 2px; font-size: 12.5px; color: var(--ink-soft);
   }
   .pui-jauge {
-    height: 4px; margin: 10px 0 9px; background: var(--ivory-dim); overflow: hidden;
+    display: block; height: 4px; margin: 8px 0 0;
+    background: var(--ivory-dim); overflow: hidden;
   }
   .pui-jauge i {
     display: block; height: 100%;
     background: linear-gradient(90deg, #c9992e, #f0dda4);
     transition: width .3s ease;
   }
-  .pui-mot { margin: 0 0 12px; font-size: 12px; line-height: 1.6; color: var(--ink-soft); }
-  .pui-mot b { color: var(--ink); font-variant-numeric: tabular-nums; }
   .pui-vide {
     margin: 0; padding: 13px; font-size: 12.5px; color: var(--ink-soft);
     background: #fff; border: 1px solid var(--ivory-dim);
   }
-  .pui-duo {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;
+  /* Bandeau d'identité : portrait, nom, niveau, jauge. */
+  .pui-id { display: flex; align-items: center; gap: 13px; }
+  .pui-ava {
+    flex: none; width: 66px; height: 66px; padding: 0; overflow: hidden; cursor: pointer;
+    background: var(--ivory-dim); border: 2px solid var(--tier, var(--ivory-dim));
+  }
+  .pui-ava img, .pui-ava .art {
+    display: block; width: 100%; height: 100%; object-fit: cover;
+  }
+  .pui-ava-vide {
+    display: grid; place-items: center; width: 100%; height: 100%;
+    font-size: 26px; color: var(--ink-soft);
+  }
+  .pui-id-txt { flex: 1 1 auto; min-width: 0; }
+  .pui-nom {
+    display: block; font-family: var(--display); font-size: 21px; line-height: 1.2;
+    color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .pui-xp {
+    display: block; margin-top: 5px; font-size: 11px; color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .pui-xp b { color: var(--ink); }
+
+  .pui-trio {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    margin: 14px 0 12px; padding: 12px 0;
+    border-top: 1px solid var(--ivory-dim); border-bottom: 1px solid var(--ivory-dim);
   }
   .pui-lab { display: block; font-size: 9.5px; letter-spacing: .1em; color: var(--ink-soft); }
   .pui-chiffre {
-    display: block; margin-top: 2px; font-size: 20px; color: var(--ink);
+    display: block; margin-top: 3px; font-size: 19px; color: var(--ink);
     font-variant-numeric: tabular-nums;
   }
   .pui-sous { display: block; font-size: 10.5px; color: var(--ink-soft); line-height: 1.4; }
@@ -4144,6 +4164,9 @@
     el('sheet-close').addEventListener('click', closeSheet);
   }
 
+  /* Résumé du joueur : le portrait, le nom, le niveau, puis les trois
+     chiffres qui disent où l'on en est. Le portrait est cliquable et mène
+     droit au choix du portrait, plus bas dans la feuille. */
   function blocPuissance() {
     var n = niveauDe(readXp());
     var c = readClassement();
@@ -4152,27 +4175,42 @@
     var complete = eq.filter(function (x) { return !!x; }).length === 5;
     var puis = complete
       ? eq.reduce(function (t, x) { return t + puissanceCarte(x); }, 0) : 0;
+    var ava = carteAvatar();
+    var nbCartes = Object.keys(collection).length;
+    var albums = SERIES.filter(function (se) {
+      var e = etatSerie(se); return e.trouves >= e.total;
+    }).length;
 
-    return '<p class="sheet-sub">PROGRESSION</p>'
+    return '<p class="sheet-sub">RÉSUMÉ DU JOUEUR</p>'
       + '<div class="pui">'
-      + '<div class="pui-tete">'
-      + '<span class="pui-rang">' + esc(n.titre) + '</span>'
-      + '<span class="pui-total">niveau ' + n.niveau + '</span>'
-      + '</div>'
-      + '<div class="pui-jauge"><i style="width:' + Math.round(part * 100) + '%"></i></div>'
-      + '<p class="pui-mot"><b>' + n.dans.toLocaleString('fr-FR') + '</b> / '
-      + n.requis.toLocaleString('fr-FR') + ' points d’expérience vers le niveau '
-      + (n.niveau + 1) + '.</p>'
 
-      + '<div class="pui-duo">'
-      + '<div><span class="pui-lab">COTE DE DUEL</span>'
+      + '<div class="pui-id">'
+      + '<button class="pui-ava" data-vers-portrait="1" aria-label="Changer de portrait"'
+      + (ava ? ' style="--tier:' + tierOf(ava.rank).color + '"' : '') + '>'
+      + (ava
+          ? (ava.thumb
+              ? '<img src="' + esc(ava.thumb) + '" alt="" loading="lazy" decoding="async">'
+              : artSVG(ava.title, tierOf(ava.rank).color))
+          : '<span class="pui-ava-vide">+</span>')
+      + '</button>'
+      + '<div class="pui-id-txt">'
+      + '<span class="pui-nom">' + esc(profil.nom || 'Sans nom') + '</span>'
+      + '<span class="pui-rang">' + esc(n.titre) + ' · niveau ' + n.niveau + '</span>'
+      + '<span class="pui-jauge"><i style="width:' + Math.round(part * 100) + '%"></i></span>'
+      + '<span class="pui-xp"><b>' + n.dans.toLocaleString('fr-FR') + '</b> / '
+      + n.requis.toLocaleString('fr-FR') + ' xp vers le niveau ' + (n.niveau + 1) + '</span>'
+      + '</div></div>'
+
+      + '<div class="pui-trio">'
+      + '<div><span class="pui-lab">COTE</span>'
       + '<b class="pui-chiffre">' + c.cote.toLocaleString('fr-FR') + '</b>'
-      + '<span class="pui-sous">' + c.v + ' V · ' + c.d + ' D · record '
-      + c.meilleure.toLocaleString('fr-FR') + '</span></div>'
-      + '<div><span class="pui-lab">PUISSANCE D’ÉQUIPE</span>'
+      + '<span class="pui-sous">' + c.v + ' V · ' + c.d + ' D</span></div>'
+      + '<div><span class="pui-lab">ÉQUIPE</span>'
       + '<b class="pui-chiffre">' + (complete ? puis.toLocaleString('fr-FR') : '—') + '</b>'
-      + '<span class="pui-sous">' + (complete ? 'somme des cinq cartes'
-                                              : 'équipe incomplète') + '</span></div>'
+      + '<span class="pui-sous">' + (complete ? 'cinq cartes' : 'incomplète') + '</span></div>'
+      + '<div><span class="pui-lab">CARTES</span>'
+      + '<b class="pui-chiffre">' + nbCartes.toLocaleString('fr-FR') + '</b>'
+      + '<span class="pui-sous">' + albums + ' album' + (albums > 1 ? 's' : '') + '</span></div>'
       + '</div>'
 
       + (complete
@@ -7170,6 +7208,14 @@
   /* Selection d'une carte depuis le panneau. */
   el('sheet-inner').addEventListener('click', function (e) {
     if (!e.target.closest) return;
+    var vp = e.target.closest('[data-vers-portrait]');
+    if (vp) {
+      var grille = el('sheet-inner').querySelector('.profil-ava');
+      if (grille && grille.scrollIntoView) {
+        grille.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
     var pc = e.target.closest('.pui-carte');
     if (pc) { openSheet(pc.getAttribute('data-title')); return; }
     var rs = e.target.closest('[data-succes]');
