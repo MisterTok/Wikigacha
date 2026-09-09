@@ -5545,18 +5545,54 @@
      déroute coûte plus qu'une défaite serrée. */
   var CKEY_RANG = 'wikigacha:classement';
   var COTE_DEPART = 1000;
+  var COTE_MIN = 0;
+  var COTE_MAX = 5000;
+
+  /* La cote est destinee a partir un jour dans un classement partage. On la
+     garde donc toujours sous une forme transmissible telle quelle : un entier,
+     jamais NaN, jamais hors de [COTE_MIN, COTE_MAX]. Un compteur abime par un
+     bug ou une sauvegarde bricolee est ramene ici, a la lecture comme a
+     l'ecriture, plutot que de contaminer le tableau des scores. */
+  function entierBorne(v, defaut, mini, maxi) {
+    var n = Math.round(Number(v));
+    if (!isFinite(n)) n = defaut;
+    if (n < mini) n = mini;
+    if (n > maxi) n = maxi;
+    return n;
+  }
+
+  function normaliserClassement(c) {
+    if (!c || typeof c !== 'object') c = {};
+    c.cote      = entierBorne(c.cote, COTE_DEPART, COTE_MIN, COTE_MAX);
+    c.v         = entierBorne(c.v, 0, 0, 999999);
+    c.d         = entierBorne(c.d, 0, 0, 999999);
+    c.meilleure = entierBorne(c.meilleure, c.cote, COTE_MIN, COTE_MAX);
+    c.serie     = entierBorne(c.serie, 0, -999, 999);
+    if (c.meilleure < c.cote) c.meilleure = c.cote;
+    return c;
+  }
 
   function readClassement() {
     var c;
     try { c = JSON.parse(localStorage.getItem(CKEY_RANG)); } catch (e) { c = null; }
-    if (!c || typeof c.cote !== 'number') {
-      c = { cote: COTE_DEPART, v: 0, d: 0, meilleure: COTE_DEPART, serie: 0 };
-    }
-    return c;
+    return normaliserClassement(c);
   }
   function writeClassement(c) {
+    c = normaliserClassement(c);
     try { localStorage.setItem(CKEY_RANG, JSON.stringify(c)); } catch (e) {}
+    return c;
   }
+
+  /* Reparation au chargement : une cote deja abimee sur l'appareil est
+     remise dans les clous tout de suite, sans attendre le prochain duel.
+     On ne cree pas la cle pour un joueur qui n'a jamais duelle. */
+  (function reparerClassement() {
+    var brut = null;
+    try { brut = localStorage.getItem(CKEY_RANG); } catch (e) { return; }
+    if (!brut) return;
+    var propre = JSON.stringify(readClassement());
+    if (propre !== brut) writeClassement(JSON.parse(propre));
+  })();
   function deltaCote(gagnees) {
     if (gagnees >= 5) return 32;
     if (gagnees === 4) return 30;
@@ -5614,12 +5650,15 @@
     writeJour(j);
 
     var c = readClassement();
-    var delta = deltaCote(gagnees);
-    c.cote = Math.max(0, c.cote + delta);
+    var avant = c.cote;
+    c.cote = entierBorne(c.cote + deltaCote(gagnees), COTE_DEPART, COTE_MIN, COTE_MAX);
+    /* Le delta affiche est l'ecart reellement applique : contre le plancher
+       ou le plafond, annoncer +32 alors que la cote n'a pas bouge serait faux. */
+    var delta = c.cote - avant;
     if (gagne) { c.v += 1; c.serie = Math.max(0, c.serie) + 1; }
     else { c.d += 1; c.serie = Math.min(0, c.serie) - 1; }
     if (c.cote > c.meilleure) c.meilleure = c.cote;
-    writeClassement(c);
+    c = writeClassement(c);
 
     var recu = 0;
     if (gagne) { recu = GAIN_DUEL; ajouterGold(recu); }
