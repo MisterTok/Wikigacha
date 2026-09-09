@@ -2235,6 +2235,51 @@
   .splash-jauge { border-radius: 2px; }
   .splash-jauge span { border-radius: 2px; }
   .splash-credit { color: #444c62; }
+
+  /* --- Le bord dechire du sachet -----------------------------------------
+     Deux defauts a l'ouverture : la tranche des cartes formait un ruban creme
+     epais raye tous les 17 px, qui se lisait comme un ticket de caisse ; et
+     les perforations, larges de 9 px, faisaient une guirlande de festons.
+     On resserre les deux et on baisse le contraste : de pres on distingue la
+     matiere, de loin ca redevient une simple ligne de dechirure. */
+
+  /* La tranche des cartes : une pile de papier vue par la tranche. Les feuilles
+     ne sont pas equidistantes et leur separation est a peine plus sombre que le
+     papier ; seule l'arete du dessus capte vraiment la lumiere. */
+  .pack-breche::before {
+    left: -8px; right: -8px; bottom: 6px; height: 7px;
+    background:
+      /* l'ombre du sachet mange la tranche vers la gauche, la ou on regarde
+         le plus profond dans la pochette */
+      linear-gradient(90deg, rgba(9,12,20,.55) 0%, rgba(9,12,20,.12) 26%, transparent 55%),
+      repeating-linear-gradient(90deg,
+        transparent 0 8px, rgba(96,84,62,.16) 8px 8.5px,
+        transparent 8.5px 14px, rgba(96,84,62,.1) 14px 14.4px),
+      linear-gradient(180deg,
+        #cdc0a4 0%, #a1957a 30%, #6b6350 66%, #403c2f 100%);
+    box-shadow:
+      0 -8px 12px rgba(0,0,0,.7),
+      inset 0 .5px 0 rgba(233,223,201,.45);
+  }
+
+  /* Les perforations : pas rapproche, contraste faible, et un leger
+     assombrissement dans le creux de chaque dent — c'est l'ombre du film
+     retourne, pas un motif decoratif. */
+  .pack-dents::before {
+    right: -10px;
+    /* Micro-perforations : pas de 4,5 px et contraste faible. De pres c'est
+       une dentelure de film, de loin une simple ligne de dechirure. */
+    background:
+      /* Trois pas differents (4, 5,5 et 7 px) superposes : la dechirure cesse
+         d'etre un feston regulier et redevient irreguliere, comme un film
+         reellement arrache. */
+      radial-gradient(circle at 50% 0, transparent 1.5px, rgba(18,23,40,.42) 1.7px)
+        repeat-x 1px 2px / 7px 10px,
+      radial-gradient(circle at 50% 0, transparent 1.3px, #47517a 1.5px)
+        repeat-x 2px .5px / 5.5px 10px,
+      radial-gradient(circle at 50% 0, transparent 1.2px, #596492 1.4px)
+        repeat-x 0 0 / 4px 10px;
+  }
 </style>
 </head>
 <body>
