@@ -1456,6 +1456,7 @@
   .profil-ava {
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px;
     max-height: 210px; overflow-y: auto; padding: 2px;
+    overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
   }
   .profil-vign {
     position: relative; aspect-ratio: 1; padding: 0; overflow: hidden;
@@ -6266,7 +6267,14 @@
     var av = e.target.closest('[data-ava]');
     if (av) {
       profil.avatar = av.getAttribute('data-ava');
-      saveProfil(); majProfil(); ouvrirProfil();
+      saveProfil(); majProfil();
+      /* On met à jour la sélection sur place : repeindre la feuille la
+         ramenait en haut et perdait la position dans la grille. */
+      var vignettes = el('sheet-inner').querySelectorAll('[data-ava]');
+      for (var vi = 0; vi < vignettes.length; vi++) {
+        vignettes[vi].classList.toggle('choisi',
+          vignettes[vi].getAttribute('data-ava') === profil.avatar);
+      }
       return;
     }
     var opt = e.target.closest('#opt-vibr, #opt-son, #opt-notif');
@@ -6367,8 +6375,25 @@
     var y0 = null, dy = 0, t0 = 0;
     var SEUIL_PX = 96, SEUIL_VIT = 0.6;
 
+    /* Une zone qui défile à l'intérieur de la feuille (la grille de
+       portraits, par exemple) doit garder ses gestes : sans ce garde-fou, le
+       glissement de fermeture s'emparait du doigt et faisait sauter toute la
+       feuille. */
+    function dansUneListe(cible) {
+      var n = cible;
+      while (n && n !== i) {
+        if (n.scrollHeight > n.clientHeight + 1) {
+          var ov = getComputedStyle(n).overflowY;
+          if (ov === 'auto' || ov === 'scroll') return true;
+        }
+        n = n.parentElement;
+      }
+      return false;
+    }
+
     i.addEventListener('touchstart', function (e) {
-      if (i.scrollTop > 0 || e.touches.length !== 1) { y0 = null; return; }
+      if (i.scrollTop > 0 || e.touches.length !== 1
+          || dansUneListe(e.target)) { y0 = null; return; }
       y0 = e.touches[0].clientY; dy = 0; t0 = Date.now();
       i.classList.add('glisse'); i.classList.remove('rentre');
     }, { passive: true });
