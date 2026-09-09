@@ -2528,6 +2528,15 @@
   var UA_WIKI = 'Wikigacha/1.0 (https://mistertok.github.io/Wikigacha/)';
   var enTeteOk = {};
 
+  /* Api-User-Agent n'est pas un en-tête simple au sens CORS : le navigateur
+     envoie donc une requête OPTIONS de contrôle AVANT chaque appel, et comme
+     chaque article a sa propre URL, ce contrôle n'est jamais réutilisé. Sur
+     le chemin d'un tirage — onze appels — cela faisait vingt-deux allers-
+     retours au lieu de onze. D'où fetchWiki (identifié, pour les appels rares)
+     et fetchVite (sans en-tête, pour tout ce que le joueur attend).
+     L'application reste identifiable : l'en-tête Origin porte le domaine. */
+  function fetchVite(url) { return fetch(url); }
+
   function fetchWiki(url) {
     var hote = '';
     try { hote = new URL(url, location.href).hostname; } catch (e) {}
@@ -2540,6 +2549,22 @@
         enTeteOk[hote] = false;
         return fetch(url);
       });
+  }
+
+  /* Un appel qui traîne ne doit pas retenir tout le tirage : passé le délai,
+     on repart avec une valeur par défaut plutôt que d'attendre. */
+  function avecDelai(promesse, ms, repli) {
+    return new Promise(function (resolve) {
+      var fini = false;
+      var t = setTimeout(function () {
+        if (!fini) { fini = true; resolve(repli); }
+      }, ms);
+      promesse.then(function (v) {
+        if (!fini) { fini = true; clearTimeout(t); resolve(v); }
+      })['catch'](function () {
+        if (!fini) { fini = true; clearTimeout(t); resolve(repli); }
+      });
+    });
   }
 
   /* ---------- données ---------- */
@@ -2557,7 +2582,7 @@
       + '&prop=info|pageimages|description|extracts'
       + '&inprop=url&piprop=thumbnail&pithumbsize=500&pilicense=any'
       + '&exintro=1&explaintext=1&exlimit=max';
-    return fetchWiki(url).then(function (r) {
+    return fetchVite(url).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     }).then(function (d) {
@@ -2600,7 +2625,7 @@
     var url = 'https://wikimedia.org/api/rest_v1/metrics/pageviews/per-article/'
       + WIKI + '/all-access/user/' + encodeURIComponent(title.replace(/ /g, '_'))
       + '/monthly/' + r[0] + '/' + r[1];
-    return fetchWiki(url)
+    return fetchVite(url)
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (d) {
         if (!d || !d.items) return 0;
@@ -2614,7 +2639,7 @@
     var url = 'https://' + WIKI + '.org/w/api.php'
       + '?action=parse&format=json&origin=*&pageid=' + pageid
       + '&prop=sections|externallinks|images|categories';
-    return fetchWiki(url)
+    return fetchVite(url)
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
         var pr = d && d.parse;
@@ -3545,6 +3570,34 @@
      que charger les cartes. 'pitie' vaut 0 (aucune garantie) ou l'indice du
      palier garanti : 3 pour la pitie tous les dix paquets, 4 pour la garantie
      quotidienne du premium. */
+  /* Charge cinq cartes complètes. Séparé de openPack pour pouvoir être
+     lancé à l'avance, pendant que le joueur regarde le paquet précédent. */
+  var paquetPret = null, prechargeEnCours = false;
+
+  function chargerCartes() {
+    return fetchPack().then(function (pages) {
+      return Promise.all(pages.map(function (p) {
+        /* Les vues passent par un service lent : on lui laisse 4 s, puis on
+           se contente de 0 plutôt que de bloquer les quatre autres cartes. */
+        return Promise.all([
+          avecDelai(fetchViews(p.title), 4000, 0),
+          avecDelai(fetchQuality(p.pageid), 4000, null)
+        ]).then(function (r) { return toCard(p, r[0], r[1]); });
+      }));
+    });
+  }
+
+  function prechargerPaquet() {
+    if (paquetPret || prechargeEnCours) return;
+    if (navigator.onLine === false) return;
+    if (readPacks().n < 1) return;         /* rien à ouvrir ensuite */
+    prechargeEnCours = true;
+    chargerCartes()
+      .then(function (cards) { paquetPret = cards; })
+      ['catch'](function () { paquetPret = null; })
+      .then(function () { prechargeEnCours = false; });
+  }
+
   function openPack(pitie) {
     if (tirageEnCours) return;   /* verrou : un seul tirage a la fois */
     tirageEnCours = true;
@@ -3556,13 +3609,17 @@
     status.hidden = true;
     var tirageDebut = Date.now();
 
-    fetchPack()
-      .then(function (pages) {
-        return Promise.all(pages.map(function (p) {
-          return Promise.all([fetchViews(p.title), fetchQuality(p.pageid)])
-            .then(function (r) { return toCard(p, r[0], r[1]); });
-        }));
-      })
+    var source;
+    if (paquetPret) {
+      /* Déjà chargé pendant que le joueur retournait les cartes précédentes :
+         l'ouverture est instantanée. */
+      source = Promise.resolve(paquetPret);
+      paquetPret = null;
+    } else {
+      source = chargerCartes();
+    }
+
+    source
       .then(function (cards) {
         cards.sort(function (a, b) { return rankIndex(a.rank) - rankIndex(b.rank); });
         /* Garantie : plutot que de promouvoir artificiellement une ebauche,
@@ -3581,9 +3638,10 @@
       })
       .then(function (cards) {
         queue = cards; qi = 0; neuvesTirage = {};
-        /* On laisse l'animation de dechirure se terminer (600 ms) avant de
-           montrer les cartes, mais on ne bloque pas si le reseau a ete plus
-           lent que l'anim. */
+        /* On laisse l'animation de dechirure se terminer avant de montrer
+           les cartes. La plus longue est l'eclat, à 500 ms : au-delà on
+           n'attendait plus rien. Maintenant que le paquet suivant est souvent
+           déjà chargé, ce délai est ce que le joueur ressent vraiment. */
         var revele = function () {
           tirageEnCours = false;
           el('pack').classList.remove('ouvert');
@@ -3591,6 +3649,9 @@
           el('pack-stage').hidden = true;
           el('reveal').hidden = false;
           el('flipper').classList.remove('is-open');
+          /* Le joueur va passer une dizaine de secondes sur ses cartes :
+             on met le paquet suivant en réserve pendant ce temps. */
+          setTimeout(prechargerPaquet, 400);
           showNext();
           cards.forEach(rattraperImageCarte);
           refreshPacks();
@@ -3600,8 +3661,8 @@
           if (!el('view-raid').hidden) showHistoire();
         };
         var ecoule = Date.now() - tirageDebut;
-        if (ecoule >= 600) revele();
-        else setTimeout(revele, 600 - ecoule);
+        if (ecoule >= 520) revele();
+        else setTimeout(revele, 520 - ecoule);
       })
       .catch(function (err) {
         /* Le paquet n'a pas abouti : on le rend au joueur. */
