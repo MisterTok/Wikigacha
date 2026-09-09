@@ -36,7 +36,7 @@
     --t5: #c9992e;
     --t6: #cc4c3f;
 
-    --hud-h: 50px;
+    --hud-h: 56px;
     --bar-h: 58px;
     --safe-b: env(safe-area-inset-bottom, 0px);
 
@@ -72,29 +72,44 @@
     color: var(--ivory); letter-spacing: -0.015em; white-space: nowrap;
     font-size: 17px; flex: 0 1 auto; min-width: 0; overflow: hidden;
   }
-  /* Sur les écrans les plus étroits, le profil et les ressources passent
-     avant la marque : elle est déjà portée par l'écran de lancement. */
-  @media (max-width: 379px) { .hud-marque { display: none; } }
+  /* Le profil et les ressources passent avant la marque : elle est déjà
+     portée par l'écran de lancement, et le compte est vite fait — pastille
+     163 px + ressources 132 px + écarts 16, il ne reste pas 79 px pour
+     « Wikigacha » sur un écran de 393 px. Elle ne réapparaît qu'au-delà. */
+  @media (max-width: 439px) { .hud-marque { display: none; } }
 
   .hud-profil {
     position: relative;
-    display: flex; align-items: center; gap: 7px; flex: none;
-    height: 36px; padding: 0 8px 0 4px; margin-right: 2px;
+    display: flex; align-items: center; gap: 8px; flex: none;
+    height: 44px; padding: 0 9px 0 5px; margin-right: 2px;
     font: inherit; color: var(--glass); cursor: pointer;
     background: var(--night-up); border: 1px solid var(--night-line);
     -webkit-tap-highlight-color: transparent;
   }
   .hud-profil:active { background: #262c40; }
   .hud-ava {
-    display: block; width: 26px; height: 26px; flex: none; overflow: hidden;
+    display: block; width: 34px; height: 34px; flex: none; overflow: hidden;
     background: #0e111a; border: 1px solid var(--tier, var(--night-line));
   }
   .hud-ava img, .hud-ava .art {
     display: block; width: 100%; height: 100%; object-fit: cover;
   }
+  .hud-col { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .hud-ligne { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
   .hud-nom {
-    max-width: 62px; overflow: hidden; text-overflow: ellipsis;
-    white-space: nowrap; font-size: 12px; color: var(--ivory);
+    max-width: 64px; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; font-size: 12.5px; color: var(--ivory);
+  }
+  .hud-niv {
+    flex: none; font-size: 10.5px; color: var(--glass-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  /* Barre d'expérience : deux pixels suffisent à faire sentir une avancée. */
+  .hud-xp { display: block; width: 86px; height: 3px; background: #0e111a; }
+  .hud-xp i {
+    display: block; height: 100%; width: 0;
+    background: linear-gradient(90deg, #c9992e, #f0dda4);
+    transition: width .35s ease;
   }
   .hud-ecrou {
     width: 15px; height: 15px; flex: none; stroke: var(--glass-dim);
@@ -166,10 +181,6 @@
   #coll-count { opacity: .7; font-variant-numeric: tabular-nums; }
 
   /* --- paquet --- */
-  .tagline {
-    margin: 2px 0 4px; text-align: center;
-    font-size: 13px; color: var(--glass-dim);
-  }
   .packs {
     margin: 10px 0 4px; text-align: center;
     font-size: 12px; color: var(--glass-dim);
@@ -1817,7 +1828,13 @@
 <header class="hud">
   <button class="hud-profil" id="hud-profil" aria-label="Profil et réglages">
     <span class="hud-ava" id="hud-ava"></span>
-    <span class="hud-nom" id="hud-nom">Profil</span>
+    <span class="hud-col">
+      <span class="hud-ligne">
+        <span class="hud-nom" id="hud-nom">Profil</span>
+        <span class="hud-niv" id="hud-niv">1</span>
+      </span>
+      <span class="hud-xp"><i id="hud-xp"></i></span>
+    </span>
     <span id="succes-count" class="badge badge-profil"></span>
     <svg class="hud-ecrou" viewBox="0 0 24 24" aria-hidden="true">
       <path d="M9.80 1.63L14.20 1.63L13.41 5.35L17.05 7.45L19.88 4.91L22.08 8.72L18.47 9.90L18.47 14.10L22.08 15.28L19.88 19.09L17.05 16.55L13.41 18.65L14.20 22.37L9.80 22.37L10.59 18.65L6.95 16.55L4.12 19.09L1.92 15.28L5.53 14.10L5.53 9.90L1.92 8.72L4.12 4.91L6.95 7.45L10.59 5.35Z"/>
@@ -1847,7 +1864,6 @@
     <button id="sub-albums" class="sous-tab">Albums <span id="albums-count"></span></button>
   </nav>
   <div id="view-open">
-  <p class="tagline">Cinq articles au hasard. À vous de voir ce que ça vaut.</p>
   <div id="pack-stage" class="pack-stage">
     <div id="pack" class="pack" role="button" tabindex="0"
          aria-label="Ouvrir un paquet de cinq cartes">
@@ -2125,6 +2141,7 @@
     var v = readXp() + n;
     try { localStorage.setItem(XKEY, String(v)); } catch (e) {}
     var apres = niveauDe(v);
+    majProfil();
     if (apres.niveau > avant) {
       toast('<b>Niveau ' + apres.niveau + '</b> — ' + esc(apres.titre));
       son('legendaire'); vib([0, 24, 50, 45]);
@@ -2161,6 +2178,9 @@
     var nom = el('hud-nom'), ava = el('hud-ava');
     if (!nom || !ava) return;
     nom.textContent = profil.nom || 'Profil';
+    var n = niveauDe(readXp());
+    el('hud-niv').textContent = n.niveau;
+    el('hud-xp').style.width = Math.round(n.dans / n.requis * 100) + '%';
     var c = carteAvatar();
     if (c) {
       var t = tierOf(c.rank);
