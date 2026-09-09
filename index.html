@@ -517,11 +517,26 @@
   }
   .draw-bilan b { color: #f0dda4; font-variant-numeric: tabular-nums; }
   .fig {
+    position: relative;
     flex: 1 1 auto; min-height: 60px; overflow: hidden;
     border: 1px solid var(--ivory-dim); background: #efe8d6;
     display: grid; place-items: center;
   }
-  .fig img, .fig .art { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .fig .art { width: 100%; height: 100%; display: block; }
+
+  /* Cadre commun : fond flouté + image entière. */
+  .visuel-fond {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; transform: scale(1.15);
+    filter: blur(18px) saturate(.85);
+  }
+  .sombre .visuel-fond { filter: blur(20px) brightness(.45) saturate(1.1); }
+  .visuel-img {
+    position: relative; display: block; width: 100%; height: 100%;
+    object-fit: contain;
+  }
+  .visuel-img.large { object-fit: cover; object-position: 50% 35%; }
+  .pleine .visuel-fond { opacity: 0; }
   .card-thumb-alt { padding: 0; overflow: hidden; }
   .card-thumb-alt .art { width: 100%; height: 100%; display: block; }
   .sheet-art {
@@ -769,21 +784,6 @@
     position: relative; height: 230px; overflow: hidden;
     background: #0b0e16; border: 1px solid var(--night-line); margin-bottom: 12px;
   }
-  /* Le fond flouté évite les bandes noires sans rien rogner du sujet. */
-  .boss-fond {
-    position: absolute; inset: 0; width: 100%; height: 100%;
-    object-fit: cover; transform: scale(1.15);
-    filter: blur(20px) brightness(.45) saturate(1.1);
-  }
-  /* Par défaut l'image est affichée entière : rien n'est coupé. Une photo
-     plus large que haute peut remplir le cadre sans risque, on la bascule
-     alors en remplissage — le sujet y gagne en taille. */
-  .boss-img {
-    position: relative; display: block; width: 100%; height: 100%;
-    object-fit: contain;
-  }
-  .boss-img.large { object-fit: cover; object-position: 50% 32%; }
-  .boss-img.large + .boss-fond, .boss-vue.pleine .boss-fond { opacity: 0; }
   .boss-art { height: 210px; overflow: hidden; border: 1px solid var(--night-line); margin-bottom: 12px; }
   .boss-art .art { width: 100%; height: 100%; display: block; }
   .boss p { margin: 0 0 12px; font-size: 13px; line-height: 1.6; color: var(--glass-dim); }
@@ -1539,8 +1539,9 @@
     line-height: 1.15; margin: 0 0 3px;
   }
   .sheet-sub { margin: 0 0 15px; font-size: 11px; letter-spacing: .1em; color: var(--tier); }
-  .sheet-img {
-    width: 100%; max-height: 210px; object-fit: cover;
+  .sheet-vue {
+    position: relative; height: 230px; overflow: hidden;
+    background: var(--ivory-dim);
     border: 1px solid var(--ivory-dim); margin-bottom: 15px;
   }
   .sheet-text { font-size: 15px; line-height: 1.68; margin: 0 0 14px; }
@@ -3637,7 +3638,7 @@
   function frontHTML(c, neuve, copies) {
     var t = tierOf(c.rank);
     var fig = c.thumb
-      ? '<img src="' + esc(c.thumb) + '" alt="">'
+      ? visuelHTML(c.thumb)
       : artSVG(c.title, t.color);
     var badge = '';
     if (neuve === true) badge = '<div class="neuf">NOUVELLE</div>';
@@ -3653,6 +3654,36 @@
       + '<span>DÉF <b>' + defEff(c) + '</b></span>'
       + '<button class="more" data-title="' + esc(c.title) + '">Fiche complète</button>'
       + '</div>';
+  }
+
+  /* Un cadre qui ne coupe jamais le sujet.
+     Les vignettes de Wikipédia sont majoritairement des portraits, et rien
+     n'indique où se trouve le sujet dans l'image : le recadrage au centre
+     tombait donc régulièrement sur un menton ou un mur. Ici l'image est
+     affichée ENTIÈRE, et une reprise floutée d'elle-même comble les côtés.
+     Une photo plus large que haute n'a rien à y perdre : elle remplit le
+     cadre, ce qui donne un sujet plus grand. Le rapport n'étant connu
+     qu'au chargement, la bascule se fait à ce moment-là. */
+  function visuelHTML(src) {
+    return '<img class="visuel-fond" src="' + esc(src) + '" alt="" aria-hidden="true">'
+      + '<img class="visuel-img" src="' + esc(src) + '" alt="">';
+  }
+
+  function calerVisuels(racine) {
+    if (!racine || !racine.querySelectorAll) return;
+    var imgs = racine.querySelectorAll('.visuel-img');
+    for (var i = 0; i < imgs.length; i++) {
+      (function (im) {
+        var poser = function () {
+          if (!im.naturalWidth || !im.naturalHeight) return;
+          var large = im.naturalWidth / im.naturalHeight >= 1.15;
+          im.classList.toggle('large', large);
+          if (im.parentNode) im.parentNode.classList.toggle('pleine', large);
+        };
+        if (im.complete && im.naturalWidth) poser();
+        else im.addEventListener('load', poser);
+      })(imgs[i]);
+    }
   }
 
   /* Va chercher une image pour une carte qui n'en a pas, en arriere-plan.
@@ -3680,7 +3711,7 @@
     if (!el('reveal').hidden && queue[qi] && queue[qi].title === c.title
         && el('flipper').classList.contains('is-open')) {
       var fig = el('front').querySelector('.fig');
-      if (fig) fig.innerHTML = '<img src="' + esc(img) + '" alt="">';
+      if (fig) { fig.innerHTML = visuelHTML(img); calerVisuels(fig); }
     }
   }
 
@@ -3717,6 +3748,7 @@
     var poss = collection[c.title];
     el('counter').textContent = 'Carte ' + (qi + 1) + ' sur ' + queue.length;
     el('front').innerHTML = frontHTML(c, !poss, poss ? poss.count + 1 : 1);
+    calerVisuels(el('front'));
     el('front').style.setProperty('--tier', t.color);
     el('flipper').className = 'flipper ' + t.fx;
     el('flipper').style.setProperty('--tier', t.color);
@@ -4314,7 +4346,7 @@
       + ' · ' + etoiles(niveau(c))
       + (c.count > 1 ? ' · ' + c.count + ' EXEMPLAIRES' : '') + '</p>'
       + '<div id="sheet-visuel">' + (c.thumb
-          ? '<img class="sheet-img" src="' + esc(c.thumb) + '" alt="">'
+          ? '<div class="sheet-vue">' + visuelHTML(c.thumb) + '</div>'
           : '<div class="sheet-art">' + artSVG(c.title, t.color) + '</div>') + '</div>'
       + '<p class="sheet-text" id="sheet-text">'
       + esc(c.extract || 'Chargement du résumé…') + '</p>'
@@ -4343,6 +4375,7 @@
       + 'Offrir cette carte' + (c.count > 1 ? ' (vous en avez ' + c.count + ')' : '')
       + '</button>';
     ouvrirFeuille();
+    calerVisuels(el('sheet-inner'));
     completerExtrait(c);
     el('sheet-close').addEventListener('click', closeSheet);
 
@@ -4363,7 +4396,8 @@
             if (img) {
               c.thumb = img; c.imgVerif = true;
               var z = el('sheet-visuel');
-              if (z) z.innerHTML = '<img class="sheet-img" src="' + esc(img) + '" alt="">';
+              if (z) { z.innerHTML = '<div class="sheet-vue">' + visuelHTML(img)
+                + '</div>'; calerVisuels(z); }
               save();
             } else {
               /* Rien dans le resume : on tente le corps de l'article. */
@@ -4372,7 +4406,8 @@
                 if (img2) {
                   c.thumb = img2;
                   var z2 = el('sheet-visuel');
-                  if (z2) z2.innerHTML = '<img class="sheet-img" src="' + esc(img2) + '" alt="">';
+                  if (z2) { z2.innerHTML = '<div class="sheet-vue">' + visuelHTML(img2)
+                      + '</div>'; calerVisuels(z2); }
                 }
                 save();
               });
@@ -4602,27 +4637,9 @@
   function paintRaid(etat) {
     var b = etat.boss, t = tierOf(b.rank);
     var pct = Math.max(0, etat.pv / etat.pvMax * 100);
-    /* Deux fois la même image : l'une floutée remplit le cadre, l'autre est
-       affichée entière par-dessus. Les vignettes de Wikipédia sont souvent des
-       portraits ; les recadrer au centre coupait les visages. */
-    var visuel = b.thumb
-      ? '<div class="boss-vue">'
-        + '<img class="boss-fond" src="' + esc(b.thumb) + '" alt="" aria-hidden="true">'
-        + '<img class="boss-img" src="' + esc(b.thumb) + '" alt="">'
-        + '</div>'
+      var visuel = b.thumb
+      ? '<div class="boss-vue sombre">' + visuelHTML(b.thumb) + '</div>'
       : '<div class="boss-art">' + artSVG(b.title, t.color) + '</div>';
-    /* Le rapport de l'image n'est connu qu'une fois chargée. */
-    var caler = function () {
-      var im = el('raid-body') && el('raid-body').querySelector('.boss-img');
-      if (!im) return;
-      var poser = function () {
-        if (!im.naturalWidth || !im.naturalHeight) return;
-        var large = im.naturalWidth / im.naturalHeight >= 1.15;
-        im.classList.toggle('large', large);
-        im.parentNode.classList.toggle('pleine', large);
-      };
-      if (im.complete) poser(); else im.addEventListener('load', poser);
-    };
 
     var dispo = Object.keys(collection)
       .map(function (k) { return collection[k]; })
@@ -4709,7 +4726,7 @@
     }
 
     el('raid-body').innerHTML = html;
-    caler();
+    calerVisuels(el('raid-body'));
   }
 
   function toutAttaquer() {
@@ -5640,7 +5657,7 @@
     inner.innerHTML = '<h2>' + esc(titre) + '</h2>'
       + '<p class="sheet-sub">' + esc((info.desc || 'Article Wikipédia').toUpperCase()) + '</p>'
       + (info.thumb
-          ? '<img class="sheet-img" src="' + esc(info.thumb) + '" alt="">'
+          ? '<div class="sheet-vue">' + visuelHTML(info.thumb) + '</div>'
           : '')
       + '<p class="sheet-text">' + esc(info.extrait || 'Chargement…') + '</p>'
       + '<div class="sheet-actions">'
@@ -5652,6 +5669,7 @@
             + '" target="_blank" rel="noopener">Lire l’article</a>')
       + '</div>';
     ouvrirFeuille();
+    calerVisuels(el('sheet-inner'));
     el('sheet-close').addEventListener('click', closeSheet);
   }
 
