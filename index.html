@@ -1242,6 +1242,59 @@
     font-size: 16px; color: var(--ivory); font-variant-numeric: tabular-nums;
   }
   .prem-carte .btn { margin: 8px 0 0; padding: 11px 8px; font-size: 13.5px; }
+
+  /* --- duel classé --- */
+  .cote-bandeau {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    margin-bottom: 18px; padding: 12px 14px;
+    background: var(--night-up); border: 1px solid var(--night-line);
+    border-left: 3px solid #c9992e;
+  }
+  .cote-tag { display: block; font-size: 9.5px; letter-spacing: .14em; color: var(--glass-dim); }
+  .cote-pts {
+    display: block; margin-top: 2px; font-size: 26px; line-height: 1;
+    color: var(--ivory); font-variant-numeric: tabular-nums;
+  }
+  .cote-bilan {
+    text-align: right; font-size: 11px; line-height: 1.5; color: var(--glass-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .eq-tete {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .eq-titre { margin: 0; }
+  .eq-grille { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 16px; }
+  .eq-slot {
+    position: relative; display: flex; flex-direction: column; padding: 0;
+    font: inherit; color: var(--glass); cursor: pointer; overflow: hidden;
+    background: var(--night-up);
+    border: 1px solid var(--night-line); border-top: 3px solid var(--tier, var(--night-line));
+  }
+  .eq-slot:active { background: #262c40; }
+  .eq-slot.vide { border-top-style: dashed; }
+  .eq-no {
+    position: absolute; top: 2px; left: 3px; z-index: 2;
+    font-size: 9.5px; color: var(--ivory); text-shadow: 0 1px 3px rgba(0,0,0,.9);
+  }
+  .eq-vue { display: block; aspect-ratio: 1; overflow: hidden; background: #0e111a; }
+  .eq-vue img, .eq-vue .art { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .eq-vue.vide {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; color: var(--night-line);
+  }
+  .eq-nom {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; padding: 4px 4px 0; font-size: 9.5px; line-height: 1.25;
+    color: var(--glass-dim);
+  }
+  .eq-pui {
+    display: block; padding: 2px 4px 4px; font-size: 10.5px; color: var(--ivory);
+    font-variant-numeric: tabular-nums;
+  }
+  .duel-delta {
+    display: block; margin-top: 4px; font-size: 12px;
+    font-variant-numeric: tabular-nums; opacity: .85;
+  }
   .prem-indispo { margin: 10px 0 0; font-size: 11.5px; }
 
   .lien-mini {
@@ -1543,6 +1596,58 @@
     display: inline-block; min-width: 17px; padding: 1px 4px; margin-left: 4px;
     font-size: 10.5px; color: #14161f; background: #c9992e;
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Cote de puissance : un chiffre, un rang, la marche suivante, et les
+     cinq cartes qui composent l'écurie. */
+  .pui {
+    padding: 13px 13px 11px; background: #fff;
+    border: 1px solid var(--ivory-dim);
+  }
+  .pui-tete {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  }
+  .pui-rang { font-family: var(--display); font-size: 20px; color: var(--ink); }
+  .pui-total {
+    font-size: 22px; font-weight: 600; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .pui-jauge {
+    height: 4px; margin: 10px 0 9px; background: var(--ivory-dim); overflow: hidden;
+  }
+  .pui-jauge i {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, #c9992e, #f0dda4);
+    transition: width .3s ease;
+  }
+  .pui-mot { margin: 0 0 12px; font-size: 12px; line-height: 1.6; color: var(--ink-soft); }
+  .pui-mot b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .pui-vide {
+    margin: 0; padding: 13px; font-size: 12.5px; color: var(--ink-soft);
+    background: #fff; border: 1px solid var(--ivory-dim);
+  }
+  .pui-duo {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;
+  }
+  .pui-lab { display: block; font-size: 9.5px; letter-spacing: .1em; color: var(--ink-soft); }
+  .pui-chiffre {
+    display: block; margin-top: 2px; font-size: 20px; color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .pui-sous { display: block; font-size: 10.5px; color: var(--ink-soft); line-height: 1.4; }
+  .pui-cinq { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .pui-carte {
+    display: block; padding: 0; overflow: hidden; cursor: pointer;
+    font: inherit; background: var(--ivory-dim);
+    border: 1px solid var(--tier, var(--ivory-dim));
+  }
+  .pui-vue { display: block; aspect-ratio: 1; overflow: hidden; background: var(--ivory-dim); }
+  .pui-vue img, .pui-vue .art {
+    display: block; width: 100%; height: 100%; object-fit: cover;
+  }
+  .pui-nb {
+    display: block; padding: 3px 0; font-size: 10.5px; color: var(--ink-soft);
+    font-variant-numeric: tabular-nums; background: #fff;
   }
 
   .profil-titre { margin-top: 18px; }
@@ -1967,6 +2072,73 @@
       return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[m];
     });
   };
+
+  /* ---------- cote de puissance ----------
+     Un duel se joue en cinq manches, et chacune revient au plus haut total
+     ATQ + DÉF. La force d'une écurie, c'est donc la somme des cinq meilleures
+     cartes — rien d'autre n'entre en ligne de compte.
+
+     Pas de classement entre joueurs : tout est stocké sur l'appareil, donc
+     n'importe quel score serait falsifiable en trois clics, et il n'y a aucun
+     serveur pour arbitrer. Ce qui suit est une cote personnelle, honnête,
+     et un taux de victoire réellement estimé. */
+  /* --- expérience et niveaux ---
+     Deux progressions distinctes, et c'est voulu : le NIVEAU récompense le
+     temps passé (il ne redescend jamais), la COTE récompense les résultats
+     en duel (elle monte et descend). Confondre les deux ferait qu'un joueur
+     assidu mais malchanceux verrait son titre reculer. */
+  var XKEY = 'wikigacha:xp';
+  var XP = {
+    paquet: 5, nouvelle: 10, duelGagne: 40, duelPerdu: 15,
+    quizJuste: 8, succes: 50, album: 100, histoire: 25, boss: 60
+  };
+  var TITRES = [
+    { min: 1,  nom: 'Curieux' },
+    { min: 5,  nom: 'Amateur' },
+    { min: 10, nom: 'Collectionneur' },
+    { min: 18, nom: 'Érudit' },
+    { min: 30, nom: 'Conservateur' },
+    { min: 45, nom: 'Bibliothécaire' },
+    { min: 65, nom: 'Académicien' }
+  ];
+
+  function readXp() {
+    var v;
+    try { v = parseInt(localStorage.getItem(XKEY), 10); } catch (e) { v = 0; }
+    return isNaN(v) ? 0 : v;
+  }
+  /* Le palier grandit avec le niveau : les premiers arrivent vite, les
+     derniers se méritent. */
+  function coutNiveau(n) { return 100 + (n - 1) * 60; }
+
+  function niveauDe(xp) {
+    var n = 1, reste = xp;
+    while (n < 300 && reste >= coutNiveau(n)) { reste -= coutNiveau(n); n += 1; }
+    var titre = TITRES[0].nom;
+    TITRES.forEach(function (t) { if (n >= t.min) titre = t.nom; });
+    return { niveau: n, dans: reste, requis: coutNiveau(n), titre: titre };
+  }
+
+  function gagnerXp(n) {
+    if (!n) return;
+    var avant = niveauDe(readXp()).niveau;
+    var v = readXp() + n;
+    try { localStorage.setItem(XKEY, String(v)); } catch (e) {}
+    var apres = niveauDe(v);
+    if (apres.niveau > avant) {
+      toast('<b>Niveau ' + apres.niveau + '</b> — ' + esc(apres.titre));
+      son('legendaire'); vib([0, 24, 50, 45]);
+    }
+  }
+
+  function puissanceCarte(c) { return atkEff(c) + defEff(c); }
+
+  /* Les cinq cartes que le jeu placerait pour vous. */
+  function meilleureEquipe() {
+    return Object.keys(collection).map(function (k) { return collection[k]; })
+      .sort(function (a, b) { return puissanceCarte(b) - puissanceCarte(a); })
+      .slice(0, 5);
+  }
 
   /* ---------- profil ----------
      Un nom et un visage, choisis parmi les cartes déjà tirées : l'avatar
@@ -3176,7 +3348,7 @@
   function add(c) {
     var e = collection[c.title];
     noterJour('rarete', rankIndex(c.rank));
-    if (!e) { noterJour('nouvelles', 1); neuvesTirage[c.title] = 1; }
+    if (!e) { noterJour('nouvelles', 1); neuvesTirage[c.title] = 1; gagnerXp(XP.nouvelle); }
     if (e) { e.count += 1; }
     else {
       collection[c.title] = {
@@ -3748,6 +3920,7 @@
         }).slice(0, 48);
 
       inner.innerHTML = tete
+        + blocPuissance()
         + '<p class="sheet-sub">VOTRE NOM</p>'
         + '<input id="profil-nom" class="code-champ" type="text" maxlength="18" '
         + 'placeholder="Sans nom" autocomplete="off" value="' + esc(profil.nom) + '">'
@@ -3799,6 +3972,56 @@
     if (!garderPos) ouvrirFeuille();
     inner.scrollTop = pos;
     el('sheet-close').addEventListener('click', closeSheet);
+  }
+
+  function blocPuissance() {
+    var n = niveauDe(readXp());
+    var c = readClassement();
+    var part = Math.max(0, Math.min(1, n.dans / n.requis));
+    var eq = readEquipe().map(function (t) { return t ? collection[t] : null; });
+    var complete = eq.filter(function (x) { return !!x; }).length === 5;
+    var puis = complete
+      ? eq.reduce(function (t, x) { return t + puissanceCarte(x); }, 0) : 0;
+
+    return '<p class="sheet-sub">PROGRESSION</p>'
+      + '<div class="pui">'
+      + '<div class="pui-tete">'
+      + '<span class="pui-rang">' + esc(n.titre) + '</span>'
+      + '<span class="pui-total">niveau ' + n.niveau + '</span>'
+      + '</div>'
+      + '<div class="pui-jauge"><i style="width:' + Math.round(part * 100) + '%"></i></div>'
+      + '<p class="pui-mot"><b>' + n.dans.toLocaleString('fr-FR') + '</b> / '
+      + n.requis.toLocaleString('fr-FR') + ' points d’expérience vers le niveau '
+      + (n.niveau + 1) + '.</p>'
+
+      + '<div class="pui-duo">'
+      + '<div><span class="pui-lab">COTE DE DUEL</span>'
+      + '<b class="pui-chiffre">' + c.cote.toLocaleString('fr-FR') + '</b>'
+      + '<span class="pui-sous">' + c.v + ' V · ' + c.d + ' D · record '
+      + c.meilleure.toLocaleString('fr-FR') + '</span></div>'
+      + '<div><span class="pui-lab">PUISSANCE D’ÉQUIPE</span>'
+      + '<b class="pui-chiffre">' + (complete ? puis.toLocaleString('fr-FR') : '—') + '</b>'
+      + '<span class="pui-sous">' + (complete ? 'somme des cinq cartes'
+                                              : 'équipe incomplète') + '</span></div>'
+      + '</div>'
+
+      + (complete
+          ? '<div class="pui-cinq">'
+            + eq.map(function (x) {
+                var t = tierOf(x.rank);
+                return '<button class="pui-carte" data-title="' + esc(x.title) + '" '
+                  + 'style="--tier:' + t.color + '" title="' + esc(x.title) + '">'
+                  + '<span class="pui-vue">'
+                  + (x.thumb
+                      ? '<img src="' + esc(x.thumb) + '" alt="" loading="lazy" decoding="async">'
+                      : artSVG(x.title, t.color))
+                  + '</span>'
+                  + '<span class="pui-nb">' + puissanceCarte(x) + '</span>'
+                  + '</button>';
+              }).join('')
+            + '</div>'
+          : '<p class="pui-vide">Composez votre équipe dans l’onglet Jouer.</p>')
+      + '</div>';
   }
 
   /* ---------- partage d'une carte ----------
@@ -4731,213 +4954,98 @@
   /* Duel en deux temps : on decouvre l'adversaire, puis on place ses cartes
      face a face. Le duel est decompte des la recherche, sinon on pourrait
      relancer jusqu'a tomber sur une equipe faible. */
+  /* ---------- duel classé ----------
+     L'équipe est composée à l'avance et conservée : c'est elle qui combat,
+     dans l'ordre où vous l'avez rangée. C'est la seule forme qui tienne le
+     jour où l'adversaire sera l'équipe d'un autre joueur — on ne peut pas
+     placer ses cartes en réaction à un adversaire qui n'est pas là.
+     Aujourd'hui l'adversaire est un bot tiré d'articles au hasard. */
+
+  var QKEY_EQ = 'wikigacha:equipe';
+
+  function readEquipe() {
+    var e;
+    try { e = JSON.parse(localStorage.getItem(QKEY_EQ)); } catch (err) { e = null; }
+    if (!e || !e.length) e = [null, null, null, null, null];
+    /* Une carte effacée entre deux sessions ne doit pas laisser un trou muet. */
+    return e.slice(0, 5).map(function (t) { return (t && collection[t]) ? t : null; });
+  }
+  function writeEquipe(e) {
+    try { localStorage.setItem(QKEY_EQ, JSON.stringify(e)); } catch (err) {}
+  }
+  function equipeComplete(e) {
+    return e.filter(function (t) { return !!t; }).length === 5
+        && e.filter(function (t, i) { return e.indexOf(t) !== i; }).length === 0;
+  }
+  function composerAuto() {
+    var e = meilleureEquipe().map(function (c) { return c.title; });
+    while (e.length < 5) e.push(null);
+    writeEquipe(e);
+    return e;
+  }
+
+  /* --- classement ---
+     ±28 à ±32 selon la marge : un 5-0 rapporte plus qu'un 3-2, et une
+     déroute coûte plus qu'une défaite serrée. */
+  var CKEY_RANG = 'wikigacha:classement';
+  var COTE_DEPART = 1000;
+
+  function readClassement() {
+    var c;
+    try { c = JSON.parse(localStorage.getItem(CKEY_RANG)); } catch (e) { c = null; }
+    if (!c || typeof c.cote !== 'number') {
+      c = { cote: COTE_DEPART, v: 0, d: 0, meilleure: COTE_DEPART, serie: 0 };
+    }
+    return c;
+  }
+  function writeClassement(c) {
+    try { localStorage.setItem(CKEY_RANG, JSON.stringify(c)); } catch (e) {}
+  }
+  function deltaCote(gagnees) {
+    if (gagnees >= 5) return 32;
+    if (gagnees === 4) return 30;
+    if (gagnees === 3) return 28;
+    if (gagnees === 2) return -28;
+    if (gagnees === 1) return -30;
+    return -32;
+  }
+
   var duelCourant = null;
 
   function lancerDuel() {
     var d = readJour();
     if (d.duelsJoues >= DUELS_PAR_JOUR) return;
-    if (Object.keys(collection).length < 5) return;
+    var eq = readEquipe();
+    if (!equipeComplete(eq)) return;
 
-    el('duel-body').innerHTML = '<p class="duel-titre">DUEL 5 CONTRE 5</p>'
+    el('duel-body').innerHTML = '<p class="duel-titre">DUEL CLASSÉ</p>'
       + '<p class="status">Recherche d’un adversaire…</p>';
 
-    fetchPack()
-      .then(function (pages) {
-        return Promise.all(pages.map(function (p) {
-          return Promise.all([fetchViews(p.title), fetchQuality(p.pageid)])
-            .then(function (r) { return toCard(p, r[0], r[1]); });
-        }));
-      })
+    chargerCartes()
       .then(function (adverse) {
+        /* Le bot range ses cartes de la plus forte à la plus faible, comme
+           le ferait un joueur. */
         adverse.sort(function (a, b) {
-          return (atkEff(b) + defEff(b) + rankIndex(b.rank) * 60)
-               - (atkEff(a) + defEff(a) + rankIndex(a.rank) * 60);
+          return (atkEff(b) + defEff(b)) - (atkEff(a) + defEff(a));
         });
         var j = readJour();
         j.duelsJoues += 1;
         writeJour(j);
-
-        /* Proposition de depart : les cinq meilleures, dans l'ordre. */
-        duelCourant = {
-          adverse: adverse,
-          choix: equipeJoueur().map(function (c) { return c.title; })
-        };
-        peindrePlacement();
+        duelCourant = { adverse: adverse };
+        resoudreDuel(eq);
       })
-      .catch(function (err) {
-        el('duel-body').innerHTML = '<p class="duel-titre">DUEL 5 CONTRE 5</p>'
-          + '<p class="status error">Aucun adversaire trouvé (' + esc(err.message) + ').</p>'
-          + boutonDuel();
+      ['catch'](function () {
+        el('duel-body').innerHTML = '<p class="duel-titre">DUEL CLASSÉ</p>'
+          + '<p class="status">Adversaire introuvable. Réessayez.</p>' + boutonDuel();
       });
   }
 
-  /* Placement automatique : chaque adversaire recoit la carte la plus juste
-     (celle qui gagne avec la plus petite marge, pour economiser les fortes). */
-  function placementAuto() {
-    var adverse = duelCourant.adverse;
-    var dispo = Object.keys(collection).map(function (k) { return collection[k]; });
-    var choix = [null, null, null, null, null];
-    var pris = {};
-    /* On traite les adversaires du plus coriace au plus faible. */
-    var ordre = adverse.map(function (l, i) { return i; })
-      .sort(function (a, b) { return defEff(adverse[b]) - defEff(adverse[a]); });
-    ordre.forEach(function (i) {
-      var lui = adverse[i], best = null, bestMarge = Infinity;
-      dispo.forEach(function (c) {
-        if (pris[c.title]) return;
-        var marge = (atkEff(c) - defEff(lui));
-        if (manche(c, lui) > 0) {
-          if (marge < bestMarge) { bestMarge = marge; best = c; }
-        }
-      });
-      if (!best) {   /* aucune gagnante : on met la plus forte restante */
-        dispo.forEach(function (c) {
-          if (pris[c.title]) return;
-          if (!best || atkEff(c) > atkEff(best)) best = c;
-        });
-      }
-      if (best) { choix[i] = best.title; pris[best.title] = 1; }
-    });
-    duelCourant.choix = choix;
-    peindrePlacement();
-  }
-
-  /* Vignette d'un camp du duel. Beaucoup d'articles tires au hasard n'ont
-     pas d'illustration : on retombe alors sur le motif genere, comme dans
-     la collection. */
-  function vueDuo(c, t) {
-    if (!c) return '<span class="duo-vue vide">+</span>';
-    return '<span class="duo-vue">'
-      + (c.thumb
-          ? '<img src="' + esc(c.thumb) + '" alt="" loading="lazy" decoding="async">'
-          : artSVG(c.title, t.color))
-      + '</span>';
-  }
-
-  function peindrePlacement() {
-    var adverse = duelCourant.adverse, choix = duelCourant.choix;
-    var doublons = choix.filter(function (t, i) { return t && choix.indexOf(t) !== i; });
-    var complet = choix.filter(function (t) { return !!t; }).length === 5 && !doublons.length;
-
-    var prevu = 0, pastilles = '';
-    var html = '<div class="duel-barre">'
-      + '<p class="duel-titre">PLACEZ VOS CARTES</p>'
-      + '<button class="duel-auto" data-duel-auto="1">Placement auto</button>'
-      + '</div>'
-      + '<p class="duel-intro">La manche revient au plus haut total ATQ + DÉF. '
-      + 'Touchez une de vos cartes pour la changer ; trois manches suffisent.</p>';
-
-    adverse.forEach(function (lui, i) {
-      var moi = choix[i] ? collection[choix[i]] : null;
-      var r = moi ? manche(moi, lui) : 0;
-      if (moi && r > 0) prevu += 1;
-      pastilles += '<i class="' + (moi ? (r > 0 ? 'g' : 'p') : '') + '"></i>';
-
-      var tl = tierOf(lui.rank), tm = moi ? tierOf(moi.rank) : null;
-      var pLui = atkEff(lui) + defEff(lui);
-      var pMoi = moi ? atkEff(moi) + defEff(moi) : 0;
-      var ecart = pMoi - pLui;
-      /* On amplifie l'ecart autour du centre : sans ca, deux totaux proches
-         donnent une jauge plate ou l'on ne distingue rien. */
-      var part = moi
-        ? Math.max(.06, Math.min(.94, .5 + Math.max(-1, Math.min(1, ecart / 260)) * .44))
-        : .5;
-
-      html += '<div class="duo ' + (moi ? (r > 0 ? 'ok' : 'ko') : 'vide') + '">'
-        + '<div class="duo-tete"><span>MANCHE ' + (i + 1) + '</span>'
-        + '<span class="duo-verdict">'
-        + (moi ? (r > 0 ? 'GAGNÉE · +' + ecart : 'PERDUE · ' + ecart) : 'À PLACER')
-        + '</span></div>'
-        + '<div class="duo-corps">'
-        + '<button class="duo-moi" data-slot="' + i + '"'
-        + (moi ? ' style="--tier:' + tm.color + '"' : '') + '>'
-        + vueDuo(moi, tm)
-        + (moi
-            ? '<span class="duo-nom">' + esc(moi.title) + '</span>'
-              + '<b class="duo-pui">' + pMoi + '</b>'
-              + '<span class="duo-det">' + atkEff(moi) + ' ATQ · ' + defEff(moi)
-              + ' DÉF · ' + tm.short + '</span>'
-            : '<span class="duo-nom vide">Choisir une carte ›</span>'
-              + '<b class="duo-pui">—</b>'
-              + '<span class="duo-det">emplacement libre</span>')
-        + '</button>'
-        + '<div class="duo-sep">VS</div>'
-        + '<div class="duo-lui" style="--tier:' + tl.color + '">'
-        + vueDuo(lui, tl)
-        + '<span class="duo-nom">' + esc(lui.title) + '</span>'
-        + '<b class="duo-pui">' + pLui + '</b>'
-        + '<span class="duo-det">' + atkEff(lui) + ' ATQ · ' + defEff(lui)
-        + ' DÉF · ' + tl.short + '</span>'
-        + '</div></div>'
-        + '<div class="duo-jauge"><i style="--part:' + part.toFixed(3) + '"></i></div>'
-        + '</div>';
-    });
-
-    html += '<div class="duel-pied">'
-      + (doublons.length ? '<p class="duel-alerte">Une même carte est placée deux fois.</p>' : '')
-      + '<div class="duel-score"><span class="duel-pastilles">' + pastilles + '</span>'
-      + '<span><b>' + prevu + '</b> manche' + (prevu > 1 ? 's' : '') + ' gagnée'
-      + (prevu > 1 ? 's' : '') + ' d’avance sur 5</span></div>'
-      + '<button class="btn' + (complet ? ' btn-solid' : '') + '" '
-      + (complet ? 'data-duel-go="1"' : 'disabled') + '>'
-      + (complet ? 'Lancer le combat' : 'Placez vos cinq cartes') + '</button>'
-      + '</div>';
-
-    el('duel-body').innerHTML = html;
-  }
-
-  /* Selecteur de carte en panneau, pour un emplacement donne. */
-  function ouvrirSelecteur(slot) {
-    var choix = duelCourant.choix;
-    var lui = duelCourant.adverse[slot];
-    var pLui = atkEff(lui) + defEff(lui);
-    var toutes = Object.keys(collection).map(function (k) { return collection[k]; })
-      .sort(function (a, b) {
-        return (atkEff(b) + defEff(b)) - (atkEff(a) + defEff(a));
-      });
-    var inner = el('sheet-inner');
-    inner.style.setProperty('--tier', tierOf(lui.rank).color);
-    inner.innerHTML = '<h2>Face à ' + esc(lui.title) + '</h2>'
-      + '<div class="sel-cible"><span class="sheet-sub">Total à dépasser</span>'
-      + '<b>' + pLui + '</b></div>'
-      + '<div class="sel-liste">'
-      + toutes.map(function (c) {
-          var dejaAilleurs = choix.indexOf(c.title) !== -1 && choix[slot] !== c.title;
-          var gagne = manche(c, lui) > 0;
-          var pc = atkEff(c) + defEff(c);
-          var t = tierOf(c.rank);
-          return '<button style="--tier:' + t.color + '" class="sel-carte '
-            + (gagne ? 'gagne' : 'perd')
-            + (dejaAilleurs ? ' sel-pris' : '')
-            + (choix[slot] === c.title ? ' sel-actif' : '') + '" '
-            + 'data-sel-slot="' + slot + '" data-sel-titre="' + esc(c.title) + '"'
-            + (dejaAilleurs ? ' disabled' : '') + '>'
-            + '<span class="sel-vue">'
-            + (c.thumb
-                ? '<img src="' + esc(c.thumb) + '" alt="" loading="lazy" decoding="async">'
-                : artSVG(c.title, t.color))
-            + '</span>'
-            + '<span class="sel-corps">'
-            + '<span class="sel-ecart">' + (pc - pLui > 0 ? '+' : '') + (pc - pLui) + '</span>'
-            + '<span class="sel-nom">' + esc(c.title) + '</span>'
-            + '<span class="sel-st">' + pc + ' au total · ' + atkEff(c) + ' ATQ · '
-            + defEff(c) + ' DÉF · ' + t.short
-            + (dejaAilleurs ? ' · déjà placée' : '') + '</span>'
-            + '</span>'
-            + '</button>';
-        }).join('')
-      + '</div>'
-      + '<button class="btn" id="sheet-close">Fermer</button>';
-    ouvrirFeuille();
-    el('sheet-close').addEventListener('click', closeSheet);
-  }
-
-  function resoudreDuel() {
+  function resoudreDuel(eq) {
     if (!duelCourant) return;
-    var adverse = duelCourant.adverse, choix = duelCourant.choix;
+    var adverse = duelCourant.adverse;
     var manches = [], gagnees = 0;
     for (var i = 0; i < 5; i++) {
-      var moi = collection[choix[i]];
+      var moi = collection[eq[i]];
       if (!moi) return;
       var r = manche(moi, adverse[i]);
       if (r > 0) gagnees += 1;
@@ -4949,13 +5057,20 @@
     if (gagne) j.duels += 1;
     writeJour(j);
 
+    var c = readClassement();
+    var delta = deltaCote(gagnees);
+    c.cote = Math.max(0, c.cote + delta);
+    if (gagne) { c.v += 1; c.serie = Math.max(0, c.serie) + 1; }
+    else { c.d += 1; c.serie = Math.min(0, c.serie) - 1; }
+    if (c.cote > c.meilleure) c.meilleure = c.cote;
+    writeClassement(c);
+
     var recu = 0;
-    if (gagne) {
-      recu = GAIN_DUEL;
-      ajouterGold(recu);
-    }
+    if (gagne) { recu = GAIN_DUEL; ajouterGold(recu); }
+    gagnerXp(gagne ? XP.duelGagne : XP.duelPerdu);
+
     duelCourant = null;
-    peindreDuel(manches, gagnees, gagne, recu);
+    peindreDuel(manches, gagnees, gagne, recu, delta, c.cote);
     showMissions();
     refreshSucces();
   }
@@ -4968,34 +5083,119 @@
       return '<p class="status">Il faut cinq cartes pour engager un duel. '
         + 'Vous en avez ' + n + '.</p>';
     }
+    if (!equipeComplete(readEquipe())) {
+      return '<p class="status">Composez votre équipe avant de chercher un adversaire.</p>';
+    }
     if (reste <= 0) {
       return '<p class="status">Vos ' + DUELS_PAR_JOUR
         + ' duels du jour sont joués. Retour demain.</p>';
     }
     return '<button class="btn btn-solid" id="duel-lancer">Chercher un adversaire ('
-      + reste + ' duel' + (reste > 1 ? 's' : '') + ')</button>'
-      + '<p class="duel-note">La recherche consomme un duel : pas de nouvel adversaire '
-      + 'tant que celui-ci n’est pas combattu.</p>';
+      + reste + ' duel' + (reste > 1 ? 's' : '') + ')</button>';
   }
 
-  function peindreDuel(manches, gagnees, gagne, recu) {
-    var html = '<p class="duel-titre">DUEL 5 CONTRE 5</p>'
+  /* Bandeau de classement, en tête de l'écran de duel. */
+  function bandeauCote() {
+    var c = readClassement();
+    var serie = c.serie > 1 ? ' · ' + c.serie + ' victoires d’affilée'
+              : (c.serie < -1 ? ' · ' + (-c.serie) + ' défaites d’affilée' : '');
+    return '<div class="cote-bandeau">'
+      + '<div><span class="cote-tag">CLASSEMENT</span>'
+      + '<b class="cote-pts">' + c.cote.toLocaleString('fr-FR') + '</b></div>'
+      + '<span class="cote-bilan">' + c.v + ' V · ' + c.d + ' D'
+      + '<br>record ' + c.meilleure.toLocaleString('fr-FR') + serie + '</span></div>';
+  }
+
+  /* L'équipe, dans l'ordre de combat. La manche n° 1 oppose votre première
+     carte à la première de l'adversaire, et ainsi de suite. */
+  function grilleEquipe() {
+    var eq = readEquipe();
+    return '<div class="eq-tete"><p class="sheet-sub eq-titre">VOTRE ÉQUIPE</p>'
+      + '<button class="duel-auto" data-eq-auto="1">Composer</button></div>'
+      + '<p class="duel-intro">Les cartes combattent dans cet ordre : votre 1<sup>re</sup> '
+      + 'contre la 1<sup>re</sup> de l’adversaire. Touchez une case pour la changer.</p>'
+      + '<div class="eq-grille">'
+      + eq.map(function (t, i) {
+          var c = t ? collection[t] : null;
+          var tr = c ? tierOf(c.rank) : null;
+          return '<button class="eq-slot' + (c ? '' : ' vide') + '" data-eq="' + i + '"'
+            + (c ? ' style="--tier:' + tr.color + '"' : '') + '>'
+            + '<span class="eq-no">' + (i + 1) + '</span>'
+            + (c
+                ? '<span class="eq-vue">'
+                  + (c.thumb
+                      ? '<img src="' + esc(c.thumb) + '" alt="" loading="lazy" decoding="async">'
+                      : artSVG(c.title, tr.color))
+                  + '</span>'
+                  + '<span class="eq-nom">' + esc(c.title) + '</span>'
+                  + '<span class="eq-pui">' + (atkEff(c) + defEff(c)) + '</span>'
+                : '<span class="eq-vue vide">+</span><span class="eq-nom">Vide</span>')
+            + '</button>';
+        }).join('')
+      + '</div>';
+  }
+
+  /* Choix d'une carte pour une case de l'équipe. */
+  function ouvrirSelecteurEquipe(slot) {
+    var eq = readEquipe();
+    var toutes = Object.keys(collection).map(function (k) { return collection[k]; })
+      .sort(function (a, b) {
+        return (atkEff(b) + defEff(b)) - (atkEff(a) + defEff(a));
+      });
+    var inner = el('sheet-inner');
+    inner.style.setProperty('--tier', '#c9992e');
+    inner.innerHTML = '<h2>Case ' + (slot + 1) + '</h2>'
+      + '<div class="sel-cible"><span class="sheet-sub">Vos cartes, de la plus forte '
+      + 'à la plus faible</span></div>'
+      + '<div class="sel-liste">'
+      + toutes.map(function (c) {
+          var ailleurs = eq.indexOf(c.title) !== -1 && eq[slot] !== c.title;
+          var t = tierOf(c.rank);
+          var pc = atkEff(c) + defEff(c);
+          return '<button style="--tier:' + t.color + '" class="sel-carte '
+            + (ailleurs ? 'sel-pris ' : '') + (eq[slot] === c.title ? 'sel-actif' : '') + '" '
+            + 'data-eq-slot="' + slot + '" data-eq-titre="' + esc(c.title) + '"'
+            + (ailleurs ? ' disabled' : '') + '>'
+            + '<span class="sel-vue">'
+            + (c.thumb
+                ? '<img src="' + esc(c.thumb) + '" alt="" loading="lazy" decoding="async">'
+                : artSVG(c.title, t.color))
+            + '</span>'
+            + '<span class="sel-corps">'
+            + '<span class="sel-ecart">' + pc + '</span>'
+            + '<span class="sel-nom">' + esc(c.title) + '</span>'
+            + '<span class="sel-st">' + atkEff(c) + ' ATQ · ' + defEff(c) + ' DÉF · '
+            + t.short + (ailleurs ? ' · déjà dans l’équipe' : '') + '</span>'
+            + '</span></button>';
+        }).join('')
+      + '</div>'
+      + '<button class="btn" data-eq-vider="' + slot + '">Vider cette case</button>'
+      + '<button class="btn" id="sheet-close">Fermer</button>';
+    ouvrirFeuille();
+    el('sheet-close').addEventListener('click', closeSheet);
+  }
+
+  function peindreDuel(manches, gagnees, gagne, recu, delta, cote) {
+    var html = '<p class="duel-titre">DUEL CLASSÉ</p>'
       + '<div class="duel-verdict ' + (gagne ? 'gagne' : 'perdu') + '">'
       + '<b>' + (gagne ? 'Victoire' : 'Défaite') + '</b> — ' + gagnees + ' manche'
       + (gagnees > 1 ? 's' : '') + ' sur 5'
-      + (gagne ? ' · ' + recu + ' Wikigold gagnés' : '')
-      + '</div>';
+      + (gagne ? ' · ' + recu + ' Wikigold' : '')
+      + '<span class="duel-delta">' + (delta > 0 ? '+' : '') + delta
+      + ' · cote ' + cote.toLocaleString('fr-FR') + '</span></div>';
 
-    manches.forEach(function (m) {
+    manches.forEach(function (m, i) {
       var tm = tierOf(m.moi.rank), tl = tierOf(m.lui.rank);
       html += '<div class="manche ' + (m.r > 0 ? 'ok' : (m.r < 0 ? 'ko' : 'nul')) + '">'
         + '<div class="cote" style="--tier:' + tm.color + '"><span class="cote-nom">'
         + esc(m.moi.title) + '</span>'
-        + '<span class="cote-st">ATQ ' + atkEff(m.moi) + ' · DÉF ' + defEff(m.moi) + '</span></div>'
+        + '<span class="cote-st">' + (atkEff(m.moi) + defEff(m.moi)) + ' · ATQ '
+        + atkEff(m.moi) + ' · DÉF ' + defEff(m.moi) + '</span></div>'
         + '<div class="verdict">' + (m.r > 0 ? '▲' : (m.r < 0 ? '▼' : '=')) + '</div>'
         + '<div class="cote droite" style="--tier:' + tl.color + '"><span class="cote-nom">'
         + esc(m.lui.title) + '</span>'
-        + '<span class="cote-st">ATQ ' + atkEff(m.lui) + ' · DÉF ' + defEff(m.lui) + '</span></div>'
+        + '<span class="cote-st">' + (atkEff(m.lui) + defEff(m.lui)) + ' · ATQ '
+        + atkEff(m.lui) + ' · DÉF ' + defEff(m.lui) + '</span></div>'
         + '</div>';
     });
 
@@ -5004,9 +5204,9 @@
   }
 
   function showDuel() {
-    el('duel-body').innerHTML = '<p class="duel-titre">DUEL 5 CONTRE 5</p>'
-      + '<p class="duel-intro">Vos cinq meilleures cartes affrontent cinq articles '
-      + 'tirés au hasard. Trois manches gagnées suffisent.</p>'
+    el('duel-body').innerHTML = '<p class="duel-titre">DUEL CLASSÉ</p>'
+      + bandeauCote()
+      + grilleEquipe()
       + boutonDuel();
   }
 
@@ -5389,6 +5589,7 @@
       refreshPacks();
     }
 
+    gagnerXp(niv.boss ? XP.boss : XP.histoire);
     /* Battre le boss offre une carte du theme, garantie Épique ou mieux. */
     if (niv.boss) {
       offrirCarteBoss(ch, niv);
@@ -5592,6 +5793,7 @@
     if ((sc.m(x) || 0) < sc.v) return;
 
     ajouterGold(sc.gain * 20);
+    gagnerXp(XP.succes);
     st.reclames.push(id);
     writeStats(st);
     showSucces();
@@ -5937,7 +6139,7 @@
     if (!s || s.repondu) return;
     s.choisi = rep;
     s.repondu = true;
-    if (rep === s.questions[s.i].ok) s.bonnes += 1;
+    if (rep === s.questions[s.i].ok) { s.bonnes += 1; gagnerXp(XP.quizJuste); }
     peindreQuiz();
   }
 
@@ -6166,7 +6368,7 @@
   }
   function marquerAlbum(id) {
     var l = albumsReclames();
-    if (l.indexOf(id) === -1) { l.push(id); }
+    if (l.indexOf(id) === -1) { l.push(id); gagnerXp(XP.album); }
     try { localStorage.setItem(AKEY, JSON.stringify(l)); } catch (e) {}
   }
 
@@ -6593,6 +6795,7 @@
       setTear(1);
       vib([0, 20, 45, 30]);
       son('dechirure');
+      gagnerXp(XP.paquet);
       /* On decompte le paquet et on lance le tirage. */
       var etat = readPacks();
       etat.n -= 1; etat.ouverts += 1;
@@ -6710,14 +6913,15 @@
   el('duel-body').addEventListener('click', function (e) {
     if (!e.target.closest) return;
     if (e.target.closest('#duel-lancer')) { lancerDuel(); return; }
-    if (e.target.closest('[data-duel-go]')) { resoudreDuel(); return; }
-    if (e.target.closest('[data-duel-auto]')) { placementAuto(); return; }
-    var slot = e.target.closest('[data-slot]');
-    if (slot && duelCourant) { ouvrirSelecteur(parseInt(slot.getAttribute('data-slot'), 10)); }
+    if (e.target.closest('[data-eq-auto]')) { composerAuto(); showDuel(); return; }
+    var slot = e.target.closest('[data-eq]');
+    if (slot) { ouvrirSelecteurEquipe(parseInt(slot.getAttribute('data-eq'), 10)); }
   });
   /* Selection d'une carte depuis le panneau. */
   el('sheet-inner').addEventListener('click', function (e) {
     if (!e.target.closest) return;
+    var pc = e.target.closest('.pui-carte');
+    if (pc) { openSheet(pc.getAttribute('data-title')); return; }
     var rs = e.target.closest('[data-succes]');
     if (rs) {
       reclamerSucces(rs.getAttribute('data-succes'));
@@ -6750,12 +6954,20 @@
       } else activerNotif(!options.notif);
       return;
     }
-    var sc = e.target.closest ? e.target.closest('[data-sel-titre]') : null;
-    if (!sc || !duelCourant) return;
-    var slot = parseInt(sc.getAttribute('data-sel-slot'), 10);
-    duelCourant.choix[slot] = sc.getAttribute('data-sel-titre');
+    var vd = e.target.closest('[data-eq-vider]');
+    if (vd) {
+      var eqv = readEquipe();
+      eqv[parseInt(vd.getAttribute('data-eq-vider'), 10)] = null;
+      writeEquipe(eqv); closeSheet(); showDuel();
+      return;
+    }
+    var sc = e.target.closest ? e.target.closest('[data-eq-titre]') : null;
+    if (!sc) return;
+    var eq = readEquipe();
+    eq[parseInt(sc.getAttribute('data-eq-slot'), 10)] = sc.getAttribute('data-eq-titre');
+    writeEquipe(eq);
     closeSheet();
-    peindrePlacement();
+    showDuel();
   });
   var sousCombat = 'raid', sousCombatRendu = null;
   function montrerCombat(quoi) {
