@@ -1414,13 +1414,76 @@
     border: 1px solid var(--night-line); cursor: pointer;
   }
   .hist-diff-btn.actif { background: var(--night-up); color: var(--ivory); border-color: #c9992e; }
+  /* Avancement d'ensemble, en tête de la liste. */
+  .hist-bilan {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+    font-size: 12.5px; color: var(--glass-dim); font-variant-numeric: tabular-nums;
+  }
+  .hist-bilan b { color: var(--ivory); }
+  .hist-bilan-barre { flex: 1 1 auto; height: 3px; background: var(--night-up); }
+  .hist-bilan-barre i { display: block; height: 100%; background: #c9992e; }
+
   .chapitre {
     display: block; width: 100%; text-align: left; cursor: pointer;
     font: inherit; color: var(--glass);
     background: var(--night-up); border: 1px solid var(--night-line);
-    border-left: 4px solid #3f79c4; padding: 12px 14px; margin-bottom: 8px;
+    border-left: 4px solid var(--dom, #3f79c4); padding: 12px 14px; margin-bottom: 8px;
+    transition: background .14s ease;
   }
+  .chapitre:active { background: #262c40; }
   .chapitre.fini { border-left-color: #c9992e; }
+  .chapitre.bloque { opacity: .62; }
+  .chap-embleme {
+    flex: none; display: grid; place-items: center;
+    width: 36px; height: 36px; font-family: var(--display); font-size: 18px;
+    color: var(--dom, #3f79c4); border: 1px solid var(--dom, var(--night-line));
+    background: rgba(0,0,0,.25);
+  }
+  .chap-embleme.grand { width: 46px; height: 46px; font-size: 23px; }
+  .chap-corps { flex: 1 1 auto; min-width: 0; }
+  .chap-etat {
+    display: block; margin-top: 7px; font-size: 11px; letter-spacing: .04em;
+    color: var(--glass-dim);
+  }
+  .chapitre.fini .chap-etat { color: #c9992e; }
+  .chapitre.bloque .chap-etat { color: #cf7f7f; }
+
+  .chap-entete {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+  }
+  .chap-titre {
+    display: block; font-family: var(--display); font-size: 21px; color: var(--ivory);
+  }
+
+  /* Le parcours : un fil vertical relie les étapes. */
+  .niv-fil {
+    position: absolute; left: 0; top: 0; bottom: -8px; width: 26px;
+    display: flex; justify-content: center;
+  }
+  .niv-fil::before {
+    content: ''; position: absolute; top: 0; bottom: 0; width: 1px;
+    background: var(--night-line);
+  }
+  .niveau:last-child .niv-fil::before { bottom: 50%; }
+  .niv-fil i {
+    position: relative; margin-top: 16px; width: 20px; height: 20px;
+    display: grid; place-items: center; font-style: normal; font-size: 10px;
+    color: var(--glass-dim); background: var(--night); border: 1px solid var(--night-line);
+    font-variant-numeric: tabular-nums;
+  }
+  .niveau.franchi .niv-fil i { color: #14161f; background: #4f8d72; border-color: #4f8d72; }
+  .niveau.actuel .niv-fil i { color: #14161f; background: var(--dom, #c9992e); border-color: var(--dom, #c9992e); }
+
+  .niv-jauge {
+    position: relative; height: 4px; margin: 10px 0 6px; background: #11141f;
+  }
+  .niv-jauge i { display: block; height: 100%; background: #8d5050; }
+  .niv-jauge.ok i { background: #4f8d72; }
+  /* Repère de la défense à atteindre, aux deux tiers de l'échelle. */
+  .niv-jauge::after {
+    content: ''; position: absolute; top: -3px; bottom: -3px; left: 66.7%;
+    width: 1px; background: var(--ivory); opacity: .6;
+  }
 
   /* Butin de fin de chapitre. La carte gagnee doit se voir : c'est le seul
      moment ou le mode histoire donne autre chose que des paquets. */
@@ -1473,13 +1536,15 @@
     font: inherit; font-size: 13px; color: var(--glass-dim);
   }
   .niveau {
-    display: flex; align-items: center; gap: 12px;
-    padding: 11px 13px; margin-bottom: 8px;
+    position: relative; display: block; padding: 0 0 0 40px; margin-bottom: 8px;
+  }
+  .niv-corps {
+    padding: 11px 13px;
     background: var(--night-up); border: 1px solid var(--night-line);
     border-left: 4px solid var(--night-line);
   }
-  .niveau.franchi { border-left-color: #4f8d72; }
-  .niveau.actuel { border-left-color: #c9992e; }
+  .niveau.franchi .niv-corps { border-left-color: #4f8d72; }
+  .niveau.actuel .niv-corps { border-left-color: var(--dom, #c9992e); }
   .niveau.verrou { opacity: .55; }
   .niv-info { flex: 1 1 auto; min-width: 0; }
   .niv-nom { display: block; font-family: var(--display); font-size: 15px; color: var(--ivory); }
@@ -1492,8 +1557,8 @@
   }
   .adv-loupe { font-size: 12px; color: var(--glass-dim); }
   .adv-img {
-    width: 52px; height: 52px; flex: none; object-fit: cover;
-    border: 1px solid var(--night-line); background: #262c40;
+    position: relative; display: block; width: 62px; height: 62px; flex: none;
+    overflow: hidden; border: 1px solid var(--night-line); background: #262c40;
   }
   .adv-alt {
     display: grid; place-items: center;
@@ -1504,7 +1569,7 @@
     display: block; font-size: 12px; color: var(--glass-dim); margin: 2px 0 3px;
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
-  .niveau .btn { margin: 10px 0 0; width: 100%; padding: 10px; font-size: 14px; }
+  .niveau .btn { margin: 8px 0 0; width: 100%; padding: 10px; font-size: 14px; }
   .niv-etat { flex: none; font-size: 16px; color: #4f8d72; align-self: center; }
   .niveau.verrou .niv-etat { color: var(--glass-dim); }
 
@@ -5328,6 +5393,14 @@
 
   var HKEY = 'wikigacha:histoire';
 
+  /* Chaque parcours a sa teinte : six chapitres tous bleus se ressemblaient
+     trop pour qu'on retrouve le sien d'un regard. */
+  var TEINTE_DOM = {
+    geo: '#4f8d72', hist: '#c9992e', sci: '#3f79c4',
+    art: '#8b5cc7', sport: '#cc4c3f', soc: '#6f8fa8', divers: '#8d93a3'
+  };
+  function teinteDom(id) { return TEINTE_DOM[id] || TEINTE_DOM.divers; }
+
   var CHAPITRES = [
     { id: 'geo', domaine: 'geo', nom: 'Le tour du monde',
       intro: 'Rassemblez des cartes de géographie pour arpenter la planète.',
@@ -5530,10 +5603,21 @@
         + '</div>';
     }
 
-    html += '<p class="duel-intro">'
+    /* Un rappel de l'avancement global : sans lui, on ne sait jamais où on
+       en est de l'ensemble. */
+    var faits = 0, tous = 0;
+    CHAPITRES.forEach(function (ch) {
+      faits += Math.min(prog[ch.id] || 0, ch.niveaux.length);
+      tous += ch.niveaux.length;
+    });
+    html += '<div class="hist-bilan">'
+      + '<span><b>' + faits + '</b> / ' + tous + ' niveaux franchis</span>'
+      + '<span class="hist-bilan-barre"><i style="width:'
+      + Math.round(faits / tous * 100) + '%"></i></span></div>'
+      + '<p class="duel-intro">'
       + (histDiff === 'difficile'
-          ? 'Mode difficile : les mêmes parcours, mais des adversaires bien plus coriaces. Récompenses en Wikigold.'
-          : 'Six parcours à travers Wikipédia. Chaque chapitre se joue avec les cartes de son domaine.')
+          ? 'Les mêmes parcours, des adversaires bien plus coriaces.'
+          : 'Chaque chapitre se joue avec les cartes de son domaine.')
       + '</p>';
 
     CHAPITRES.forEach(function (ch) {
@@ -5541,14 +5625,28 @@
       var total = ch.niveaux.length;
       var termine = fait >= total;
       var dispo = cartesDomaine(ch.domaine).length;
-      html += '<button class="chapitre' + (termine ? ' fini' : '') + '" data-chap="' + ch.id + '">'
-        + '<span class="chap-tete"><span class="chap-nom">' + esc(ch.nom) + '</span>'
-        + '<span class="chap-prog">' + fait + ' / ' + total
-        + (termine ? ' ✓' : '') + '</span></span>'
+      var jouable = dispo >= 3;
+      /* L'état se lit maintenant AVANT d'entrer : on ne découvre plus en
+         ouvrant le chapitre qu'on n'a pas assez de cartes. */
+      var etat = termine ? 'Terminé'
+               : (!jouable ? (3 - dispo) + ' carte' + (3 - dispo > 1 ? 's' : '') + ' manquante'
+                             + (3 - dispo > 1 ? 's' : '')
+                           : (fait ? 'En cours' : 'À commencer'));
+      html += '<button class="chapitre' + (termine ? ' fini' : '')
+        + (jouable ? '' : ' bloque') + '" data-chap="' + ch.id + '" '
+        + 'style="--dom:' + teinteDom(ch.domaine) + '">'
+        + '<span class="chap-tete">'
+        + '<span class="chap-embleme">' + esc(ch.nom.charAt(0)) + '</span>'
+        + '<span class="chap-corps">'
+        + '<span class="chap-nom">' + esc(ch.nom) + '</span>'
         + '<span class="chap-dom">' + esc(domaineNom(ch.domaine)) + ' · '
         + dispo + ' carte' + (dispo > 1 ? 's' : '') + ' en réserve</span>'
+        + '</span>'
+        + '<span class="chap-prog">' + fait + ' / ' + total + '</span>'
+        + '</span>'
         + '<span class="chap-barre"><span style="width:'
         + Math.round(fait / total * 100) + '%"></span></span>'
+        + '<span class="chap-etat">' + esc(etat) + '</span>'
         + '</button>';
     });
     el('histoire-body').innerHTML = html;
@@ -5589,7 +5687,12 @@
     var cartes = cartesDomaine(ch.domaine);
 
     var entete = '<button class="hist-retour" data-hist-retour="1">‹ Tous les chapitres</button>'
-      + '<p class="hist-titre">' + esc(ch.nom.toUpperCase()) + '</p>'
+      + '<div class="chap-entete" style="--dom:' + teinteDom(ch.domaine) + '">'
+      + '<span class="chap-embleme grand">' + esc(ch.nom.charAt(0)) + '</span>'
+      + '<span><span class="chap-titre">' + esc(ch.nom) + '</span>'
+      + '<span class="chap-dom">' + esc(domaineNom(ch.domaine)) + ' · '
+      + Math.min(fait, ch.niveaux.length) + ' / ' + ch.niveaux.length + ' franchis</span></span>'
+      + '</div>'
       + '<p class="duel-intro">' + esc(ch.intro) + ' Vos trois meilleures cartes de '
       + esc(domaineNom(ch.domaine).toLowerCase()) + ' mènent l’assaut.</p>';
 
@@ -5603,9 +5706,11 @@
 
     /* On affiche d'abord, puis on complete avec les images une fois chargees. */
     el('histoire-body').innerHTML = entete + corpsNiveaux(ch, fait, cartes);
+    calerVisuels(el('histoire-body'));
     chargerAdversaires(ch).then(function () {
       if (histChapOuvert === chapId) {
         el('histoire-body').innerHTML = entete + corpsNiveaux(ch, fait, cartes);
+        calerVisuels(el('histoire-body'));
       }
     });
   }
@@ -5620,27 +5725,37 @@
       var gagne = force >= dfn;
       var info = bossCache[niv.art] || {};
       var visuel = info.thumb
-        ? '<img class="adv-img" src="' + esc(info.thumb) + '" alt="">'
-        : '<div class="adv-img adv-alt">' + esc(niv.art.charAt(0)) + '</div>';
+        ? '<span class="adv-img">' + visuelHTML(info.thumb) + '</span>'
+        : '<span class="adv-img adv-alt">' + esc(niv.art.charAt(0)) + '</span>';
       var cls = 'niveau' + (franchi ? ' franchi' : (actuel ? ' actuel' : ' verrou'));
-      html += '<div class="' + cls + '">'
+      /* Jauge force / défense : « 620 contre 500 » se compare mal de tête.
+         L'échelle va jusqu'à une fois et demie la défense, et un repère marque
+         le seuil à atteindre : une barre calée sur la défense seule était
+         pleine en permanence dès qu'on avait de bonnes cartes. */
+      var part = Math.max(.04, Math.min(1, force / Math.max(1, dfn * 1.5)));
+      html += '<div class="' + cls + '" style="--dom:' + teinteDom(ch.domaine) + '">'
+        + '<span class="niv-fil"><i>' + (i + 1) + '</i></span>'
+        + '<div class="niv-corps">'
         + '<button class="adv-tete" data-adv="' + esc(niv.art) + '">' + visuel
         + '<span class="adv-txt"><span class="niv-nom">'
         + (niv.boss ? '★ ' : '') + esc(niv.art) + ' <span class="adv-loupe">ⓘ</span></span>'
         + '<span class="adv-desc">' + esc(info.desc || info.extrait
             || (niv.boss ? 'Boss du chapitre' : 'Adversaire')) + '</span>'
-        + '<span class="niv-def">Défense ' + dfn
-        + (actuel ? ' · votre force ' + Math.round(force) : '') + '</span>'
         + '</span>'
         + (franchi ? '<span class="niv-etat">✓</span>'
            : (!actuel ? '<span class="niv-etat">🔒</span>' : ''))
         + '</button>'
         + (actuel
-            ? '<button class="btn' + (gagne ? ' btn-solid' : '') + '" '
+            ? '<div class="niv-jauge' + (gagne ? ' ok' : ' ko') + '">'
+              + '<i style="width:' + Math.round(part * 100) + '%"></i></div>'
+              + '<span class="niv-def">Votre force <b>' + Math.round(force)
+              + '</b> · défense <b>' + dfn + '</b></span>'
+              + '<button class="btn' + (gagne ? ' btn-solid' : '') + '" '
               + (gagne ? 'data-hist-go="' + ch.id + '"' : 'disabled') + '>'
-              + (gagne ? 'Combattre' : 'Trop puissant pour vos cartes') + '</button>'
-            : '')
-        + '</div>';
+              + (gagne ? 'Combattre' : 'Il manque ' + (dfn - Math.round(force)) + ' de force')
+              + '</button>'
+            : '<span class="niv-def">Défense ' + dfn + '</span>')
+        + '</div></div>';
     });
     if (fait >= ch.niveaux.length) {
       html += '<div class="win"><h3>Chapitre terminé</h3>'
