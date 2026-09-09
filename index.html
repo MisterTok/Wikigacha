@@ -1688,8 +1688,15 @@
     display: flex; gap: 6px; margin: -4px 0 16px;
   }
   .profil-seg .sous-tab {
-    flex: 1; min-height: 42px; border-color: var(--ivory-dim);
+    flex: 1; min-height: 44px; border-color: var(--ivory-dim);
     color: var(--ink-soft); background: #fff;
+  }
+  /* Le volet des réglages ne porte qu'une icône : il n'a pas besoin
+     d'autant de largeur que les deux autres. */
+  .profil-seg .sous-tab:last-child { flex: 0 0 54px; }
+  .seg-ecrou {
+    width: 17px; height: 17px; stroke: currentColor; fill: none;
+    stroke-width: 1.9; stroke-linejoin: round; vertical-align: -3px;
   }
   .profil-seg .sous-tab.is-active {
     color: var(--ivory); background: var(--ink); border-color: var(--ink);
@@ -1705,6 +1712,7 @@
   .pui {
     padding: 13px 13px 11px; background: #fff;
     border: 1px solid var(--ivory-dim);
+    border-top: 3px solid var(--tier, #c9992e);
   }
   .pui-rang {
     display: block; margin-top: 2px; font-size: 12.5px; color: var(--ink-soft);
@@ -1772,7 +1780,30 @@
     font-variant-numeric: tabular-nums; background: #fff;
   }
 
-  .profil-titre { margin-top: 18px; }
+  .profil-titre { margin-top: 22px; }
+  .profil-aide {
+    margin: 12px 0 8px; font-size: 12px; color: var(--ink-soft);
+  }
+
+  /* Lignes de réglage : intitulé à gauche, état à droite. */
+  .opt-liste { border-top: 1px solid var(--ivory-dim); }
+  .opt-ligne {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    width: 100%; min-height: 52px; padding: 12px 2px; cursor: pointer;
+    font: inherit; text-align: left; color: var(--ink);
+    background: none; border: 0; border-bottom: 1px solid var(--ivory-dim);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .opt-ligne[hidden] { display: none; }
+  .opt-ligne:active { background: var(--ivory-dim); }
+  .opt-nom { font-size: 14.5px; }
+  .opt-etat {
+    flex: none; padding: 4px 11px; font-size: 11.5px; letter-spacing: .04em;
+    color: var(--ink-soft); background: var(--ivory-dim);
+  }
+  .opt-ligne.actif .opt-etat {
+    color: #14161f; background: linear-gradient(160deg, #f3dfa4, #c9992e);
+  }
   #profil-nom {
     width: 100%; background: #fff; border: 1px solid var(--ivory-dim);
     color: var(--ink); font: inherit; font-size: 16px; padding: 11px;
@@ -4080,6 +4111,8 @@
      'garderPos' évite de remonter la feuille quand on ne fait que changer de
      volet ou réclamer une récompense. */
   var profilSeg = 'profil';
+  /* Même roue dentée que le bandeau, décrite une fois pour les deux. */
+  var CHEMIN_ECROU = 'M9.80 1.63L14.20 1.63L13.41 5.35L17.05 7.45L19.88 4.91L22.08 8.72L18.47 9.90L18.47 14.10L22.08 15.28L19.88 19.09L17.05 16.55L13.41 18.65L14.20 22.37L9.80 22.37L10.59 18.65L6.95 16.55L4.12 19.09L1.92 15.28L5.53 14.10L5.53 9.90L1.92 8.72L4.12 4.91L6.95 7.45L10.59 5.35Z';
 
   function ouvrirProfil(garderPos) {
     var inner = el('sheet-inner');
@@ -4089,12 +4122,20 @@
 
     var prets = refreshSucces().prets;
 
+    /* Trois volets : ce qu'on regarde, ce qu'on gagne, ce qu'on règle. Tout
+       empiler dans un seul écran faisait descendre les réglages sous la
+       grille de portraits. */
     var tete = '<div class="profil-seg">'
       + '<button class="sous-tab' + (profilSeg === 'profil' ? ' is-active' : '') + '" '
       + 'data-profil-seg="profil">Profil</button>'
       + '<button class="sous-tab' + (profilSeg === 'succes' ? ' is-active' : '') + '" '
       + 'data-profil-seg="succes">Succès'
       + (prets ? ' <span class="seg-badge">' + prets + '</span>' : '') + '</button>'
+      + '<button class="sous-tab' + (profilSeg === 'reglages' ? ' is-active' : '') + '" '
+      + 'data-profil-seg="reglages" aria-label="Réglages">'
+      + '<svg class="seg-ecrou" viewBox="0 0 24 24" aria-hidden="true">'
+      + '<path d="' + CHEMIN_ECROU + '"/><circle cx="12" cy="12" r="3.6"/></svg>'
+      + '</button>'
       + '</div>';
 
     if (profilSeg === 'succes') {
@@ -4102,6 +4143,26 @@
         + '<div id="succes-body"></div>'
         + '<button class="btn" id="sheet-close">Fermer</button>';
       showSucces();
+
+    } else if (profilSeg === 'reglages') {
+      inner.innerHTML = tete
+        + '<p class="sheet-sub">SONS ET RETOURS</p>'
+        + '<div class="opt-liste">'
+        + ligneOption('opt-son', 'Sons')
+        + ligneOption('opt-vibr', 'Vibrations')
+        + ligneOption('opt-notif', 'Rappel de réserve pleine')
+        + '</div>'
+        + '<p class="sheet-sub profil-titre">VOTRE PROGRESSION</p>'
+        + '<div id="coll-zone-sauvegarde"></div>'
+        + '<div id="coll-zone-raz"></div>'
+        + '<button class="btn" id="sheet-close">Fermer</button>';
+      montrerSauvegarde();
+      el('coll-zone-raz').innerHTML = Object.keys(collection).length
+        ? '<div class="raz"><p class="raz-mot">Tout effacer supprime définitivement '
+          + 'votre collection, vos succès et votre progression.</p>'
+          + '<button class="btn" data-raz="1">Repartir de zéro</button></div>' : '';
+      majOptions();
+
     } else {
       var avatars = Object.keys(collection).map(function (k) { return collection[k]; })
         .sort(function (a, b) {
@@ -4111,13 +4172,12 @@
 
       inner.innerHTML = tete
         + blocPuissance()
-        + '<p class="sheet-sub">VOTRE NOM</p>'
+        + '<p class="sheet-sub profil-titre">IDENTITÉ</p>'
         + '<input id="profil-nom" class="code-champ" type="text" maxlength="18" '
-        + 'placeholder="Sans nom" autocomplete="off" value="' + esc(profil.nom) + '">'
-
-        + '<p class="sheet-sub profil-titre">VOTRE PORTRAIT</p>'
+        + 'placeholder="Votre nom" autocomplete="off" value="' + esc(profil.nom) + '">'
         + (avatars.length
-            ? '<div class="profil-ava">'
+            ? '<p class="profil-aide">Choisissez votre portrait parmi vos cartes.</p>'
+              + '<div class="profil-ava">'
               + '<button class="profil-vign' + (profil.avatar ? '' : ' choisi')
               + '" data-ava="">Aucun</button>'
               + avatars.map(function (a) {
@@ -4132,36 +4192,29 @@
                     + '</button>';
                 }).join('')
               + '</div>'
-            : '<p class="sheet-sub">Ouvrez un paquet pour avoir le choix.</p>')
-
-        + '<p class="sheet-sub profil-titre">RÉGLAGES</p>'
-        + '<div class="reglages">'
-        + '<button id="opt-vibr" class="tri-btn">Vibrations</button>'
-        + '<button id="opt-son" class="tri-btn">Sons</button>'
-        + '<button id="opt-notif" class="tri-btn" hidden>Rappel</button>'
-        + '</div>'
-
-        + '<p class="sheet-sub profil-titre">VOTRE PROGRESSION</p>'
-        + '<div id="coll-zone-sauvegarde"></div>'
-        + '<div id="coll-zone-raz"></div>'
+            : '<p class="profil-aide">Ouvrez un paquet pour avoir un portrait à choisir.</p>')
         + '<button class="btn" id="sheet-close">Fermer</button>';
-
-      montrerSauvegarde();
-      el('coll-zone-raz').innerHTML = Object.keys(collection).length
-        ? '<div class="raz"><p class="raz-mot">Tout effacer supprime définitivement '
-          + 'votre collection, vos succès et votre progression.</p>'
-          + '<button class="btn" data-raz="1">Repartir de zéro</button></div>' : '';
-      majOptions();
 
       el('profil-nom').addEventListener('input', function () {
         profil.nom = el('profil-nom').value.trim();
         saveProfil(); majProfil();
+        var n = el('sheet-inner').querySelector('.pui-nom');
+        if (n) n.textContent = profil.nom || 'Sans nom';
       });
     }
 
     if (!garderPos) ouvrirFeuille();
+    calerVisuels(inner);
     inner.scrollTop = pos;
     el('sheet-close').addEventListener('click', closeSheet);
+  }
+
+  /* Une ligne de réglage : intitulé à gauche, état à droite. Plus lisible
+     qu'un bouton dont le texte change entièrement. */
+  function ligneOption(id, nom) {
+    return '<button class="opt-ligne" id="' + id + '">'
+      + '<span class="opt-nom">' + esc(nom) + '</span>'
+      + '<span class="opt-etat"></span></button>';
   }
 
   /* Résumé du joueur : le portrait, le nom, le niveau, puis les trois
@@ -7476,22 +7529,18 @@
   /* Les boutons de réglage n'existent que pendant que la feuille de profil
      est ouverte : tout est donc conditionnel. */
   function majOptions() {
+    var poser = function (id, actif, mot) {
+      var b = el(id);
+      if (!b) return;
+      b.classList.toggle('actif', actif);
+      var e = b.querySelector('.opt-etat');
+      if (e) e.textContent = actif ? mot[0] : mot[1];
+    };
     var n = el('opt-notif');
-    if (n) {
-      n.hidden = !notifDisponible();
-      n.textContent = 'Rappel : ' + (options.notif ? 'activé' : 'coupé');
-      n.classList.toggle('actif', options.notif);
-    }
-    var b = el('opt-vibr');
-    if (b) {
-      b.textContent = 'Vibrations : ' + (options.vibr ? 'activées' : 'coupées');
-      b.classList.toggle('actif', options.vibr);
-    }
-    var c = el('opt-son');
-    if (c) {
-      c.textContent = 'Sons : ' + (options.son ? 'activés' : 'coupés');
-      c.classList.toggle('actif', options.son);
-    }
+    if (n) n.hidden = !notifDisponible();
+    poser('opt-notif', options.notif, ['Activé', 'Coupé']);
+    poser('opt-vibr', options.vibr, ['Activées', 'Coupées']);
+    poser('opt-son', options.son, ['Activés', 'Coupés']);
   }
 
   if (OBS_OK) {
