@@ -7,7 +7,7 @@
    enveloppes.
 
    Contrat attendu par le jeu :
-     WikigachaAchats.lister()        -> Promise<[{itemId}]>  achats possédés
+     WikigachaAchats.lister()        -> Promise<[{itemId}]>  achats actifs
      WikigachaAchats.acheter(sku)    -> Promise<bool>        vrai si abouti
      WikigachaAchats.prix([sku...])  -> Promise<[{itemId, price:{value,currency}}]>
 
@@ -17,16 +17,24 @@
      npm install @capgo/native-purchases
      npx cap sync
 
-   Choisi parce qu'il parle directement à Google Play Billing, sans service
-   tiers ni serveur intermédiaire — ce qui correspond au reste du jeu, qui
+   Choisi parce qu'il parle directement a Google Play Billing, sans service
+   tiers ni serveur intermediaire — ce qui correspond au reste du jeu, qui
    n'a pas de backend. Il s'enregistre sous Capacitor.Plugins.NativePurchases.
-
-   Nos trois produits sont des produits UNIQUES (non consommables), pas des
-   abonnements : on interroge donc toujours Play avec le type 'inapp'.
    ---------------------------------------------------------------------------
 
-   Identifiants déclarés dans la Play Console :
-     wikigacha_sans_pub · wikigacha_premium · wikigacha_premium_maj           */
+   DEUX NATURES DE PRODUIT, ET C'EST VOULU :
+
+     wikigacha_sans_pub   achat UNIQUE   ('inapp')
+        Paye une fois, acquis pour toujours. La publicite disparait.
+
+     wikigacha_premium    ABONNEMENT     ('subs')
+        Se renouvelle, et peut cesser. Il faut donc le REVERIFIER a chaque
+        lancement : lister() fait foi, jamais une valeur gardee sur
+        l'appareil. Le jeu reconstruit son etat a partir de cette liste, donc
+        un abonnement resilie ou impaye retire ses avantages tout seul.
+
+   Play ne melange pas les deux : getPurchases et getProducts veulent savoir
+   de quel type on parle. On interroge donc les deux et on fusionne.         */
 
 (function () {
   'use strict';
@@ -36,12 +44,20 @@
                  && window.Capacitor.Plugins.NativePurchases;
   if (!Facturation) return;   /* pont absent : le jeu utilise Digital Goods */
 
-  var INAPP = 'inapp';        /* produits uniques, jamais 'subs' */
+  var INAPP = 'inapp';   /* achat unique */
+  var SUBS  = 'subs';    /* abonnement */
 
-  /* Play met parfois plusieurs secondes à répondre au premier appel, et il
-     arrive qu'il ne réponde pas du tout (Play Store en cours de mise à jour,
+  /* La seule liste a tenir a jour si un produit change de nature un jour. */
+  var ABONNEMENTS = ['wikigacha_premium'];
+
+  function typeDe(sku) {
+    return ABONNEMENTS.indexOf(sku) !== -1 ? SUBS : INAPP;
+  }
+
+  /* Play met parfois plusieurs secondes a repondre au premier appel, et il
+     arrive qu'il ne reponde pas du tout (Play Store en cours de mise a jour,
      appareil sans Play Services). On ne laisse jamais le jeu attendre
-     indéfiniment : passé le délai, on rend une valeur de repli. */
+     indefiniment : passe le delai, on rend une valeur de repli. */
   function avecDelai(promesse, ms, repli) {
     return new Promise(function (resolve) {
       var fini = false;
@@ -56,12 +72,12 @@
     });
   }
 
-  /* Un achat non acquitté sous 72 heures est REMBOURSÉ AUTOMATIQUEMENT par
-     Google, et le joueur perd ce qu'il a payé. Le greffon acquitte tout seul
-     par défaut, mais on repasse derrière : si un achat traîne non acquitté
-     (application fermée au mauvais moment, plantage juste après le paiement),
-     on le rattrape au démarrage suivant. L'appel est idempotent, le relancer
-     sur un achat déjà acquitté est sans effet. */
+  /* Un achat non acquitte sous 72 heures est REMBOURSE AUTOMATIQUEMENT par
+     Google, et le joueur perd ce qu'il a paye. Vrai pour un achat unique
+     comme pour chaque echeance d'un abonnement. Le greffon acquitte seul,
+     mais on repasse derriere : un achat reste en suspens (application fermee
+     au mauvais moment, plantage juste apres le paiement) est rattrape au
+     demarrage suivant. L'appel est sans effet sur un achat deja acquitte. */
   function rattraperAcquittements(achats) {
     if (typeof Facturation.acknowledgePurchase !== 'function') return;
     achats.forEach(function (a) {
@@ -76,16 +92,19 @@
 
   window.WikigachaAchats = {
 
-    /* Ce que le joueur possède déjà. Appelé au lancement pour restaurer le
-       premium après une réinstallation ou un changement de téléphone : c'est
-       Google qui garde la trace de l'achat, pas nous. */
+    /* Ce que le joueur possede A CET INSTANT. Appele au lancement : c'est la
+       seule source de verite. Un achat unique y figure toujours ; un
+       abonnement n'y figure QUE tant qu'il est actif. */
     lister: function () {
-      return avecDelai(
-        Facturation.getPurchases({ productType: INAPP }),
-        8000,
-        { purchases: [] }
-      ).then(function (r) {
-        var achats = (r && r.purchases) || [];
+      var vide = { purchases: [] };
+      return Promise.all([
+        avecDelai(Facturation.getPurchases({ productType: INAPP }), 8000, vide),
+        avecDelai(Facturation.getPurchases({ productType: SUBS  }), 8000, vide)
+      ]).then(function (r) {
+        var achats = [];
+        r.forEach(function (x) {
+          if (x && x.purchases) achats = achats.concat(x.purchases);
+        });
         rattraperAcquittements(achats);
         return achats
           .filter(function (a) { return a && a.productIdentifier; })
@@ -93,49 +112,64 @@
       })['catch'](function () { return []; });
     },
 
-    /* Lance le tunnel de paiement de Google Play. La promesse ne se résout à
-       vrai que si la transaction est réellement aboutie : un joueur qui ferme
-       la feuille de paiement, ou dont la carte est refusée, ne débloque
-       rien. */
+    /* Lance le tunnel de paiement de Google Play. La promesse ne se resout a
+       vrai que si la transaction aboutit vraiment : un joueur qui ferme la
+       feuille de paiement, ou dont la carte est refusee, ne debloque rien.
+       Le type est deduit du sku — se tromper ferait echouer Play. */
     acheter: function (sku) {
       return Facturation.purchaseProduct({
         productIdentifier: sku,
-        productType: INAPP
+        productType: typeDe(sku)
       }).then(function (t) {
-        /* Selon les versions, le greffon renvoie la transaction directement ou
-           enveloppée. On accepte les deux, et on vérifie que c'est bien NOTRE
-           produit qui a été acheté. */
+        /* Selon les versions, le greffon renvoie la transaction directement
+           ou enveloppee. On accepte les deux, et on verifie que c'est bien
+           NOTRE produit qui a ete achete. */
         var tr = (t && t.transaction) ? t.transaction : t;
         if (!tr || !tr.transactionId) return false;
         if (tr.productIdentifier && tr.productIdentifier !== sku) return false;
         rattraperAcquittements([tr]);
         return true;
       })['catch'](function () {
-        /* Annulation par le joueur, paiement refusé, produit introuvable :
-           dans tous les cas le jeu ne doit rien débloquer, et surtout ne pas
-           planter. */
+        /* Annulation, paiement refuse, produit introuvable : dans tous les
+           cas le jeu ne debloque rien, et surtout ne plante pas. */
         return false;
       });
     },
 
-    /* Prix affichés dans la boutique. On renvoie la valeur ET la devise telles
-       que Play les donne, pour que le joueur voie le prix de SON pays — jamais
-       un prix codé en dur. */
+    /* Prix affiches dans la boutique. On renvoie la valeur ET la devise
+       telles que Play les donne, pour que le joueur voie le prix de SON
+       pays — jamais un prix code en dur. Les deux types sont demandes
+       separement, puis fusionnes. */
     prix: function (skus) {
-      return avecDelai(
-        Facturation.getProducts({ productIdentifiers: skus, productType: INAPP }),
-        8000,
-        { products: [] }
-      ).then(function (r) {
-        return ((r && r.products) || []).map(function (p) {
-          return {
-            itemId: p.identifier,
-            price: { value: p.price, currency: p.currencyCode },
-            /* Play fournit aussi le prix déjà formaté et localisé : si le jeu
-               sait l'utiliser un jour, il est là. */
-            priceString: p.priceString
-          };
+      var uniques = [], abos = [];
+      (skus || []).forEach(function (s) {
+        (typeDe(s) === SUBS ? abos : uniques).push(s);
+      });
+      var vide = { products: [] };
+
+      function demander(liste, type) {
+        if (!liste.length) return Promise.resolve(vide);
+        return avecDelai(Facturation.getProducts(
+          { productIdentifiers: liste, productType: type }), 8000, vide);
+      }
+
+      return Promise.all([
+        demander(uniques, INAPP),
+        demander(abos, SUBS)
+      ]).then(function (r) {
+        var out = [];
+        r.forEach(function (x) {
+          ((x && x.products) || []).forEach(function (p) {
+            out.push({
+              itemId: p.identifier,
+              price: { value: p.price, currency: p.currencyCode },
+              /* Play fournit aussi le prix deja formate et localise : si le
+                 jeu sait l'utiliser un jour, il est la. */
+              priceString: p.priceString
+            });
+          });
         });
+        return out;
       })['catch'](function () { return []; });
     }
   };

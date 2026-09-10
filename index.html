@@ -2236,6 +2236,13 @@
   .splash-jauge span { border-radius: 2px; }
   .splash-credit { color: #444c62; }
 
+  /* Mention d'abonnement : lisible sans voler la vedette au prix. */
+  .prem-mention {
+    margin: 6px 0 10px; font-size: 11.5px; line-height: 1.4;
+    color: #7d8699; letter-spacing: .005em;
+  }
+  .prem-carte.acquise .prem-mention { margin-bottom: 0; }
+
   /* --- Le bord dechire du sachet -----------------------------------------
      Deux defauts a l'ouverture : la tranche des cartes formait un ruban creme
      epais raye tous les 17 px, qui se lisait comme un ticket de caisse ; et
@@ -2685,7 +2692,10 @@
      publier sur Play et interdiction en Belgique et aux Pays-Bas. */
   var SKU_SANS_PUB = 'wikigacha_sans_pub';
   var SKU_PREMIUM  = 'wikigacha_premium';
-  var SKU_MAJ      = 'wikigacha_premium_maj';   /* pour qui a déjà « sans pub » */
+  /* Le premium est un ABONNEMENT ('subs' cote Play), « sans publicite » un
+     achat unique. Consequence : il n'existe pas de produit « passage au
+     premium » — on ne complete pas un achat unique par un abonnement. Un
+     joueur qui a les deux garde « sans publicite » a vie meme s'il resilie. */
   var EKEY = 'wikigacha:achats';
   var PLAY = 'https://play.google.com/billing';
   var PUB_TOUS = 10;               /* une publicité tous les dix paquets */
@@ -2885,8 +2895,10 @@
         var ids = (liste || []).map(function (x) { return x.itemId || x; });
         var av = achats.sansPub + '/' + achats.premium;
         achats.sansPub = ids.indexOf(SKU_SANS_PUB) !== -1;
-        achats.premium = ids.indexOf(SKU_PREMIUM) !== -1
-                      || ids.indexOf(SKU_MAJ) !== -1;
+        /* Reconstruit a chaque lancement depuis Play : un abonnement resilie
+           ou impaye disparait de la liste, et le premium s'eteint tout seul.
+           Ne jamais deduire le premium d'une valeur gardee sur l'appareil. */
+        achats.premium = ids.indexOf(SKU_PREMIUM) !== -1;
         if (av !== achats.sansPub + '/' + achats.premium) poseAchats();
         if (!silencieux) {
           toast((achats.sansPub || achats.premium)
@@ -2905,9 +2917,9 @@
   function chargerPrix() {
     var pont = pontAchats();
     var source = (pont && typeof pont.prix === 'function')
-      ? Promise.resolve(pont.prix([SKU_SANS_PUB, SKU_PREMIUM, SKU_MAJ]))
+      ? Promise.resolve(pont.prix([SKU_SANS_PUB, SKU_PREMIUM]))
       : servicePlay().then(function (svc) {
-          return svc ? svc.getDetails([SKU_SANS_PUB, SKU_PREMIUM, SKU_MAJ]) : null;
+          return svc ? svc.getDetails([SKU_SANS_PUB, SKU_PREMIUM]) : null;
         });
     return source.then(function (items) {
       if (!items) return null;
@@ -7882,9 +7894,10 @@
     if (achats.premium) {
       html += '<div class="prem-carte acquise pleine">'
         + '<span class="prem-tag">PREMIUM</span>'
-        + '<p class="prem-mot">Actif. Merci de soutenir le jeu.</p></div>';
+        + '<p class="prem-mot">Abonnement actif. Merci de soutenir le jeu.</p>'
+        + '<p class="prem-mention">Gérer ou résilier depuis le Play Store.</p></div>';
     } else {
-      var skuP = achats.sansPub ? SKU_MAJ : SKU_PREMIUM;
+      var skuP = SKU_PREMIUM;
       html += '<div class="prem-duo">'
 
         /* premium */
@@ -7898,9 +7911,11 @@
         + '<li>Dos doré, export tableur</li>'
         + '</ul>'
         + (prix[skuP] ? '<span class="prem-prix">' + esc(prix[skuP]) + '</span>' : '')
+        + '<p class="prem-mention">Abonnement mensuel, résiliable à tout '
+        + 'moment depuis le Play Store.</p>'
         + (boutiquable
             ? '<button class="btn btn-solid" data-play="' + skuP + '">'
-              + (achats.sansPub ? 'Passer au premium' : 'Obtenir') + '</button>'
+              + 'S’abonner</button>'
             : '<p class="status prem-indispo">' + motAchatsIndispo() + '</p>')
         + '</div>'
 
