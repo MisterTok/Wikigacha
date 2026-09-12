@@ -3269,9 +3269,9 @@
     var url = 'https://' + WIKI + '.org/w/api.php'
       + '?action=query&format=json&origin=*'
       + '&generator=random&grnnamespace=0&grnlimit=12'
-      + '&prop=info|pageimages|description|extracts'
+      + '&prop=info|pageimages|description|extracts|pageprops'
       + '&inprop=url&piprop=thumbnail&pithumbsize=500&pilicense=any'
-      + '&exintro=1&explaintext=1&exlimit=max';
+      + '&exintro=1&explaintext=1&exlimit=max&ppprop=disambiguation';
     return fetchVite(url).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
@@ -3279,6 +3279,14 @@
       var pages = d && d.query && d.query.pages;
       if (!pages) throw new Error('reponse vide');
       var tous = Object.keys(pages).map(function (k) { return pages[k]; });
+
+      /* On ecarte les pages d'homonymie : ce ne sont pas des articles mais des
+         index ("X peut faire reference a..."), sans references ni contenu, qui
+         tomberaient toujours en Commune avec une fiche vide. */
+      tous = tous.filter(function (p) {
+        return !(p.pageprops && p.pageprops.hasOwnProperty('disambiguation'))
+            && !/\(homonymie\)$/i.test(p.title || '');
+      });
 
       var avec = tous.filter(function (p) { return p.thumbnail && p.thumbnail.source; });
       var sans = tous.filter(function (p) { return !(p.thumbnail && p.thumbnail.source); });
