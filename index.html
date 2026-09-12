@@ -5170,10 +5170,38 @@
         return r.json();
       })
       .then(function (d) {
-        var a = d.tfa || (d.mostread && d.mostread.articles && d.mostread.articles[0]);
-        if (!a) throw new Error('pas d’article du jour');
-        return a;
+        /* On renvoie une liste ordonnee, pas un seul article : un boss sans
+           visuel perd tout son impact, il faut donc pouvoir passer au suivant
+           quand l'article retenu n'a aucune image exploitable. */
+        var liste = [];
+        if (d.tfa) liste.push(d.tfa);
+        var mr = (d.mostread && d.mostread.articles) || [];
+        for (var i = 0; i < mr.length && liste.length < 10; i++) liste.push(mr[i]);
+        if (!liste.length) throw new Error('pas d’article du jour');
+        return liste;
       });
+  }
+
+  /* Parcourt les candidats dans l'ordre et retient le premier qui a une image :
+     vignette de l'article, a defaut celle du flux, a defaut l'image officielle
+     Wikidata (P18). L'ordre etant celui du jour, le boss reste le meme toute
+     la journee. */
+  function resoudreBoss(liste, i) {
+    i = i || 0;
+    if (i >= liste.length) return Promise.resolve(null);
+    var a = liste[i];
+    var titre = (a.titles && a.titles.normalized) || a.title || '';
+    return fetchInfo(a.pageid)
+      .then(function (page) {
+        var t = (page && page.thumbnail && page.thumbnail.source)
+             || (a.thumbnail && a.thumbnail.source) || '';
+        if (t) return { a: a, page: page, thumb: t };
+        if (!titre) return resoudreBoss(liste, i + 1);
+        return fetchImageCorps(titre).then(function (u) {
+          return u ? { a: a, page: page, thumb: u } : resoudreBoss(liste, i + 1);
+        });
+      })
+      .catch(function () { return resoudreBoss(liste, i + 1); });
   }
 
   function fetchInfo(pageid) {
@@ -5213,11 +5241,14 @@
 
     body.innerHTML = '<p class="status">Recherche de l’adversaire du jour…</p>';
     fetchBoss()
-      .then(function (a) {
+      .then(resoudreBoss)
+      .then(function (choix) {
+        if (!choix) throw new Error('aucun adversaire illustre aujourd’hui');
+        var a = choix.a;
         return Promise.all([
-          fetchInfo(a.pageid),
+          choix.page,
           fetchQuality(a.pageid),
-          fetchViews(a.title || a.titles.normalized)
+          fetchViews(a.title || (a.titles && a.titles.normalized))
         ]).then(function (r) {
           var page = r[0] || {};
           var titre = (a.titles && a.titles.normalized) || a.title || page.title;
@@ -5229,8 +5260,7 @@
             url: page.fullurl || ('https://' + WIKI + '.org/wiki/'
                  + encodeURIComponent(titre.replace(/ /g, '_'))),
             extract: (a.extract || page.description || '').trim().slice(0, 400),
-            thumb: (page.thumbnail && page.thumbnail.source)
-                   || (a.thumbnail && a.thumbnail.source) || '',
+            thumb: choix.thumb,
             bytes: bytes, views: r[2],
             atk: Math.max(1, Math.round(Math.log10(r[2] + 1) * 90)),
             def: Math.max(1, Math.round(Math.log10(bytes + 1) * 90)),
