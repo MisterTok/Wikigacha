@@ -879,6 +879,25 @@
     border-left: 3px solid var(--night-line); padding: 9px 12px; margin-bottom: 6px;
   }
   .mission-nom { flex: 1 1 auto; min-width: 0; color: var(--glass-dim); }
+
+  /* --- serie de connexion : sept cases, le cycle visible d'un coup d'oeil --- */
+  .serie-record { float: right; letter-spacing: .04em; color: #7d8699; }
+  .serie-grille { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 6px; }
+  .serie-case {
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    padding: 7px 2px 6px; background: var(--night-up);
+    border: 1px solid var(--night-line); border-top: 3px solid var(--night-line);
+  }
+  .serie-jour { font-size: 9.5px; letter-spacing: .04em; color: var(--glass-dim); }
+  .serie-lot {
+    font-size: 13px; color: var(--glass);
+    font-variant-numeric: tabular-nums;
+  }
+  .serie-case.fait { border-top-color: #4f8d72; }
+  .serie-case.fait .serie-lot { color: var(--glass-dim); }
+  .serie-case.pret { border-top-color: #c9992e; background: #262c40; }
+  .serie-case.pret .serie-jour { color: #c9992e; }
+  .serie-case.pret .serie-lot { color: var(--ivory); }
   .mission-etat {
     flex: none; font-size: 11px; color: var(--glass-dim);
     font-variant-numeric: tabular-nums;
@@ -5523,28 +5542,130 @@
   /* ---------- missions quotidiennes ---------- */
 
   var MISSIONS = [
-    { id: 'm-p3',  n: 'Ouvrir trois paquets',        v: 3,    gain: 1, c: 'paquets' },
-    { id: 'm-p6',  n: 'Ouvrir six paquets',          v: 6,    gain: 2, c: 'paquets' },
-    { id: 'm-n5',  n: 'Découvrir 5 nouveaux articles', v: 5,  gain: 2, c: 'nouvelles' },
-    { id: 'm-n12', n: 'Découvrir 12 nouveaux articles', v: 12, gain: 3, c: 'nouvelles' },
-    { id: 'm-r2',  n: 'Tirer une carte Rare ou mieux', v: 2,  gain: 1, c: 'rarete' },
-    { id: 'm-r3',  n: 'Tirer une Épique ou mieux',      v: 3,  gain: 3, c: 'rarete' },
-    { id: 'm-d800',n: 'Infliger 800 dégâts en raid',  v: 800, gain: 2, c: 'degats' },
-    { id: 'm-d2500',n:'Infliger 2500 dégâts en raid', v: 2500,gain: 3, c: 'degats' },
-    { id: 'm-v1',  n: 'Gagner un duel',               v: 1,   gain: 2, c: 'duels' },
-    { id: 'm-v2',  n: 'Gagner deux duels',            v: 2,   gain: 3, c: 'duels' }
+    { id: 'm-p3',  n: 'Ouvrir trois paquets',        v: 3,    gain: 1, c: 'paquets',   f: 'paquets' },
+    { id: 'm-p6',  n: 'Ouvrir six paquets',          v: 6,    gain: 2, c: 'paquets',   f: 'paquets' },
+    { id: 'm-n5',  n: 'Découvrir 5 nouveaux articles', v: 5,  gain: 2, c: 'nouvelles', f: 'decouverte' },
+    { id: 'm-n12', n: 'Découvrir 12 nouveaux articles', v: 12, gain: 3, c: 'nouvelles', f: 'decouverte' },
+    { id: 'm-r2',  n: 'Tirer une carte Rare ou mieux', v: 2,  gain: 1, c: 'rarete',    f: 'rarete' },
+    { id: 'm-r3',  n: 'Tirer une Épique ou mieux',      v: 3,  gain: 3, c: 'rarete',    f: 'rarete' },
+    { id: 'm-d800',n: 'Infliger 800 dégâts en raid',  v: 800, gain: 2, c: 'degats',    f: 'combat' },
+    { id: 'm-d2500',n:'Infliger 2500 dégâts en raid', v: 2500,gain: 3, c: 'degats',    f: 'combat' },
+    { id: 'm-v1',  n: 'Gagner un duel',               v: 1,   gain: 2, c: 'duels',     f: 'combat' },
+    { id: 'm-v2',  n: 'Gagner deux duels',            v: 2,   gain: 3, c: 'duels',     f: 'combat' }
   ];
 
-  /* Trois missions par jour, tirees a partir de la date :
-     tout le monde a les memes, et elles ne changent pas en cours de journee. */
+  /* Quatre missions par jour, une par famille : le joueur a toujours de quoi
+     faire en ouvrant, en decouvrant, en collectionnant et en combattant.
+     Tirees a partir de la date : tout le monde a les memes, et elles ne
+     changent pas en cours de journee. */
+  var FAMILLES = ['paquets', 'decouverte', 'rarete', 'combat'];
+
   function missionsDuJour() {
     var g = seedOf(jour());
     var rnd = function () { g = (Math.imul(g, 1664525) + 1013904223) >>> 0; return g / 4294967296; };
-    var pool = MISSIONS.slice(), out = [];
-    while (out.length < 3 && pool.length) {
-      out.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
-    }
+    var out = [];
+    FAMILLES.forEach(function (fam) {
+      var pool = MISSIONS.filter(function (m) { return m.f === fam; });
+      if (pool.length) out.push(pool[Math.floor(rnd() * pool.length)]);
+    });
     return out;
+  }
+
+  /* ---------- serie de connexion ----------
+     Un cycle de sept jours qui se repete : la recompense de fidelite se paie
+     en paquets, jamais en or, pour ne pas doubler les missions. Le jour 7 offre
+     une garantie de rarete — ce que l'or ne peut pas acheter. Rater un jour
+     ramene au jour 1 du cycle, mais le record personnel, lui, ne bouge pas. */
+
+  var SERKEY = 'wikigacha:serie';
+  var CYCLE = [
+    { p: 1 },
+    { p: 1 },
+    { p: 1, gar: 1 },   /* Peu commune garantie au prochain paquet */
+    { p: 1 },
+    { p: 1 },
+    { p: 2 },
+    { p: 1, gar: 2 }    /* Rare garantie au prochain paquet */
+  ];
+
+  function readSerie() {
+    var d;
+    try { d = JSON.parse(localStorage.getItem(SERKEY)); } catch (e) { d = null; }
+    if (!d || typeof d.serie !== 'number') d = { serie: 0, dernier: '', record: 0 };
+    return d;
+  }
+  function writeSerie(d) {
+    try { localStorage.setItem(SERKEY, JSON.stringify(d)); } catch (e) {}
+  }
+  function hier() {
+    var d = new Date(); d.setDate(d.getDate() - 1);
+    return d.getFullYear() + '-'
+      + String(d.getMonth() + 1).padStart(2, '0') + '-'
+      + String(d.getDate()).padStart(2, '0');
+  }
+  /* Position dans le cycle : la case deja prise aujourd'hui, ou celle qui
+     attend le joueur s'il n'a pas encore reclame. */
+  function caseSerie() {
+    var d = readSerie();
+    if (d.dernier === jour()) return ((d.serie - 1) % 7) + 1;
+    var suite = (d.dernier === hier()) ? d.serie + 1 : 1;
+    return ((suite - 1) % 7) + 1;
+  }
+  function serieReclamee() { return readSerie().dernier === jour(); }
+
+  function reclamerSerie() {
+    var d = readSerie();
+    if (d.dernier === jour()) return;
+    d.serie = (d.dernier === hier()) ? d.serie + 1 : 1;
+    d.dernier = jour();
+    if (d.serie > d.record) d.record = d.serie;
+    writeSerie(d);
+
+    var r = CYCLE[((d.serie - 1) % 7)];
+    var pk = readPacks();
+    pk.n += r.p;                 /* les recompenses peuvent depasser le plafond */
+    writePacks(pk);
+    if (r.gar) {
+      var courant = readPacks().garDue || 0;
+      if (r.gar > courant) noterGarantieDue(r.gar);
+    }
+    refreshPacks();
+    showMissions(r.p + (r.p > 1 ? ' paquets ajoutés.' : ' paquet ajouté.')
+      + (r.gar ? ' ' + TIERS[r.gar].name + ' garanti au prochain.' : ''));
+    vib(12);
+  }
+
+  function blocSerie() {
+    var d = readSerie();
+    var pos = caseSerie();
+    var pris = serieReclamee();
+    var html = '<p class="mission-tete">SÉRIE DE CONNEXION'
+      + (d.record > 1 ? '<span class="serie-record">record ' + d.record + ' j</span>' : '')
+      + '</p><div class="serie-grille">';
+    for (var i = 1; i <= 7; i++) {
+      var r = CYCLE[i - 1];
+      var cls = 'serie-case';
+      if (i < pos || (i === pos && pris)) cls += ' fait';
+      if (i === pos && !pris) cls += ' pret';
+      html += '<div class="' + cls + '">'
+        + '<span class="serie-jour">J' + i + '</span>'
+        + '<span class="serie-lot">' + r.p + (r.gar ? '★' : '') + '</span>'
+        + '</div>';
+    }
+    html += '</div>';
+    if (!pris) {
+      var r2 = CYCLE[pos - 1];
+      html += '<button class="mission pret" data-serie="1">'
+        + '<span class="mission-nom">Jour ' + pos + ' — récompense du jour</span>'
+        + '<span class="mission-etat">' + r2.p + ' paquet' + (r2.p > 1 ? 's' : '')
+        + (r2.gar ? ' + ' + TIERS[r2.gar].short : '') + '</span></button>';
+    } else {
+      html += '<div class="mission fait">'
+        + '<span class="mission-nom">Série de ' + d.serie + ' jour'
+        + (d.serie > 1 ? 's' : '') + '</span>'
+        + '<span class="mission-etat">reçu</span></div>';
+    }
+    return html;
   }
 
   function reclamerMission(id) {
@@ -5562,7 +5683,7 @@
   function showMissions(msg) {
     var d = readJour();
     var liste = missionsDuJour();
-    var html = '<p class="mission-tete">MISSIONS DU JOUR</p>';
+    var html = blocSerie() + '<p class="mission-tete">MISSIONS DU JOUR</p>';
     liste.forEach(function (m) {
       /* Pour la rarete, le compteur est l'indice du meilleur palier tire
          aujourd'hui (-1 si rien) ; ailleurs c'est un simple cumul. */
@@ -8288,7 +8409,7 @@
 
   }
 
-  var TOUTES_CLES = [KEY, PKEY, RKEY, SKEY, JKEY, CKEY, VKEY, HKEY];
+  var TOUTES_CLES = [KEY, PKEY, RKEY, SKEY, JKEY, CKEY, VKEY, HKEY, SERKEY];
 
   /* Rassemble tout l'etat du jeu en un objet unique. */
   function exporterTout() {
@@ -8746,6 +8867,8 @@
     if (ch) { histChapOuvert = ch.getAttribute('data-chap'); peindreChapitre(histChapOuvert); }
   });
   el('missions').addEventListener('click', function (e) {
+    var sr = e.target.closest ? e.target.closest('[data-serie]') : null;
+    if (sr) { reclamerSerie(); return; }
     var m = e.target.closest ? e.target.closest('[data-mission]') : null;
     if (m) reclamerMission(m.getAttribute('data-mission'));
   });
