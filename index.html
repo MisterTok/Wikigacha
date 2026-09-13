@@ -2550,7 +2550,8 @@
      Bonus modere, pour qu'une carte de haute rarete garde l'avantage. */
   var ETOILE_MAX = 5;
   var ETOILE_BONUS = [0, 0.06, 0.13, 0.22, 0.33];   /* cumul, de ★1 a ★5 */
-  var ETOILE_COUT  = [0, 2, 3, 4, 5];               /* doublons pour le palier suivant */
+  var ETOILE_COUT  = [0, 1, 1, 1, 1];               /* doublons pour le palier suivant */
+  var ETOILE_OR    = [0, 100, 300, 800, 2000];      /* Wikigold pour le palier suivant */
 
   var niveau = function (c) { return c.star || 1; };
   var bonusStat = function (c) { return 1 + ETOILE_BONUS[niveau(c) - 1]; };
@@ -2559,6 +2560,10 @@
   var coutProchain = function (c) {
     var n = niveau(c);
     return n >= ETOILE_MAX ? 0 : ETOILE_COUT[n];
+  };
+  var coutOrProchain = function (c) {
+    var n = niveau(c);
+    return n >= ETOILE_MAX ? 0 : ETOILE_OR[n];
   };
   var etoiles = function (n) {
     return '★★★★★'.slice(0, n) + '☆☆☆☆☆'.slice(0, ETOILE_MAX - n);
@@ -5048,17 +5053,24 @@
         + '<span>' + etoiles(n) + '</span> Niveau maximum atteint.</p></div>';
     }
     var cout = coutProchain(c);
+    var or_ = coutOrProchain(c);
     var dispo = (c.count || 1) - 1;      /* on garde la carte elle-meme */
+    var solde = readGold();
     var prochainBonus = Math.round(ETOILE_BONUS[n] * 100);
-    var pret = dispo >= cout;
+    var aDoublon = dispo >= cout;
+    var aOr = solde >= or_;
+    var pret = aDoublon && aOr;
+    var manque = !aDoublon
+      ? 'Il faut un doublon de cette carte'
+      : 'Il manque ' + (or_ - solde).toLocaleString('fr-FR') + ' or';
     return '<div class="fusion">'
       + '<p class="fusion-lig"><span>' + etoiles(n) + ' → ' + etoiles(n + 1) + '</span>'
       + ' +' + prochainBonus + '% ATQ/DÉF</p>'
       + '<button class="btn' + (pret ? ' btn-solid' : '') + '" '
       + (pret ? 'data-fusion="' + esc(c.title) + '"' : 'disabled')
       + '>' + (pret
-          ? 'Fusionner (' + cout + ' doublons)'
-          : 'Il faut ' + cout + ' doublons — vous en avez ' + dispo)
+          ? 'Fusionner · ' + or_.toLocaleString('fr-FR') + ' or'
+          : manque)
       + '</button></div>';
   }
 
@@ -5067,8 +5079,11 @@
     if (!c) return;
     var n = niveau(c);
     var cout = coutProchain(c);
-    if (n >= ETOILE_MAX || cout === 0) return;
+    var or_ = coutOrProchain(c);
+    if (n >= ETOILE_MAX) return;
     if ((c.count || 1) - 1 < cout) return;
+    if (readGold() < or_) return;
+    ajouterGold(-or_);
     c.count -= cout;
     c.star = n + 1;
     save();
