@@ -485,6 +485,63 @@
     box-shadow: 0 16px 38px rgba(0,0,0,.55), inset 0 0 0 6px rgba(201,153,46,.3);
   }
 
+  /* --- dos cosmetiques : achetes en Wikigold, purement decoratifs ---
+     Places apres la regle premium : un dos choisi passe devant le dore. */
+  body.dos-parchemin .face-back {
+    border-color: #7a6a4c; color: #2a2318;
+    background:
+      repeating-linear-gradient(135deg, transparent 0 9px, rgba(90,70,40,.05) 9px 18px),
+      linear-gradient(165deg, #efe4cc 0%, #cdbb96 100%);
+    box-shadow: 0 16px 38px rgba(0,0,0,.55), inset 0 0 0 6px rgba(122,106,76,.28);
+  }
+  body.dos-parchemin .face-back small { color: #6b5c41; }
+  body.dos-emeraude .face-back {
+    border-color: #2f6650;
+    background:
+      repeating-linear-gradient(135deg, transparent 0 9px, rgba(140,220,180,.035) 9px 18px),
+      linear-gradient(165deg, #1c3b30 0%, #0d1a16 100%);
+    box-shadow: 0 16px 38px rgba(0,0,0,.55), inset 0 0 0 6px rgba(79,141,114,.26);
+  }
+  body.dos-encre .face-back {
+    border-color: #2a2d38;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 13px, rgba(255,255,255,.028) 13px 14px),
+      repeating-linear-gradient(90deg, transparent 0 13px, rgba(255,255,255,.028) 13px 14px),
+      linear-gradient(165deg, #14161e 0%, #06070a 100%);
+    box-shadow: 0 16px 38px rgba(0,0,0,.6), inset 0 0 0 6px rgba(255,255,255,.06);
+  }
+  body.dos-astral .face-back {
+    border-color: #4a3f7a;
+    background:
+      radial-gradient(1.6px 1.6px at 22% 18%, rgba(255,255,255,.55), transparent 60%),
+      radial-gradient(1.4px 1.4px at 68% 34%, rgba(255,255,255,.4), transparent 60%),
+      radial-gradient(1.8px 1.8px at 44% 72%, rgba(255,255,255,.5), transparent 60%),
+      radial-gradient(1.3px 1.3px at 80% 82%, rgba(255,255,255,.35), transparent 60%),
+      radial-gradient(1.5px 1.5px at 12% 60%, rgba(255,255,255,.42), transparent 60%),
+      linear-gradient(165deg, #2a2350 0%, #0f0c1c 100%);
+    box-shadow: 0 16px 38px rgba(0,0,0,.6), inset 0 0 0 6px rgba(138,120,200,.22);
+  }
+
+  /* Vignettes d'apercu dans la boutique. */
+  .dos-grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .dos-offre {
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    padding: 10px 6px 11px; font: inherit; cursor: pointer; text-align: center;
+    color: var(--glass); background: var(--night-up);
+    border: 1px solid var(--night-line); border-top: 3px solid var(--night-line);
+    transition: transform .12s ease, background .12s ease;
+  }
+  .dos-offre:active:not([disabled]) { transform: scale(.98); background: #262c40; }
+  .dos-offre[disabled] { cursor: default; opacity: .75; }
+  .dos-offre.actif { border-top-color: #c9992e; background: #262c40; }
+  .dos-vig {
+    width: 42px; height: 58px; border-radius: 4px; border: 1px solid #3a4260;
+    box-shadow: inset 0 0 0 3px rgba(201,153,46,.13);
+  }
+  .dos-nom { font-size: 11.5px; color: var(--glass); }
+  .dos-prix { font-size: 10.5px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
+  .dos-offre.actif .dos-prix { color: #c9992e; }
+
   .face-back small { font-size: 10px; letter-spacing: .14em; color: var(--glass-dim); }
 
   .face-front {
@@ -898,6 +955,7 @@
   .serie-case.pret { border-top-color: #c9992e; background: #262c40; }
   .serie-case.pret .serie-jour { color: #c9992e; }
   .serie-case.pret .serie-lot { color: var(--ivory); }
+  .serie-note { font-size: 10.5px; color: var(--glass-dim); margin: 0 0 8px; }
   .mission-etat {
     flex: none; font-size: 11px; color: var(--glass-dim);
     font-variant-numeric: tabular-nums;
@@ -5652,7 +5710,8 @@
         + '<span class="serie-lot">' + r.p + (r.gar ? '★' : '') + '</span>'
         + '</div>';
     }
-    html += '</div>';
+    html += '</div>'
+      + '<p class="serie-note">★ = garantie de rareté au prochain paquet</p>';
     if (!pris) {
       var r2 = CYCLE[pos - 1];
       html += '<button class="mission pret" data-serie="1">'
@@ -8003,6 +8062,50 @@
      le plafond de regeneration (comme les recompenses), c'est le but de la
      boutique : convertir la monnaie accumulee en tirages. */
 
+  /* ---------- dos de cartes : puits d'or purement decoratif ----------
+     Aucun effet sur l'equilibre, donc aucun risque pour l'economie : c'est
+     du prestige, et ca donne un sens a l'or quand on a deja tout. */
+  var DOSKEY = 'wikigacha:dos';
+  var DOS = [
+    { id: '',          nom: 'Nuit',      prix: 0,    apercu: 'linear-gradient(165deg,#2b3149,#191d2c)' },
+    { id: 'parchemin', nom: 'Parchemin', prix: 600,  apercu: 'linear-gradient(165deg,#efe4cc,#cdbb96)' },
+    { id: 'emeraude',  nom: 'Émeraude',  prix: 1200, apercu: 'linear-gradient(165deg,#1c3b30,#0d1a16)' },
+    { id: 'encre',     nom: 'Encre',     prix: 2000, apercu: 'linear-gradient(165deg,#14161e,#06070a)' },
+    { id: 'astral',    nom: 'Astral',    prix: 3500, apercu: 'linear-gradient(165deg,#2a2350,#0f0c1c)' }
+  ];
+
+  function readDos() {
+    var d;
+    try { d = JSON.parse(localStorage.getItem(DOSKEY)); } catch (e) { d = null; }
+    if (!d || !d.achetes) d = { achetes: [], actif: '' };
+    return d;
+  }
+  function writeDos(d) {
+    try { localStorage.setItem(DOSKEY, JSON.stringify(d)); } catch (e) {}
+  }
+  function appliquerDos() {
+    var actif = readDos().actif;
+    DOS.forEach(function (o) {
+      if (o.id) document.body.classList.toggle('dos-' + o.id, o.id === actif);
+    });
+  }
+  function choisirDos(id) {
+    var d = readDos();
+    var o = DOS.filter(function (x) { return x.id === id; })[0];
+    if (!o) return;
+    if (o.prix > 0 && d.achetes.indexOf(id) < 0) {
+      if (readGold() < o.prix) { showBoutique('Pas assez de Wikigold.'); return; }
+      ajouterGold(-o.prix);
+      d.achetes.push(id);
+      d.actif = id; writeDos(d); appliquerDos();
+      showBoutique('Dos « ' + o.nom + ' » débloqué et appliqué.');
+      vib(12);
+      return;
+    }
+    d.actif = id; writeDos(d); appliquerDos();
+    showBoutique('Dos « ' + o.nom + ' » appliqué.');
+  }
+
   var OFFRES = [
     { id: 'p1',  paquets: 1,  prix: 40,  nom: 'Un paquet' },
     { id: 'p5',  paquets: 5,  prix: 180, nom: 'Cinq paquets', note: '10 % de remise' },
@@ -8046,6 +8149,26 @@
         + '<span class="or-prix">' + o.prix + ' or</span>'
         + (abordable ? '' : '<span class="or-manque">−' + (o.prix - or) + '</span>')
         + '</button>';
+    });
+    html += '</div>';
+
+    /* --- dos de cartes : le second usage des Wikigold --- */
+    var etatDos = readDos();
+    html += '<div class="bt-section"><h3>DOS DE CARTES</h3></div>'
+      + '<p class="bt-mot">Purement décoratif : le dos s\u2019applique à toutes '
+      + 'vos cartes, sans rien changer à leur force.</p>'
+      + '<div class="dos-grille">';
+    DOS.forEach(function (o) {
+      var possede = !o.prix || etatDos.achetes.indexOf(o.id) >= 0;
+      var actif = etatDos.actif === o.id;
+      var abordable = possede || or >= o.prix;
+      html += '<button class="dos-offre' + (actif ? ' actif' : '') + '" '
+        + (abordable && !actif ? 'data-dos="' + o.id + '"' : 'disabled') + '>'
+        + '<span class="dos-vig" style="background:' + o.apercu + '"></span>'
+        + '<span class="dos-nom">' + esc(o.nom) + '</span>'
+        + '<span class="dos-prix">'
+        + (actif ? 'en usage' : (possede ? 'appliquer' : o.prix + ' or'))
+        + '</span></button>';
     });
     html += '</div>';
 
@@ -8409,7 +8532,7 @@
 
   }
 
-  var TOUTES_CLES = [KEY, PKEY, RKEY, SKEY, JKEY, CKEY, VKEY, HKEY, SERKEY];
+  var TOUTES_CLES = [KEY, PKEY, RKEY, SKEY, JKEY, CKEY, VKEY, HKEY, SERKEY, DOSKEY];
 
   /* Rassemble tout l'etat du jeu en un objet unique. */
   function exporterTout() {
@@ -8881,6 +9004,8 @@
       else acheterPlay(sku);
       return;
     }
+    var dd = e.target.closest ? e.target.closest('[data-dos]') : null;
+    if (dd) { choisirDos(dd.getAttribute('data-dos')); return; }
     var a = e.target.closest ? e.target.closest('[data-achat]') : null;
     if (a) acheter(a.getAttribute('data-achat'));
   });
@@ -9084,6 +9209,7 @@
      aupres de Play en tache de fond — remboursement compris. */
   litAchats();
   appliquerAchats();
+  appliquerDos();
   restaurerAchats(true).then(function () {
     chargerPrix().then(function () {
       if (!el('view-boutique').hidden) showBoutique();
