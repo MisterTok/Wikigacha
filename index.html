@@ -8182,9 +8182,7 @@
         + '<span class="dos-nom">' + esc(o.nom) + '</span>'
         + '<span class="dos-prix">'
         + (actif ? 'en usage' : (possede ? 'appliquer' : o.prix + ' or'))
-        + '</span>'
-        + (abordable ? '' : '<span class="or-manque">−' + (o.prix - or) + '</span>')
-        + '</button>';
+        + '</span></button>';
     });
     html += '</div>';
 
