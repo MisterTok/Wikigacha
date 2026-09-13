@@ -522,6 +522,18 @@
     box-shadow: 0 16px 38px rgba(0,0,0,.6), inset 0 0 0 6px rgba(138,120,200,.22);
   }
 
+  /* Or brossé : volontairement plus franc que le doré du premium, pour que les
+     deux ne se confondent pas — liseré epais, stries metalliques, fond chaud. */
+  body.dos-orfevre .face-back {
+    border-color: #a3823c; color: #2b2110;
+    background:
+      repeating-linear-gradient(115deg, transparent 0 5px, rgba(255,255,255,.10) 5px 7px),
+      repeating-linear-gradient(135deg, transparent 0 9px, rgba(120,90,30,.07) 9px 18px),
+      linear-gradient(165deg, #f3dfa4 0%, #c9992e 46%, #8c6620 100%);
+    box-shadow: 0 16px 38px rgba(0,0,0,.55), inset 0 0 0 9px rgba(140,102,32,.45);
+  }
+  body.dos-orfevre .face-back small { color: #6b5120; }
+
   /* Vignettes d'apercu dans la boutique. */
   .dos-grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .dos-offre {
@@ -535,8 +547,9 @@
   .dos-offre[disabled] { cursor: default; opacity: .75; }
   .dos-offre.actif { border-top-color: #c9992e; background: #262c40; }
   .dos-vig {
-    width: 42px; height: 58px; border-radius: 4px; border: 1px solid #3a4260;
-    box-shadow: inset 0 0 0 3px rgba(201,153,46,.13);
+    width: 42px; height: 58px; border-radius: 4px;
+    border: 1px solid rgba(255,255,255,.22);
+    box-shadow: inset 0 0 0 3px rgba(201,153,46,.16), 0 2px 8px rgba(0,0,0,.45);
   }
   .dos-nom { font-size: 11.5px; color: var(--glass); }
   .dos-prix { font-size: 10.5px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
@@ -8071,7 +8084,8 @@
     { id: 'parchemin', nom: 'Parchemin', prix: 600,  apercu: 'linear-gradient(165deg,#efe4cc,#cdbb96)' },
     { id: 'emeraude',  nom: 'Émeraude',  prix: 1200, apercu: 'linear-gradient(165deg,#1c3b30,#0d1a16)' },
     { id: 'encre',     nom: 'Encre',     prix: 2000, apercu: 'linear-gradient(165deg,#14161e,#06070a)' },
-    { id: 'astral',    nom: 'Astral',    prix: 3500, apercu: 'linear-gradient(165deg,#2a2350,#0f0c1c)' }
+    { id: 'astral',    nom: 'Astral',    prix: 3500, apercu: 'linear-gradient(165deg,#2a2350,#0f0c1c)' },
+    { id: 'orfevre',   nom: 'Orfèvre',   prix: 5000, apercu: 'linear-gradient(165deg,#f3dfa4,#c9992e 46%,#8c6620)' }
   ];
 
   function readDos() {
@@ -8168,7 +8182,9 @@
         + '<span class="dos-nom">' + esc(o.nom) + '</span>'
         + '<span class="dos-prix">'
         + (actif ? 'en usage' : (possede ? 'appliquer' : o.prix + ' or'))
-        + '</span></button>';
+        + '</span>'
+        + (abordable ? '' : '<span class="or-manque">−' + (o.prix - or) + '</span>')
+        + '</button>';
     });
     html += '</div>';
 
