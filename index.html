@@ -1011,6 +1011,44 @@
   }
   .clan-moi { border-left-color: #c9992e; }
   .clan-note { font-size: 11px; line-height: 1.6; color: var(--glass-dim); margin: 0 0 8px; }
+  .clan-paliers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px; }
+  .clan-palier {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 10px 4px; font: inherit; text-align: center; color: var(--glass);
+    background: var(--night-up); border: 1px solid var(--night-line);
+    border-top: 3px solid var(--night-line);
+  }
+  .clan-palier.pret { border-top-color: #c9992e; background: #262c40; cursor: pointer; }
+  .clan-palier.pris { border-top-color: #4f8d72; }
+  .cp-seuil { font-size: 13px; color: var(--ivory); font-variant-numeric: tabular-nums; }
+  .cp-lot { font-size: 11px; color: var(--glass-dim); }
+  .cp-etat { font-size: 10.5px; letter-spacing: .04em; color: var(--glass-dim); }
+  .clan-palier.pret .cp-etat { color: #c9992e; }
+
+  /* --- ligues --- */
+  .lig-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+  .lig-nom { font-family: var(--display); font-size: 21px; }
+  .lig-lots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px; }
+  .lig-lot {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 10px 4px; text-align: center;
+    background: var(--night-up); border: 1px solid var(--night-line);
+    border-top: 3px solid var(--night-line);
+  }
+  .lig-lot:first-child { border-top-color: #c9992e; }
+  .ll-rang { font-size: 10.5px; letter-spacing: .06em; color: var(--glass-dim); }
+  .ll-p { font-size: 13px; color: var(--ivory); }
+  .ll-g { font-size: 10.5px; color: var(--glass-dim); }
+  .lig-pts { font-size: 12px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
+  .lig-monte { border-left-color: #4f8d72; }
+  .lig-descend { border-left-color: #8d5050; }
+  .lig-bilan {
+    padding: 14px; margin-bottom: 14px; text-align: center;
+    background: #262c40; border: 1px solid #6a5520; border-top: 3px solid #c9992e;
+  }
+  .lig-bilan-t { font-size: 10.5px; letter-spacing: .08em; color: #c9992e; margin: 0 0 4px; }
+  .lig-bilan-r { font-family: var(--display); font-size: 26px; color: var(--ivory); margin: 0 0 4px; }
+  .lig-bilan-m { font-size: 12.5px; color: var(--glass-dim); margin: 0 0 12px; }
   .mission-etat {
     flex: none; font-size: 11px; color: var(--glass-dim);
     font-variant-numeric: tabular-nums;
@@ -2754,8 +2792,43 @@
     return { niveau: n, dans: reste, requis: coutNiveau(n), titre: titre };
   }
 
+  /* ---------- activite de la semaine ----------
+     Les points d'activite sont exactement l'experience gagnee dans la semaine :
+     une seule source, donc aucun bareme a maintenir en double, et tout ce qui
+     rapporte deja de l'XP — paquets, quiz, duels, raids, succes — alimente
+     automatiquement le clan. La difference avec l'XP, c'est qu'ils RETOMBENT
+     a zero chaque lundi : le clan recompense la presence recente, pas le
+     cumul d'une vie de jeu. */
+
+  var ACTKEY = 'wikigacha:activite';
+
+  /* Semaine ISO : le lundi est le premier jour, et l'annee change avec la
+     semaine, pas avec le 1er janvier — sinon fin decembre remet a zero deux
+     fois en trois jours. */
+  function semaineISO(d) {
+    d = d ? new Date(d) : new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));   /* jeudi de la semaine */
+    var jan4 = new Date(d.getFullYear(), 0, 4);
+    var n = 1 + Math.round(((d - jan4) / 86400000 - 3 + ((jan4.getDay() + 6) % 7)) / 7);
+    return d.getFullYear() + '-S' + String(n).padStart(2, '0');
+  }
+
+  function readActivite() {
+    var a;
+    try { a = JSON.parse(localStorage.getItem(ACTKEY)); } catch (e) { a = null; }
+    if (!a || a.sem !== semaineISO()) a = { sem: semaineISO(), pts: 0, verse: 0, paliers: [] };
+    return a;
+  }
+  function writeActivite(a) {
+    try { localStorage.setItem(ACTKEY, JSON.stringify(a)); } catch (e) {}
+  }
+
   function gagnerXp(n) {
     if (!n) return;
+    var a = readActivite();
+    a.pts += n;
+    writeActivite(a);
     var avant = niveauDe(readXp()).niveau;
     var v = readXp() + n;
     try { localStorage.setItem(XKEY, String(v)); } catch (e) {}
@@ -6147,6 +6220,7 @@
     duelCourant = null;
     /* La cote vient de bouger : on la remonte, et on reporte la variation sur
        le total du clan. Bride a une ecriture par minute. */
+    ligueGagner(delta);
     nuagePousser();
     clanContribuer();
     peindreDuel(manches, gagnees, gagne, recu, delta, c.cote);
@@ -8199,6 +8273,7 @@
       nuage.uid = u.uid;
       nuage.lie = (u.providerData || []).length > 0;
       nuagePousser(true);
+      ligueCloturer();
       if (typeof majCompte === 'function') majCompte();
     });
   }
@@ -8213,11 +8288,23 @@
 
     var niv = niveauDe(readXp());
     var cl = readClassement();
+    var act = readActivite();
+    var lig = readLigue();
+    var cote = (cl && cl.cote) || 0;
     var doc = {
       nom: (profil.nom || 'Sans nom').slice(0, 18),
       avatar: profil.avatar || '',
       niveau: niv.niveau,
-      cote: (cl && cl.cote) || 0,
+      /* Le classement des joueurs se fait sur la seule cote de duel : elle
+         mesure la force, rien d'autre. L'activite ne compte qu'au niveau du
+         clan, ou elle s'ajoute aux cotes cumulees de ses membres. */
+      cote: cote,
+      actSem: act.sem,
+      actPts: Math.min(act.pts, 100000),
+      ligue: lig.ligue,
+      division: lig.division || '',
+      ligSem: lig.sem,
+      ligPts: Math.min(lig.pts, 100000),
       cartes: Object.keys(collection).length,
       maj: Date.now()
     };
@@ -8268,7 +8355,7 @@
   var CLAN_SIGNE = 12 * 3600 * 1000;          /* on ne repointe pas plus de 2x/jour */
   var clanEtat = { id: '', doc: null, membres: [], liste: null, msg: '',
                    occupe: false, passation: false,
-                   vue: 'clan', topJ: null, topC: null };
+                   vue: 'clan', topJ: null, topC: null, division: null };
 
   function clanRef(id) { return nuage.db.collection('clans').doc(id); }
 
@@ -8285,6 +8372,7 @@
             .set({ clan: '' }, { merge: true }).then(clanListe);
         }
         clanEtat.id = c.id; clanEtat.doc = c.data();
+        clanEtat.maCoteVersee = (d.exists && d.data().coteClan) || 0;
         return clanMembres().then(clanSignerPresence).then(clanContribuer);
       });
     }).catch(function () {
@@ -8300,7 +8388,8 @@
         .then(function (d) {
           var v = d.exists ? d.data() : {};
           return { uid: u, nom: v.nom || 'Sans nom', niveau: v.niveau || 1,
-                   cote: v.cote || 0, cartes: v.cartes || 0 };
+                   cote: v.cote || 0, cartes: v.cartes || 0,
+                   act: (v.actSem === semaineISO()) ? (v.actPts || 0) : 0 };
         })
         .catch(function () { return { uid: u, nom: 'Sans nom', niveau: 1, cote: 0, cartes: 0 }; });
     })).then(function (m) {
@@ -8360,6 +8449,203 @@
       });
   }
 
+  /* ================= ligues =================
+     Des divisions de cent joueurs, un classement hebdomadaire, une montee pour
+     les premiers et une descente pour les derniers. La pression vient du
+     groupe plutot que d'un seuil absolu : on affronte des gens de son niveau,
+     et une division se renouvelle chaque semaine.
+
+     Sans serveur arbitre, c'est le jeu du joueur qui constate son rang et
+     s'attribue son lot. Un joueur decide a peut donc se servir — comme il peut
+     deja s'ecrire une cote. Tant qu'il n'y a pas d'enjeu, ca ne gache la
+     partie de personne ; le jour venu, il faudra des Cloud Functions.
+
+     Le score de la semaine, ici, ce sont les points de cote gagnes en duel :
+     fidele au principe que le classement des joueurs ne depend que des duels,
+     mais mesure sur l'effort recent plutot que sur le cumul d'une vie. */
+
+  var DIV_TAILLE = 100;
+  /* Huit ligues, et des lots qui grandissent avec elles : monter doit valoir
+     quelque chose en soi. « lots » se lit [1er, 2e-3e, le reste], chaque entree
+     donnant un nombre de paquets et, le cas echeant, la rarete garantie sur le
+     prochain (indice dans TIERS : 2 = Rare, 3 = Épique, 4 = Légendaire,
+     5 = Mythique). */
+  var LIGUES = [
+    { nom: 'Bronze',   monte: 35, descend: 0,  teinte: '#8a6a45',
+      lots: [{ p: 2, g: 2 }, { p: 1, g: 2 }, { p: 1, g: 0 }] },
+    { nom: 'Argent',   monte: 30, descend: 10, teinte: '#9aa3b2',
+      lots: [{ p: 2, g: 2 }, { p: 1, g: 2 }, { p: 1, g: 0 }] },
+    { nom: 'Or',       monte: 28, descend: 12, teinte: '#c9992e',
+      lots: [{ p: 3, g: 3 }, { p: 2, g: 2 }, { p: 1, g: 0 }] },
+    { nom: 'Saphir',   monte: 25, descend: 15, teinte: '#3f79c4',
+      lots: [{ p: 3, g: 3 }, { p: 2, g: 3 }, { p: 1, g: 0 }] },
+    { nom: 'Rubis',    monte: 22, descend: 18, teinte: '#cc4c3f',
+      lots: [{ p: 4, g: 4 }, { p: 2, g: 3 }, { p: 2, g: 0 }] },
+    { nom: 'Émeraude', monte: 20, descend: 20, teinte: '#4f8d72',
+      lots: [{ p: 4, g: 4 }, { p: 3, g: 3 }, { p: 2, g: 0 }] },
+    { nom: 'Diamant',  monte: 15, descend: 25, teinte: '#7fc4d6',
+      lots: [{ p: 5, g: 4 }, { p: 3, g: 4 }, { p: 2, g: 0 }] },
+    { nom: 'Maître',   monte: 0,  descend: 25, teinte: '#8b5cc7',
+      lots: [{ p: 6, g: 5 }, { p: 4, g: 4 }, { p: 3, g: 0 }] }
+  ];
+
+  /* Les seuils valent pour une division pleine. Tant qu'elle ne l'est pas, on
+     les ramene a la taille reelle — sinon, a six joueurs, « les 25 premiers
+     montent » ferait monter tout le monde. En dessous de cinq participants, le
+     classement ne veut rien dire : personne ne bouge. */
+  var DIV_MINI = 5;
+
+  function seuilsDivision(ligue, total) {
+    var reg = LIGUES[ligue];
+    if (total < DIV_MINI) return { monte: 0, descend: 0 };
+    var p = Math.min(1, total / DIV_TAILLE);
+    return {
+      monte: reg.monte ? Math.max(1, Math.round(reg.monte * p)) : 0,
+      descend: reg.descend ? Math.max(1, Math.round(reg.descend * p)) : 0
+    };
+  }
+
+  function lotDeRang(ligue, rang) {
+    var l = LIGUES[ligue].lots[rang === 1 ? 0 : (rang <= 3 ? 1 : 2)];
+    return { paquets: l.p, gar: l.g };
+  }
+
+  var LIGKEY = 'wikigacha:ligue';
+
+  function readLigue() {
+    var l;
+    try { l = JSON.parse(localStorage.getItem(LIGKEY)); } catch (e) { l = null; }
+    if (!l) l = { ligue: 0, division: '', sem: semaineISO(), pts: 0, bilan: null };
+    if (l.sem !== semaineISO() && !l.bilan) l.pts = l.pts;   /* le bilan tranchera */
+    return l;
+  }
+  function writeLigue(l) {
+    try { localStorage.setItem(LIGKEY, JSON.stringify(l)); } catch (e) {}
+  }
+
+  /* Points de cote gagnes en duel, remis a zero chaque lundi. */
+  function ligueGagner(delta) {
+    if (!delta || delta <= 0) return;
+    var l = readLigue();
+    if (l.sem === semaineISO()) l.pts += delta;
+    writeLigue(l);
+  }
+
+  /* Inscription dans une division : on cherche une place libre dans sa ligue,
+     sinon on ouvre une nouvelle division. La transaction relit le compteur au
+     dernier moment, donc deux joueurs qui arrivent ensemble ne peuvent pas
+     occuper la meme centieme place. */
+  function ligueRejoindreDivision(niv) {
+    return nuage.db.collection('divisions').where('ligue', '==', niv).limit(10).get()
+      .then(function (q) {
+        var libres = [];
+        q.forEach(function (d) {
+          if ((d.data().n || 0) < DIV_TAILLE) libres.push(d.id);
+        });
+        if (!libres.length) {
+          var neuve = nuage.db.collection('divisions').doc();
+          return neuve.set({ ligue: niv, n: 1, ouverte: Date.now() })
+            .then(function () { return neuve.id; });
+        }
+        var ref = nuage.db.collection('divisions').doc(libres[0]);
+        return nuage.db.runTransaction(function (tx) {
+          return tx.get(ref).then(function (d) {
+            var n = (d.exists && d.data().n) || 0;
+            if (n >= DIV_TAILLE) throw new Error('pleine');
+            tx.update(ref, { n: n + 1 });
+          });
+        }).then(function () { return ref.id; })
+          .catch(function () { return ligueRejoindreDivision(niv); });
+      });
+  }
+
+  function ligueQuitterDivision(id) {
+    if (!id) return Promise.resolve();
+    var ref = nuage.db.collection('divisions').doc(id);
+    return nuage.db.runTransaction(function (tx) {
+      return tx.get(ref).then(function (d) {
+        if (!d.exists) return;
+        tx.update(ref, { n: Math.max(0, (d.data().n || 1) - 1) });
+      });
+    }).catch(function () {});
+  }
+
+  /* Clature de la semaine. Le classement de la semaine ecoulee est fige :
+     on lit les membres de sa division une fois, on en deduit son rang, et on
+     applique montee, descente et lot. Une seule requete d'egalite, donc aucun
+     index composite a creer dans la console. */
+  function ligueCloturer() {
+    var l = readLigue();
+    var sem = semaineISO();
+    if (!nuage.pret || !nuage.uid) return Promise.resolve();
+
+    /* Premiere fois : on s'inscrit quelque part et on attend lundi. */
+    if (!l.division) {
+      return ligueRejoindreDivision(l.ligue).then(function (id) {
+        l.division = id; l.sem = sem; l.pts = 0; writeLigue(l);
+        return ligueEcrireProfil(l);
+      }).catch(function () {});
+    }
+    if (l.sem === sem) return Promise.resolve();   /* semaine en cours */
+
+    return nuage.db.collection('joueurs').where('division', '==', l.division).limit(200).get()
+      .then(function (q) {
+        var t = [];
+        q.forEach(function (d) {
+          var v = d.data();
+          /* On ne compte que ceux qui ont joue la meme semaine que nous. */
+          if (v.ligSem === l.sem) t.push({ uid: d.id, pts: v.ligPts || 0 });
+        });
+        var moi = t.filter(function (x) { return x.uid === nuage.uid; });
+        if (!moi.length) t.push({ uid: nuage.uid, pts: l.pts });
+        t.sort(function (a, b) { return b.pts - a.pts; });
+
+        var rang = 1;
+        for (var i = 0; i < t.length; i++) { if (t[i].uid === nuage.uid) { rang = i + 1; break; } }
+
+        var total = t.length;
+        var sx = seuilsDivision(l.ligue, total);
+        var monte = sx.monte > 0 && rang <= sx.monte;
+        var descend = sx.descend > 0 && rang > Math.max(0, total - sx.descend);
+        var avant = l.ligue;
+        if (monte) l.ligue = Math.min(LIGUES.length - 1, l.ligue + 1);
+        else if (descend) l.ligue = Math.max(0, l.ligue - 1);
+
+        var lot = lotDeRang(l.ligue, rang);
+        l.bilan = { rang: rang, total: total, avant: avant, apres: l.ligue,
+                    paquets: lot.paquets, gar: lot.gar, sem: l.sem };
+
+        /* Le lot est verse tout de suite : le bilan sert juste a l'annoncer. */
+        var pk = readPacks();
+        pk.n += lot.paquets;
+        writePacks(pk);
+        if (lot.gar) {
+          var cour = readPacks().garDue || 0;
+          if (lot.gar > cour) noterGarantieDue(lot.gar);
+        }
+        refreshPacks();
+
+        var ancienne = l.division;
+        l.sem = sem; l.pts = 0;
+        /* On change de division a chaque semaine : c'est ce qui evite qu'un
+           groupe fige se retrouve toujours entre les memes personnes. */
+        return ligueQuitterDivision(ancienne)
+          .then(function () { return ligueRejoindreDivision(l.ligue); })
+          .then(function (id) {
+            l.division = id; writeLigue(l);
+            return ligueEcrireProfil(l);
+          });
+      }).catch(function () {});
+  }
+
+  function ligueEcrireProfil(l) {
+    if (!nuage.pret || !nuage.uid) return Promise.resolve();
+    return nuage.db.collection('joueurs').doc(nuage.uid).set({
+      ligue: l.ligue, division: l.division || '',
+      ligSem: l.sem, ligPts: Math.min(l.pts, 100000), maj: Date.now()
+    }, { merge: true }).catch(function () {});
+  }
+
   /* ---------- classements ----------
      Une limite a garder en tete : la cote est calculee sur l'appareil du
      joueur, donc DECLAREE par lui. Les regles bornent la valeur (0 a 5000),
@@ -8375,19 +8661,45 @@
     if (!nuage.pret || !nuage.uid || !clanEtat.id) return;
     var cl = readClassement();
     var cote = (cl && cl.cote) || 0;
+    var act = readActivite();
     var ref = clanRef(clanEtat.id);
     var moi = nuage.db.collection('joueurs').doc(nuage.uid);
+
     nuage.db.runTransaction(function (tx) {
-      return tx.get(moi).then(function (d) {
-        var ancienne = (d.exists && d.data().coteClan) || 0;
-        var delta = cote - ancienne;
-        if (!delta) return;
-        tx.set(moi, { coteClan: cote }, { merge: true });
-        tx.update(ref, {
-          coteTotale: firebase.firestore.FieldValue.increment(delta),
-          maj: Date.now()
-        });
+      return tx.get(ref).then(function (c) {
+        if (!c.exists) return;
+        var cd = c.data();
+        var maj = { maj: Date.now() };
+
+        /* Cote : chaque membre reporte sa propre variation. */
+        var deltaCote = cote - ((clanEtat.maCoteVersee != null) ? clanEtat.maCoteVersee : 0);
+
+        /* Activite : si le clan est encore sur la semaine passee, le premier
+           membre a passer remet le compteur a zero. Tout le monde repart
+           ensemble, et sa propre part est alors l'integralite de ses points. */
+        var memeSem = cd.actSem === act.sem;
+        var deja = memeSem ? act.verse : 0;
+        var deltaAct = act.pts - deja;
+        if (!deltaCote && memeSem && !deltaAct) return;
+
+        /* Valeurs explicites plutot qu'increments : il faut connaitre les deux
+           totaux pour en deduire le score, et Firestore ne sait pas trier sur
+           une somme calculee a la volee. */
+        var nCote = Math.max(0, (cd.coteTotale || 0) + deltaCote);
+        var nAct = memeSem ? Math.max(0, (cd.actPts || 0) + deltaAct) : act.pts;
+
+        maj.coteTotale = nCote;
+        maj.actSem = act.sem;
+        maj.actPts = nAct;
+        maj.scoreClan = nCote + nAct;
+        tx.update(ref, maj);
+        act.verse = act.pts;
       });
+    }).then(function () {
+      clanEtat.maCoteVersee = cote;
+      writeActivite(act);
+      nuage.db.collection('joueurs').doc(nuage.uid)
+        .set({ coteClan: cote }, { merge: true }).catch(function () {});
     }).catch(function () {});
   }
 
@@ -8401,12 +8713,43 @@
   }
 
   function topClans() {
-    return nuage.db.collection('clans').orderBy('coteTotale', 'desc').limit(30).get()
+    return nuage.db.collection('clans').orderBy('scoreClan', 'desc').limit(30).get()
       .then(function (q) {
         var out = [];
         q.forEach(function (d) { var v = d.data(); v.id = d.id; out.push(v); });
         clanEtat.topC = out;
       }).catch(function () { clanEtat.topC = []; });
+  }
+
+  /* Paliers collectifs : le clan atteint un seuil dans la semaine, chaque
+     membre reclame sa part. Ca pousse a recruter et a entrainer les autres,
+     pas a jouer seul dans son coin. La reclamation est notee sur l'appareil —
+     comme le reste du jeu, elle repose sur la bonne foi. */
+  var CLAN_PALIERS = [
+    { seuil: 500,  paquets: 3 },
+    { seuil: 1500, paquets: 8 },
+    { seuil: 3000, paquets: 15 }
+  ];
+
+  function clanActuelle() {
+    var d = clanEtat.doc;
+    if (!d || d.actSem !== semaineISO()) return 0;
+    return d.actPts || 0;
+  }
+
+  function clanReclamerPalier(i) {
+    var pal = CLAN_PALIERS[i];
+    var a = readActivite();
+    if (!pal || a.paliers.indexOf(i) >= 0 || clanActuelle() < pal.seuil) return;
+    a.paliers.push(i);
+    writeActivite(a);
+    var pk = readPacks();
+    pk.n += pal.paquets;
+    writePacks(pk);
+    refreshPacks();
+    clanEtat.msg = pal.paquets + ' paquets ajoutés.';
+    showClan();
+    vib(12);
   }
 
   /* Les clans les plus fournis d'abord : sans serveur de recherche, c'est le
@@ -8430,7 +8773,7 @@
     ref.set({
       nom: nom, tag: tag, chef: nuage.uid,
       membres: [nuage.uid], nbMembres: 1, chefVu: Date.now(),
-      coteTotale: 0, maj: Date.now()
+      coteTotale: 0, actSem: semaineISO(), actPts: 0, scoreClan: 0, maj: Date.now()
     }).then(function () {
       return nuage.db.collection('joueurs').doc(nuage.uid).set({ clan: ref.id }, { merge: true });
     }).then(function () { clanCharger(); })
@@ -9383,13 +9726,16 @@
     var alerte = clanEtat.msg ? '<p class="duel-alerte">' + esc(clanEtat.msg) + '</p>' : '';
 
     var bascule = '<div class="clan-vues">'
-      + ['clan', 'clans', 'joueurs'].map(function (v) {
+      + ['clan', 'ligue', 'clans', 'joueurs'].map(function (v) {
+          var nom = v === 'clan' ? 'Mon clan'
+                  : v === 'ligue' ? 'Ligue'
+                  : v === 'clans' ? 'Top clans' : 'Top joueurs';
           return '<button class="clan-vue' + (clanEtat.vue === v ? ' actif' : '') + '" '
-            + 'data-clan-vue="' + v + '">'
-            + (v === 'clan' ? 'Mon clan' : (v === 'clans' ? 'Top clans' : 'Top joueurs'))
-            + '</button>';
+            + 'data-clan-vue="' + v + '">' + nom + '</button>';
         }).join('')
       + '</div>';
+
+    if (clanEtat.vue === 'ligue') { b.innerHTML = vueLigue(bascule); return; }
 
     if (clanEtat.vue !== 'clan') {
       var top = clanEtat.vue === 'clans' ? clanEtat.topC : clanEtat.topJ;
@@ -9416,8 +9762,10 @@
             + '</span>'
             + '<span class="clan-m-stat">'
             + (clanEtat.vue === 'clans'
-                ? (x.coteTotale || 0) + ' · ' + (x.nbMembres || 0) + ' memb.'
-                : 'niv. ' + (x.niveau || 1) + ' · ' + (x.cote || 0))
+                ? (x.scoreClan || 0).toLocaleString('fr-FR') + ' · '
+                    + (x.coteTotale || 0) + ' cote + '
+                    + ((x.actSem === semaineISO() ? (x.actPts || 0) : 0)) + ' act.'
+                : 'niv. ' + (x.niveau || 1) + ' · cote ' + (x.cote || 0))
             + '</span></div>';
         });
         t += '</div>';
@@ -9439,6 +9787,25 @@
         + (estChef ? ' · vous êtes le chef' : '') + '</p>'
         + alerte
         + '<p class="sheet-sub">MEMBRES</p><div class="clan-liste">';
+      var act = clanActuelle();
+      var moi = readActivite();
+      html += '<p class="sheet-sub">ACTIVITÉ DE LA SEMAINE</p>'
+        + '<p class="duel-intro">' + act.toLocaleString('fr-FR') + ' points · '
+        + 'votre part : ' + moi.pts.toLocaleString('fr-FR') + '</p>'
+        + '<div class="clan-paliers">';
+      CLAN_PALIERS.forEach(function (pal, i) {
+        var atteint = act >= pal.seuil;
+        var pris = moi.paliers.indexOf(i) >= 0;
+        html += (atteint && !pris
+            ? '<button class="clan-palier pret" data-clan-palier="' + i + '">'
+            : '<div class="clan-palier' + (pris ? ' pris' : '') + '">')
+          + '<span class="cp-seuil">' + pal.seuil.toLocaleString('fr-FR') + '</span>'
+          + '<span class="cp-lot">' + pal.paquets + ' paquets</span>'
+          + '<span class="cp-etat">' + (pris ? 'reçu' : (atteint ? 'à prendre' : '—')) + '</span>'
+          + (atteint && !pris ? '</button>' : '</div>');
+      });
+      html += '</div>';
+
       var passe = clanEtat.passation;
       clanEtat.membres.forEach(function (m) {
         var autre = m.uid !== d.chef;
@@ -9448,7 +9815,7 @@
           + '<span class="clan-m-nom">' + esc(m.nom)
           + (m.uid === d.chef ? ' <i class="clan-chef">chef</i>' : '') + '</span>'
           + '<span class="clan-m-stat">'
-          + (passe && autre ? 'nommer' : 'niv. ' + m.niveau + ' · ' + m.cote)
+          + (passe && autre ? 'nommer' : (m.act || 0) + ' pts · cote ' + m.cote)
           + '</span>'
           + (passe && autre ? '</button>' : '</div>');
       });
@@ -9501,6 +9868,99 @@
     b.innerHTML = h;
   }
 
+  /* Vue Ligue : sa division, son rang, et le bilan de la semaine passee. */
+  function vueLigue(bascule) {
+    var l = readLigue();
+    var reg = LIGUES[l.ligue];
+    var h = '<p class="duel-titre">LIGUE</p>' + bascule;
+
+    if (l.bilan) {
+      var bi = l.bilan;
+      var mvt = bi.apres > bi.avant ? 'Vous montez en ' + LIGUES[bi.apres].nom
+              : bi.apres < bi.avant ? 'Vous descendez en ' + LIGUES[bi.apres].nom
+              : 'Vous restez en ' + LIGUES[bi.apres].nom;
+      h += '<div class="lig-bilan"><p class="lig-bilan-t">Semaine terminée</p>'
+        + '<p class="lig-bilan-r">' + bi.rang + '<sup>e</sup> sur ' + bi.total + '</p>'
+        + '<p class="lig-bilan-m">' + mvt + ' · ' + bi.paquets + ' paquet'
+        + (bi.paquets > 1 ? 's' : '')
+        + (bi.gar ? ' dont ' + TIERS[bi.gar].name + ' garantie' : '') + '</p>'
+        + '<button class="btn" data-lig-vu="1">Compris</button></div>';
+    }
+
+    var eff = (clanEtat.division && clanEtat.division.length) || 0;
+    var sx = seuilsDivision(l.ligue, eff);
+    h += '<div class="lig-tete">'
+      + '<span class="lig-nom" style="color:' + reg.teinte + '">' + esc(reg.nom) + '</span>'
+      + '<span class="lig-pts">' + l.pts.toLocaleString('fr-FR') + ' pts cette semaine</span></div>'
+      + '<p class="duel-intro">Les points de ligue sont la cote gagnée en duel '
+      + 'depuis lundi. '
+      + (eff < DIV_MINI
+          ? 'Il faut au moins ' + DIV_MINI + ' joueurs actifs pour que la division compte.'
+          : (sx.monte ? 'Les ' + sx.monte + ' premiers montent. ' : 'Ligue la plus haute. ')
+            + (sx.descend ? 'Les ' + sx.descend + ' derniers descendent.' : 'Personne ne descend.'))
+      + '</p>';
+
+    if (!nuage.pret || !nuage.uid) {
+      h += '<p class="duel-intro">Connexion requise pour rejoindre une division.</p>';
+      return h;
+    }
+    if (!clanEtat.division) {
+      h += '<p class="duel-intro">Chargement de votre division…</p>';
+      return h;
+    }
+    if (!clanEtat.division.length) {
+      h += '<p class="duel-intro">Votre division est encore vide. Gagnez un duel '
+        + 'pour y apparaître.</p>';
+      return h;
+    }
+
+    var lots = LIGUES[l.ligue].lots;
+    h += '<p class="sheet-sub">RÉCOMPENSES DE FIN DE SEMAINE</p>'
+      + '<div class="lig-lots">'
+      + [['1er', lots[0]], ['2e-3e', lots[1]], ['Autres', lots[2]]].map(function (x) {
+          return '<div class="lig-lot"><span class="ll-rang">' + x[0] + '</span>'
+            + '<span class="ll-p">' + x[1].p + ' paquet' + (x[1].p > 1 ? 's' : '') + '</span>'
+            + '<span class="ll-g">' + (x[1].g ? TIERS[x[1].g].name + ' garantie' : '—') + '</span>'
+            + '</div>';
+        }).join('')
+      + '</div>';
+
+    h += '<p class="sheet-sub">VOTRE DIVISION</p><div class="clan-liste">';
+    clanEtat.division.forEach(function (x, i) {
+      var rang = i + 1;
+      var zone = (sx.monte && rang <= sx.monte) ? ' lig-monte'
+               : (sx.descend && rang > clanEtat.division.length - sx.descend) ? ' lig-descend' : '';
+      h += '<div class="clan-membre' + (x.uid === nuage.uid ? ' clan-moi' : '') + zone + '">'
+        + '<span class="clan-rang">' + rang + '</span>'
+        + '<span class="clan-m-nom">' + esc(x.nom || 'Sans nom') + '</span>'
+        + '<span class="clan-m-stat">' + (x.pts || 0).toLocaleString('fr-FR') + ' pts</span>'
+        + '</div>';
+    });
+    h += '</div>';
+    return h;
+  }
+
+  /* Contenu de sa propre division. Requete d'egalite seule : pas d'index
+     composite a creer, le tri se fait ici. */
+  function ligueCharger() {
+    var l = readLigue();
+    if (!nuage.pret || !nuage.uid || !l.division) { clanEtat.division = []; return Promise.resolve(); }
+    return nuage.db.collection('joueurs').where('division', '==', l.division).limit(200).get()
+      .then(function (q) {
+        var t = [];
+        q.forEach(function (d) {
+          var v = d.data();
+          t.push({ uid: d.id, nom: v.nom || 'Sans nom',
+                   pts: (v.ligSem === semaineISO()) ? (v.ligPts || 0) : 0 });
+        });
+        if (!t.filter(function (x) { return x.uid === nuage.uid; }).length) {
+          t.push({ uid: nuage.uid, nom: profil.nom || 'Sans nom', pts: l.pts });
+        }
+        t.sort(function (a, b) { return b.pts - a.pts; });
+        clanEtat.division = t;
+      }).catch(function () { clanEtat.division = []; });
+  }
+
   el('clan-body').addEventListener('click', function (e) {
     if (!e.target.closest) return;
     if (e.target.closest('[data-clan-creer]')) {
@@ -9511,6 +9971,9 @@
     if (vv) {
       clanEtat.vue = vv.getAttribute('data-clan-vue');
       clanEtat.msg = ''; showClan();
+      if (clanEtat.vue === 'ligue' && !clanEtat.division) {
+        ligueCloturer().then(ligueCharger).then(showClan);
+      }
       if (clanEtat.vue === 'clans' && !clanEtat.topC) topClans().then(showClan);
       if (clanEtat.vue === 'joueurs' && !clanEtat.topJ) topJoueurs().then(showClan);
       return;
@@ -9523,6 +9986,11 @@
     var tr = e.target.closest('[data-clan-transmettre]');
     if (tr) { clanEtat.passation = false; clanTransmettre(tr.getAttribute('data-clan-transmettre')); return; }
     if (e.target.closest('[data-clan-reprendre]')) { clanReprendre(); return; }
+    if (e.target.closest('[data-lig-vu]')) {
+      var lv = readLigue(); lv.bilan = null; writeLigue(lv); showClan(); return;
+    }
+    var pl = e.target.closest('[data-clan-palier]');
+    if (pl) { clanReclamerPalier(parseInt(pl.getAttribute('data-clan-palier'), 10)); return; }
     var r = e.target.closest('[data-clan-rejoindre]');
     if (r) { clanRejoindre(r.getAttribute('data-clan-rejoindre')); return; }
   });
