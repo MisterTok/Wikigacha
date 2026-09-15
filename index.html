@@ -1028,6 +1028,20 @@
   /* --- ligues --- */
   .lig-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
   .lig-nom { font-family: var(--display); font-size: 21px; }
+  /* --- raid de clan --- */
+  .rc-boss { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+  .rc-vue, .rc-art {
+    flex: none; width: 72px; height: 96px; overflow: hidden;
+    border: 1px solid var(--night-line); border-radius: var(--r-s);
+  }
+  .rc-vue img, .rc-art .art { width: 100%; height: 100%; display: block; object-fit: cover; }
+  .rc-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .rc-tag { font-size: 10.5px; letter-spacing: .06em; }
+  .rc-nom { font-family: var(--display); font-size: 17px; color: var(--ivory); }
+  .rc-pv { font-size: 12px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
+  .rc-jauge { height: 6px; background: var(--night-up); border: 1px solid var(--night-line); margin-bottom: 8px; }
+  .rc-jauge i { display: block; height: 100%; background: #8d5050; transition: width .3s ease; }
+
   .lig-lots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px; }
   .lig-lot {
     display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -5482,13 +5496,10 @@
     try { localStorage.setItem(RKEY, JSON.stringify(d)); } catch (e) {}
   }
 
-  function showRaid() {
-    var body = el('raid-body');
-    var etat = readRaid();
-    if (etat) { paintRaid(etat); return; }
-
-    body.innerHTML = '<p class="status">Recherche de l’adversaire du jour…</p>';
-    fetchBoss()
+  /* Fabrication de l'adversaire du jour, isolee pour servir deux fois :
+     au raid solo, et au raid de clan qui le reprend tel quel. */
+  function construireBoss() {
+    return fetchBoss()
       .then(resoudreBoss)
       .then(function (choix) {
         if (!choix) throw new Error('aucun adversaire illustre aujourd’hui');
@@ -5503,7 +5514,7 @@
           var bytes = page.length || 40000;
           var sc = scoreRarete(bytes, r[2], r[1]);
           var tier = paliersDe(sc, r[2], bytes, r[1]);
-          var boss = {
+          return {
             title: titre,
             url: page.fullurl || ('https://' + WIKI + '.org/wiki/'
                  + encodeURIComponent(titre.replace(/ /g, '_'))),
@@ -5515,6 +5526,18 @@
             score: Math.round(sc * 10) / 10,
             rank: tier.name
           };
+        });
+      });
+  }
+
+  function showRaid() {
+    var body = el('raid-body');
+    var etat = readRaid();
+    if (etat) { paintRaid(etat); return; }
+
+    body.innerHTML = '<p class="status">Recherche de l’adversaire du jour…</p>';
+    construireBoss()
+      .then(function (boss) {
           var pv = Math.round(boss.def * 10);
           var etat2 = {
             date: jour(), boss: boss, pv: pv, pvMax: pv,
@@ -5522,7 +5545,6 @@
           };
           writeRaid(etat2);
           paintRaid(etat2);
-        });
       })
       .catch(function (err) {
         body.innerHTML = '<p class="status error">Adversaire du jour introuvable ('
@@ -8359,7 +8381,7 @@
   var CLAN_SIGNE = 12 * 3600 * 1000;          /* on ne repointe pas plus de 2x/jour */
   var clanEtat = { id: '', doc: null, membres: [], liste: null, msg: '',
                    occupe: false, passation: false,
-                   vue: 'clan', topJ: null, topC: null, division: null };
+                   vue: 'clan', topJ: null, topC: null, division: null, raid: null };
 
   function clanRef(id) { return nuage.db.collection('clans').doc(id); }
 
@@ -8377,7 +8399,8 @@
         }
         clanEtat.id = c.id; clanEtat.doc = c.data();
         clanEtat.maCoteVersee = (d.exists && d.data().coteClan) || 0;
-        return clanMembres().then(clanSignerPresence).then(clanContribuer);
+        return clanMembres().then(clanSignerPresence).then(clanContribuer)
+          .then(raidClanCharger);
       });
     }).catch(function () {
       clanEtat.msg = 'Connexion impossible.';
@@ -8730,6 +8753,102 @@
         q.forEach(function (d) { var v = d.data(); v.id = d.id; out.push(v); });
         clanEtat.topC = out;
       }).catch(function () { clanEtat.topC = []; });
+  }
+
+  /* ---------- raid de clan ----------
+     Un adversaire par semaine, commun a tout le clan, avec des points de vie
+     qui grandissent avec l'effectif. Chaque membre frappe avec ses propres
+     cartes, et les degats s'additionnent.
+
+     Le point technique : plusieurs membres peuvent frapper en meme temps. On
+     n'ecrit donc jamais « pv = pv - x », qui ecraserait le coup du voisin, mais
+     on demande a Firestore d'incrementer — l'operation est atomique, traitee
+     cote serveur, et deux coups simultanes s'additionnent au lieu de s'annuler.
+     C'est aussi pour ca qu'on stocke les degats cumules plutot que les PV
+     restants : un compteur qui ne fait que monter ne peut pas diverger. */
+
+  var RCKEY = 'wikigacha:raidclan';
+  var RC_COUPS = 5;        /* frappes par membre et par jour */
+  var RC_PV_PAR_MEMBRE = 15;
+
+  function raidClanRef() {
+    return clanRef(clanEtat.id).collection('raid').doc(semaineISO());
+  }
+
+  function readRaidClan() {
+    var d;
+    try { d = JSON.parse(localStorage.getItem(RCKEY)); } catch (e) { d = null; }
+    if (!d || d.sem !== semaineISO()) d = { sem: semaineISO(), jour: '', coups: 0, butin: false };
+    if (d.jour !== jour()) { d.jour = jour(); d.coups = 0; }
+    return d;
+  }
+  function writeRaidClan(d) {
+    try { localStorage.setItem(RCKEY, JSON.stringify(d)); } catch (e) {}
+  }
+
+  /* Le premier membre a ouvrir l'onglet de la semaine cree l'adversaire. Si
+     deux s'en chargent en meme temps, la creation du second echoue et il relit
+     simplement celui qui existe deja. */
+  function raidClanCharger() {
+    if (!nuage.pret || !nuage.uid || !clanEtat.id) { clanEtat.raid = null; return Promise.resolve(); }
+    var ref = raidClanRef();
+    return ref.get().then(function (d) {
+      if (d.exists) { clanEtat.raid = d.data(); return; }
+      return construireBoss().then(function (boss) {
+        var membres = (clanEtat.doc.membres || []).length || 1;
+        var pvMax = Math.round(boss.def * RC_PV_PAR_MEMBRE * Math.max(3, membres));
+        var doc = {
+          titre: boss.title, rank: boss.rank, def: boss.def,
+          thumb: boss.thumb || '', extrait: boss.extract || '',
+          pvMax: pvMax, degats: 0, parMembre: {}, cree: Date.now()
+        };
+        return ref.set(doc).then(function () { clanEtat.raid = doc; })
+          .catch(function () { return ref.get().then(function (d2) {
+            if (d2.exists) clanEtat.raid = d2.data();
+          }); });
+      });
+    }).catch(function () { clanEtat.raid = null; });
+  }
+
+  function raidClanFrapper(titre) {
+    var r = clanEtat.raid, c = collection[titre];
+    if (!r || !c) return;
+    var loc = readRaidClan();
+    if (loc.coups >= RC_COUPS) { clanEtat.msg = 'Plus de frappe aujourd\u2019hui.'; showClan(); return; }
+    if ((r.degats || 0) >= r.pvMax) return;
+
+    var d = degats(c, { def: r.def });
+    var maj = { degats: firebase.firestore.FieldValue.increment(d) };
+    maj['parMembre.' + nuage.uid] = firebase.firestore.FieldValue.increment(d);
+
+    loc.coups += 1; writeRaidClan(loc);
+    r.degats = (r.degats || 0) + d;
+    r.parMembre = r.parMembre || {};
+    r.parMembre[nuage.uid] = (r.parMembre[nuage.uid] || 0) + d;
+    clanEtat.msg = d.toLocaleString('fr-FR') + ' dégâts infligés.';
+    showClan(); vib(8);
+
+    raidClanRef().update(maj).catch(function () {});
+  }
+
+  /* Butin : verse une seule fois, quand l'adversaire tombe. La part depend de
+     la contribution — frapper une fois ne vaut pas porter le clan. */
+  function raidClanButin() {
+    var r = clanEtat.raid;
+    var loc = readRaidClan();
+    if (!r || loc.butin || (r.degats || 0) < r.pvMax) return;
+    var mien = (r.parMembre && r.parMembre[nuage.uid]) || 0;
+    if (!mien) { clanEtat.msg = 'Il fallait participer au combat.'; showClan(); return; }
+    var part = Math.min(1, mien / r.pvMax);
+    var or = 200 + Math.round(800 * part);
+    var paquets = 1 + (part >= 0.2 ? 1 : 0);
+    loc.butin = true; writeRaidClan(loc);
+    ajouterGold(or);
+    var pk = readPacks(); pk.n += paquets; writePacks(pk); refreshPacks();
+    var cour = readPacks().garDue || 0;
+    if (3 > cour) noterGarantieDue(3);   /* Épique garantie au prochain paquet */
+    clanEtat.msg = or + ' or et ' + paquets + ' paquet' + (paquets > 1 ? 's' : '') + '.';
+    showClan(); vib(12);
   }
 
   /* Paliers collectifs : le clan atteint un seuil dans la semaine, chaque
@@ -9805,6 +9924,8 @@
         + (estChef ? ' · vous êtes le chef' : '') + '</p>'
         + alerte
         + '<p class="sheet-sub">MEMBRES</p><div class="clan-liste">';
+      html += blocRaidClan();
+
       var act = clanActuelle();
       var moi = readActivite();
       html += '<p class="sheet-sub">ACTIVITÉ DE LA SEMAINE</p>'
@@ -9887,6 +10008,62 @@
       h += '</div>';
     }
     b.innerHTML = h;
+  }
+
+  function blocRaidClan() {
+    var r = clanEtat.raid;
+    if (r === undefined || r === null) {
+      return '<p class="sheet-sub">RAID DE CLAN</p>'
+        + '<p class="duel-intro">Recherche de l\u2019adversaire…</p>';
+    }
+    var loc = readRaidClan();
+    var deg = Math.min(r.degats || 0, r.pvMax);
+    var pct = Math.max(0, 100 - deg / r.pvMax * 100);
+    var mort = deg >= r.pvMax;
+    var mien = (r.parMembre && r.parMembre[nuage.uid]) || 0;
+    var t = tierOf(r.rank);
+
+    var h = '<p class="sheet-sub">RAID DE CLAN</p>'
+      + '<div class="rc-boss">'
+      + (r.thumb ? '<div class="rc-vue">' + visuelHTML(r.thumb) + '</div>'
+                 : '<div class="rc-art">' + artSVG(r.titre, t.color) + '</div>')
+      + '<div class="rc-info">'
+      + '<span class="rc-tag" style="color:' + t.color + '">' + esc(r.rank) + '</span>'
+      + '<span class="rc-nom">' + esc(r.titre) + '</span>'
+      + '<span class="rc-pv">' + (r.pvMax - deg).toLocaleString('fr-FR')
+      + ' / ' + r.pvMax.toLocaleString('fr-FR') + ' PV</span>'
+      + '</div></div>'
+      + '<div class="rc-jauge"><i style="width:' + pct + '%"></i></div>'
+      + '<p class="duel-intro">Votre part : ' + mien.toLocaleString('fr-FR') + ' dégâts · '
+      + (RC_COUPS - loc.coups) + ' frappe' + ((RC_COUPS - loc.coups) > 1 ? 's' : '')
+      + ' aujourd\u2019hui</p>';
+
+    if (mort) {
+      h += loc.butin
+        ? '<p class="duel-intro">Adversaire vaincu. Butin déjà reçu.</p>'
+        : '<button class="btn btn-solid" data-rc-butin="1">Réclamer le butin</button>';
+      return h;
+    }
+    if (loc.coups >= RC_COUPS) {
+      h += '<p class="duel-intro">Revenez demain pour frapper à nouveau.</p>';
+      return h;
+    }
+
+    /* Cinq meilleures cartes proposees : sur mobile, une liste complete
+       noierait le geste. */
+    var cartes = Object.keys(collection).map(function (k) { return collection[k]; })
+      .sort(function (a, b) { return degats(b, { def: r.def }) - degats(a, { def: r.def }); })
+      .slice(0, 5);
+    if (!cartes.length) return h + '<p class="duel-intro">Ouvrez un paquet pour combattre.</p>';
+
+    h += '<div class="clan-liste">';
+    cartes.forEach(function (c) {
+      h += '<button class="clan-membre clan-dispo" data-rc-frappe="' + esc(c.title) + '">'
+        + '<span class="clan-m-nom">' + esc(c.title) + '</span>'
+        + '<span class="clan-m-stat">' + degats(c, { def: r.def }).toLocaleString('fr-FR')
+        + ' dég.</span></button>';
+    });
+    return h + '</div>';
   }
 
   /* Vue Ligue : sa division, son rang, et le bilan de la semaine passee. */
@@ -9991,6 +10168,9 @@
     if (e.target.closest('[data-clan-creer]')) {
       clanCreer(el('clan-nom').value, el('clan-tag').value); return;
     }
+    var rf = e.target.closest('[data-rc-frappe]');
+    if (rf) { raidClanFrapper(rf.getAttribute('data-rc-frappe')); return; }
+    if (e.target.closest('[data-rc-butin]')) { raidClanButin(); return; }
     if (e.target.closest('[data-clan-quitter]')) { clanQuitter(); return; }
     var vv = e.target.closest('[data-clan-vue]');
     if (vv) {
