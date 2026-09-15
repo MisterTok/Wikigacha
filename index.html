@@ -8351,6 +8351,10 @@
      qu'au mieux classe, mais c'est une convention, pas une garantie. */
 
   var CLAN_MAX = 20;
+  /* Fonder un clan se paie : sans cela, chacun cree le sien et personne ne se
+     regroupe — or un clan vide n'a aucun interet. Rejoindre reste gratuit,
+     c'est le geste qu'on veut encourager. */
+  var CLAN_PRIX = 1000;
   var CLAN_ABANDON = 30 * 24 * 3600 * 1000;   /* 30 jours sans chef actif */
   var CLAN_SIGNE = 12 * 3600 * 1000;          /* on ne repointe pas plus de 2x/jour */
   var clanEtat = { id: '', doc: null, membres: [], liste: null, msg: '',
@@ -8466,27 +8470,33 @@
 
   var DIV_TAILLE = 100;
   /* Huit ligues, et des lots qui grandissent avec elles : monter doit valoir
-     quelque chose en soi. « lots » se lit [1er, 2e-3e, le reste], chaque entree
-     donnant un nombre de paquets et, le cas echeant, la rarete garantie sur le
-     prochain (indice dans TIERS : 2 = Rare, 3 = Épique, 4 = Légendaire,
-     5 = Mythique). */
+     quelque chose en soi. « lots » se lit [1er, 2e-3e, le reste] ; chaque entree
+     donne des paquets (p), une rarete garantie sur le prochain (g, indice dans
+     TIERS : 2 = Rare, 3 = Épique, 4 = Légendaire, 5 = Mythique) et des
+     Wikigold (o).
+
+     Le gros du lot est verse en or plutot qu'en paquets : les paquets arrivent
+     deja par la reserve, la serie de connexion et les paliers de clan, alors
+     que l'or est ce qui alimente la fusion et les dos. Une avalanche de
+     paquets rendrait la reserve inutile ; de l'or rend les puits atteignables
+     sans les remplir. Repere : 40 or = un paquet en boutique. */
   var LIGUES = [
     { nom: 'Bronze',   monte: 35, descend: 0,  teinte: '#8a6a45',
-      lots: [{ p: 2, g: 2 }, { p: 1, g: 2 }, { p: 1, g: 0 }] },
+      lots: [{ p: 1, g: 2, o: 100 }, { p: 1, g: 0, o: 60 },  { p: 0, g: 0, o: 40 }] },
     { nom: 'Argent',   monte: 30, descend: 10, teinte: '#9aa3b2',
-      lots: [{ p: 2, g: 2 }, { p: 1, g: 2 }, { p: 1, g: 0 }] },
+      lots: [{ p: 1, g: 2, o: 150 }, { p: 1, g: 0, o: 80 },  { p: 0, g: 0, o: 50 }] },
     { nom: 'Or',       monte: 28, descend: 12, teinte: '#c9992e',
-      lots: [{ p: 3, g: 3 }, { p: 2, g: 2 }, { p: 1, g: 0 }] },
+      lots: [{ p: 2, g: 3, o: 200 }, { p: 1, g: 2, o: 120 }, { p: 0, g: 0, o: 60 }] },
     { nom: 'Saphir',   monte: 25, descend: 15, teinte: '#3f79c4',
-      lots: [{ p: 3, g: 3 }, { p: 2, g: 3 }, { p: 1, g: 0 }] },
+      lots: [{ p: 2, g: 3, o: 300 }, { p: 1, g: 3, o: 150 }, { p: 1, g: 0, o: 80 }] },
     { nom: 'Rubis',    monte: 22, descend: 18, teinte: '#cc4c3f',
-      lots: [{ p: 4, g: 4 }, { p: 2, g: 3 }, { p: 2, g: 0 }] },
+      lots: [{ p: 2, g: 4, o: 400 }, { p: 1, g: 3, o: 200 }, { p: 1, g: 0, o: 100 }] },
     { nom: 'Émeraude', monte: 20, descend: 20, teinte: '#4f8d72',
-      lots: [{ p: 4, g: 4 }, { p: 3, g: 3 }, { p: 2, g: 0 }] },
+      lots: [{ p: 3, g: 4, o: 500 }, { p: 2, g: 3, o: 250 }, { p: 1, g: 0, o: 120 }] },
     { nom: 'Diamant',  monte: 15, descend: 25, teinte: '#7fc4d6',
-      lots: [{ p: 5, g: 4 }, { p: 3, g: 4 }, { p: 2, g: 0 }] },
+      lots: [{ p: 3, g: 4, o: 700 }, { p: 2, g: 4, o: 350 }, { p: 1, g: 0, o: 150 }] },
     { nom: 'Maître',   monte: 0,  descend: 25, teinte: '#8b5cc7',
-      lots: [{ p: 6, g: 5 }, { p: 4, g: 4 }, { p: 3, g: 0 }] }
+      lots: [{ p: 4, g: 5, o: 1000 }, { p: 2, g: 4, o: 500 }, { p: 1, g: 0, o: 200 }] }
   ];
 
   /* Les seuils valent pour une division pleine. Tant qu'elle ne l'est pas, on
@@ -8507,7 +8517,7 @@
 
   function lotDeRang(ligue, rang) {
     var l = LIGUES[ligue].lots[rang === 1 ? 0 : (rang <= 3 ? 1 : 2)];
-    return { paquets: l.p, gar: l.g };
+    return { paquets: l.p, gar: l.g, or: l.o };
   }
 
   var LIGKEY = 'wikigacha:ligue';
@@ -8613,9 +8623,10 @@
 
         var lot = lotDeRang(l.ligue, rang);
         l.bilan = { rang: rang, total: total, avant: avant, apres: l.ligue,
-                    paquets: lot.paquets, gar: lot.gar, sem: l.sem };
+                    paquets: lot.paquets, gar: lot.gar, or: lot.or, sem: l.sem };
 
         /* Le lot est verse tout de suite : le bilan sert juste a l'annoncer. */
+        if (lot.or) ajouterGold(lot.or);
         var pk = readPacks();
         pk.n += lot.paquets;
         writePacks(pk);
@@ -8768,6 +8779,11 @@
     tag = (tag || '').trim().toUpperCase().slice(0, 5);
     if (nom.length < 3) { clanEtat.msg = 'Le nom doit faire au moins 3 caractères.'; showClan(); return; }
     if (!/^[A-Z0-9]{2,5}$/.test(tag)) { clanEtat.msg = 'Le tag doit faire 2 à 5 lettres ou chiffres.'; showClan(); return; }
+    if (readGold() < CLAN_PRIX) {
+      clanEtat.msg = 'Il manque ' + (CLAN_PRIX - readGold()).toLocaleString('fr-FR')
+        + ' or pour fonder un clan.';
+      showClan(); return;
+    }
     clanEtat.occupe = true; clanEtat.msg = ''; showClan();
     var ref = nuage.db.collection('clans').doc();
     ref.set({
@@ -8776,8 +8792,10 @@
       coteTotale: 0, actSem: semaineISO(), actPts: 0, scoreClan: 0, maj: Date.now()
     }).then(function () {
       return nuage.db.collection('joueurs').doc(nuage.uid).set({ clan: ref.id }, { merge: true });
-    }).then(function () { clanCharger(); })
-      .catch(function () {
+    }).then(function () {
+      ajouterGold(-CLAN_PRIX);   /* debite seulement si le clan existe vraiment */
+      clanCharger();
+    }).catch(function () {
         clanEtat.occupe = false;
         clanEtat.msg = 'Création refusée.'; showClan();
       });
@@ -9843,11 +9861,14 @@
       + 'autres joueurs, ou créez le vôtre.</p>'
       + alerte
       + '<p class="sheet-sub">CRÉER UN CLAN</p>'
+      + '<p class="duel-intro">Fonder un clan coûte ' + CLAN_PRIX.toLocaleString('fr-FR')
+      + ' or. Le rejoindre est gratuit.</p>'
       + '<input id="clan-nom" class="code-champ" type="text" maxlength="24" '
       + 'placeholder="Nom du clan" autocomplete="off">'
       + '<input id="clan-tag" class="code-champ" type="text" maxlength="5" '
       + 'placeholder="Tag (2 à 5 lettres)" autocomplete="off">'
-      + '<button class="btn" data-clan-creer="1">Créer</button>'
+      + '<button class="btn" data-clan-creer="1">Créer · '
+      + CLAN_PRIX.toLocaleString('fr-FR') + ' or</button>'
       + '<p class="sheet-sub">CLANS OUVERTS</p>';
 
     if (!clanEtat.liste) h += '<p class="duel-intro">Chargement…</p>';
@@ -9879,11 +9900,13 @@
       var mvt = bi.apres > bi.avant ? 'Vous montez en ' + LIGUES[bi.apres].nom
               : bi.apres < bi.avant ? 'Vous descendez en ' + LIGUES[bi.apres].nom
               : 'Vous restez en ' + LIGUES[bi.apres].nom;
+      var gains = [];
+      if (bi.paquets) gains.push(bi.paquets + ' paquet' + (bi.paquets > 1 ? 's' : '')
+        + (bi.gar ? ' dont ' + TIERS[bi.gar].name + ' garantie' : ''));
+      if (bi.or) gains.push(bi.or.toLocaleString('fr-FR') + ' or');
       h += '<div class="lig-bilan"><p class="lig-bilan-t">Semaine terminée</p>'
         + '<p class="lig-bilan-r">' + bi.rang + '<sup>e</sup> sur ' + bi.total + '</p>'
-        + '<p class="lig-bilan-m">' + mvt + ' · ' + bi.paquets + ' paquet'
-        + (bi.paquets > 1 ? 's' : '')
-        + (bi.gar ? ' dont ' + TIERS[bi.gar].name + ' garantie' : '') + '</p>'
+        + '<p class="lig-bilan-m">' + mvt + ' · ' + gains.join(' et ') + '</p>'
         + '<button class="btn" data-lig-vu="1">Compris</button></div>';
     }
 
@@ -9919,9 +9942,11 @@
       + '<div class="lig-lots">'
       + [['1er', lots[0]], ['2e-3e', lots[1]], ['Autres', lots[2]]].map(function (x) {
           return '<div class="lig-lot"><span class="ll-rang">' + x[0] + '</span>'
-            + '<span class="ll-p">' + x[1].p + ' paquet' + (x[1].p > 1 ? 's' : '') + '</span>'
-            + '<span class="ll-g">' + (x[1].g ? TIERS[x[1].g].name + ' garantie' : '—') + '</span>'
-            + '</div>';
+            + '<span class="ll-p">' + x[1].o.toLocaleString('fr-FR') + ' or</span>'
+            + '<span class="ll-g">'
+            + (x[1].p ? x[1].p + ' paquet' + (x[1].p > 1 ? 's' : '') : 'sans paquet')
+            + (x[1].g ? '<br>' + TIERS[x[1].g].name + ' garantie' : '')
+            + '</span></div>';
         }).join('')
       + '</div>';
 
