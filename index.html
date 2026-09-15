@@ -977,6 +977,27 @@
   .serie-note { font-size: 10.5px; color: var(--glass-dim); margin: 0 0 8px; }
   .compte-mot { font-size: 12.5px; line-height: 1.6; color: var(--glass-dim); margin: 0 0 8px; }
   .compte-err { font-size: 12px; color: #cf7f7f; margin: 0 0 8px; }
+
+  /* --- clans --- */
+  .clan-tete { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .clan-tag {
+    font-size: 11px; letter-spacing: .06em; color: #c9992e;
+    border: 1px solid #6a5520; padding: 2px 6px;
+  }
+  .clan-nom { font-family: var(--display); font-size: 19px; color: var(--ivory); }
+  .clan-liste { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+  .clan-membre {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    width: 100%; padding: 11px 12px; font: inherit; text-align: left;
+    background: var(--night-up); border: 1px solid var(--night-line);
+    border-left: 3px solid var(--night-line); color: var(--glass);
+  }
+  .clan-dispo { cursor: pointer; }
+  .clan-dispo:active:not([disabled]) { background: #262c40; }
+  .clan-dispo[disabled] { opacity: .5; cursor: default; }
+  .clan-m-nom { flex: 1 1 auto; min-width: 0; }
+  .clan-m-stat { flex: none; font-size: 12px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
+  .clan-chef { font-style: normal; font-size: 10.5px; letter-spacing: .04em; color: #c9992e; }
   .mission-etat {
     flex: none; font-size: 11px; color: var(--glass-dim);
     font-variant-numeric: tabular-nums;
@@ -2541,11 +2562,13 @@
     <button id="sub-duel" class="sous-tab">Duel</button>
     <button id="sub-hist" class="sous-tab">Histoire</button>
     <button id="sub-quiz" class="sous-tab">Quiz</button>
+    <button id="sub-clan" class="sous-tab">Clan</button>
   </nav>
   <div id="raid-body"></div>
   <div id="duel-body" hidden></div>
   <div id="histoire-body" hidden></div>
   <div id="quiz-body" hidden></div>
+  <div id="clan-body" hidden></div>
 </main>
 
 <div id="sheet" class="sheet" hidden>
@@ -8209,6 +8232,185 @@
     });
   }
 
+  /* ================= clans =================
+     Un clan est un document unique : nom, tag, chef, liste des membres. Les
+     membres ne sont que des identifiants — le nom et le niveau de chacun se
+     lisent dans son propre profil, qui reste la seule source de verite sur
+     lui-meme. Personne ne peut donc ecrire le niveau d'un autre joueur.
+
+     Le champ « chef » est ecrivable, mais sous deux formes seulement :
+     le chef en exercice designe un successeur deja membre, ou — apres trente
+     jours sans signe de vie du chef — un membre reprend le clan. La date, le
+     serveur sait la verifier. Le « mieux classe », non : il faudrait lire le
+     profil de chaque membre depuis la regle, et la cote est de toute facon
+     declaree par le joueur lui-meme. L'interface ne propose donc la reprise
+     qu'au mieux classe, mais c'est une convention, pas une garantie. */
+
+  var CLAN_MAX = 20;
+  var CLAN_ABANDON = 30 * 24 * 3600 * 1000;   /* 30 jours sans chef actif */
+  var CLAN_SIGNE = 12 * 3600 * 1000;          /* on ne repointe pas plus de 2x/jour */
+  var clanEtat = { id: '', doc: null, membres: [], liste: null, msg: '',
+                   occupe: false, passation: false };
+
+  function clanRef(id) { return nuage.db.collection('clans').doc(id); }
+
+  function clanCharger() {
+    if (!nuage.pret || !nuage.uid) { showClan(); return; }
+    clanEtat.occupe = true; showClan();
+    nuage.db.collection('joueurs').doc(nuage.uid).get().then(function (d) {
+      var id = (d.exists && d.data().clan) || '';
+      if (!id) { clanEtat.id = ''; clanEtat.doc = null; return clanListe(); }
+      return clanRef(id).get().then(function (c) {
+        if (!c.exists) {   /* clan dissous entre-temps : on se detache */
+          clanEtat.id = ''; clanEtat.doc = null;
+          return nuage.db.collection('joueurs').doc(nuage.uid)
+            .set({ clan: '' }, { merge: true }).then(clanListe);
+        }
+        clanEtat.id = c.id; clanEtat.doc = c.data();
+        return clanMembres().then(clanSignerPresence);
+      });
+    }).catch(function () {
+      clanEtat.msg = 'Connexion impossible.';
+    }).then(function () { clanEtat.occupe = false; showClan(); });
+  }
+
+  /* Le detail de chaque membre vient de son propre profil. */
+  function clanMembres() {
+    var ids = (clanEtat.doc.membres || []).slice(0, CLAN_MAX);
+    return Promise.all(ids.map(function (u) {
+      return nuage.db.collection('joueurs').doc(u).get()
+        .then(function (d) {
+          var v = d.exists ? d.data() : {};
+          return { uid: u, nom: v.nom || 'Sans nom', niveau: v.niveau || 1,
+                   cote: v.cote || 0, cartes: v.cartes || 0 };
+        })
+        .catch(function () { return { uid: u, nom: 'Sans nom', niveau: 1, cote: 0, cartes: 0 }; });
+    })).then(function (m) {
+      m.sort(function (a, b) { return b.cote - a.cote; });
+      clanEtat.membres = m;
+    });
+  }
+
+  /* Le chef laisse une trace datee de son passage : c'est elle qui fait courir
+     le delai d'abandon. Espacee, pour ne pas ecrire a chaque ouverture. */
+  function clanSignerPresence() {
+    var d = clanEtat.doc;
+    if (!d || d.chef !== nuage.uid) return;
+    var t = Date.now();
+    if (t - (d.chefVu || 0) < CLAN_SIGNE) return;
+    return clanRef(clanEtat.id).update({ chefVu: t, maj: t })
+      .then(function () { clanEtat.doc.chefVu = t; })
+      .catch(function () {});
+  }
+
+  function clanAbandonne() {
+    var d = clanEtat.doc;
+    if (!d) return false;
+    return Date.now() - (d.chefVu || d.maj || 0) > CLAN_ABANDON;
+  }
+
+  /* Convention d'interface : on ne propose la reprise qu'au membre le mieux
+     classe. Les regles, elles, se contentent de verifier le delai. */
+  function clanHeritier() {
+    var m = clanEtat.membres.filter(function (x) {
+      return clanEtat.doc && x.uid !== clanEtat.doc.chef;
+    });
+    return m.length ? m[0].uid : '';   /* deja trie par cote decroissante */
+  }
+
+  /* Passation volontaire : le chef designe un membre, puis peut partir. */
+  function clanTransmettre(uid) {
+    clanEtat.occupe = true; clanEtat.msg = ''; showClan();
+    var t = Date.now();
+    clanRef(clanEtat.id).update({ chef: uid, chefVu: t, maj: t })
+      .then(function () { clanCharger(); })
+      .catch(function () {
+        clanEtat.occupe = false;
+        clanEtat.msg = 'La passation n\u2019a pas abouti.'; showClan();
+      });
+  }
+
+  /* Reprise d'un clan laisse sans chef depuis trente jours. */
+  function clanReprendre() {
+    clanEtat.occupe = true; clanEtat.msg = ''; showClan();
+    var t = Date.now();
+    clanRef(clanEtat.id).update({ chef: nuage.uid, chefVu: t, maj: t })
+      .then(function () { clanCharger(); })
+      .catch(function () {
+        clanEtat.occupe = false;
+        clanEtat.msg = 'Reprise refusée : le chef est peut-être revenu.'; showClan();
+      });
+  }
+
+  /* Les clans les plus fournis d'abord : sans serveur de recherche, c'est le
+     classement le plus utile a un joueur qui cherche ou atterrir. */
+  function clanListe() {
+    return nuage.db.collection('clans').orderBy('nbMembres', 'desc').limit(20).get()
+      .then(function (q) {
+        var out = [];
+        q.forEach(function (d) { var v = d.data(); v.id = d.id; out.push(v); });
+        clanEtat.liste = out;
+      }).catch(function () { clanEtat.liste = []; });
+  }
+
+  function clanCreer(nom, tag) {
+    nom = (nom || '').trim().slice(0, 24);
+    tag = (tag || '').trim().toUpperCase().slice(0, 5);
+    if (nom.length < 3) { clanEtat.msg = 'Le nom doit faire au moins 3 caractères.'; showClan(); return; }
+    if (!/^[A-Z0-9]{2,5}$/.test(tag)) { clanEtat.msg = 'Le tag doit faire 2 à 5 lettres ou chiffres.'; showClan(); return; }
+    clanEtat.occupe = true; clanEtat.msg = ''; showClan();
+    var ref = nuage.db.collection('clans').doc();
+    ref.set({
+      nom: nom, tag: tag, chef: nuage.uid,
+      membres: [nuage.uid], nbMembres: 1, chefVu: Date.now(), maj: Date.now()
+    }).then(function () {
+      return nuage.db.collection('joueurs').doc(nuage.uid).set({ clan: ref.id }, { merge: true });
+    }).then(function () { clanCharger(); })
+      .catch(function () {
+        clanEtat.occupe = false;
+        clanEtat.msg = 'Création refusée.'; showClan();
+      });
+  }
+
+  function clanRejoindre(id) {
+    clanEtat.occupe = true; clanEtat.msg = ''; showClan();
+    clanRef(id).update({
+      membres: firebase.firestore.FieldValue.arrayUnion(nuage.uid),
+      nbMembres: firebase.firestore.FieldValue.increment(1),
+      maj: Date.now()
+    }).then(function () {
+      return nuage.db.collection('joueurs').doc(nuage.uid).set({ clan: id }, { merge: true });
+    }).then(function () { clanCharger(); })
+      .catch(function () {
+        clanEtat.occupe = false;
+        clanEtat.msg = 'Ce clan est complet ou n\u2019accepte plus personne.'; showClan();
+      });
+  }
+
+  function clanQuitter() {
+    var id = clanEtat.id, estChef = clanEtat.doc && clanEtat.doc.chef === nuage.uid;
+    var seul = (clanEtat.doc.membres || []).length <= 1;
+    if (estChef && !seul) {
+      clanEtat.msg = 'Transmettez d\u2019abord le commandement à un membre.';
+      showClan(); return;
+    }
+    clanEtat.occupe = true; clanEtat.msg = ''; showClan();
+    var op = (estChef && seul)
+      ? clanRef(id).delete()                       /* dernier present : le clan disparait */
+      : clanRef(id).update({
+          membres: firebase.firestore.FieldValue.arrayRemove(nuage.uid),
+          nbMembres: firebase.firestore.FieldValue.increment(-1),
+          maj: Date.now()
+        });
+    op.then(function () {
+      return nuage.db.collection('joueurs').doc(nuage.uid).set({ clan: '' }, { merge: true });
+    }).then(function () { clanCharger(); })
+      .catch(function () {
+        clanEtat.occupe = false;
+        clanEtat.msg = 'Le départ n\u2019a pas abouti.'; showClan();
+      });
+  }
+
   /* ---------- dos de cartes : puits d'or purement decoratif ----------
      Aucun effet sur l'equilibre, donc aucun risque pour l'economie : c'est
      du prestige, et ca donne un sens a l'or quand on a deja tout. */
@@ -9093,6 +9295,116 @@
     closeSheet();
     showDuel();
   });
+  /* Rendu du clan. Trois etats possibles, et un seul a la fois : hors ligne,
+     membre d'un clan, ou en train d'en chercher un. */
+  function showClan() {
+    var b = el('clan-body');
+    if (!b) return;
+
+    if (!nuage.pret || !nuage.uid) {
+      b.innerHTML = '<p class="duel-titre">CLAN</p>'
+        + '<p class="duel-intro">Les clans demandent une connexion. Votre partie '
+        + 'reste jouable hors ligne, mais vous ne pouvez ni en créer ni en rejoindre.</p>';
+      return;
+    }
+    if (clanEtat.occupe) {
+      b.innerHTML = '<p class="duel-titre">CLAN</p><p class="duel-intro">Chargement…</p>';
+      return;
+    }
+
+    var alerte = clanEtat.msg ? '<p class="duel-alerte">' + esc(clanEtat.msg) + '</p>' : '';
+
+    if (clanEtat.id && clanEtat.doc) {
+      var d = clanEtat.doc;
+      var estChef = d.chef === nuage.uid;
+      var html = '<p class="duel-titre">CLAN</p>'
+        + '<div class="clan-tete"><span class="clan-tag">' + esc(d.tag) + '</span>'
+        + '<span class="clan-nom">' + esc(d.nom) + '</span></div>'
+        + '<p class="duel-intro">' + clanEtat.membres.length + ' membre'
+        + (clanEtat.membres.length > 1 ? 's' : '') + ' sur ' + CLAN_MAX
+        + (estChef ? ' · vous êtes le chef' : '') + '</p>'
+        + alerte
+        + '<p class="sheet-sub">MEMBRES</p><div class="clan-liste">';
+      var passe = clanEtat.passation;
+      clanEtat.membres.forEach(function (m) {
+        var autre = m.uid !== d.chef;
+        html += (passe && autre
+            ? '<button class="clan-membre clan-dispo" data-clan-transmettre="' + esc(m.uid) + '">'
+            : '<div class="clan-membre">')
+          + '<span class="clan-m-nom">' + esc(m.nom)
+          + (m.uid === d.chef ? ' <i class="clan-chef">chef</i>' : '') + '</span>'
+          + '<span class="clan-m-stat">'
+          + (passe && autre ? 'nommer' : 'niv. ' + m.niveau + ' · ' + m.cote)
+          + '</span>'
+          + (passe && autre ? '</button>' : '</div>');
+      });
+      html += '</div>';
+
+      if (estChef && clanEtat.membres.length > 1) {
+        html += passe
+          ? '<p class="duel-intro">Choisissez le membre qui prendra la tête du clan.</p>'
+            + '<button class="btn" data-clan-passation="0">Annuler</button>'
+          : '<button class="btn" data-clan-passation="1">Transmettre le commandement</button>';
+      }
+      if (!estChef && clanAbandonne() && clanHeritier() === nuage.uid) {
+        html += '<p class="duel-intro">Le chef ne s\u2019est pas connecté depuis '
+          + 'plus de 30 jours. En tant que mieux classé, vous pouvez reprendre le clan.</p>'
+          + '<button class="btn btn-solid" data-clan-reprendre="1">Reprendre le clan</button>';
+      }
+      html += '<button class="btn" data-clan-quitter="1">Quitter le clan</button>';
+      b.innerHTML = html;
+      return;
+    }
+
+    /* Sans clan : creation d'un cote, liste de l'autre. */
+    var h = '<p class="duel-titre">CLAN</p>'
+      + '<p class="duel-intro">Rejoignez un clan pour voir la progression des '
+      + 'autres joueurs, ou créez le vôtre.</p>'
+      + alerte
+      + '<p class="sheet-sub">CRÉER UN CLAN</p>'
+      + '<input id="clan-nom" class="code-champ" type="text" maxlength="24" '
+      + 'placeholder="Nom du clan" autocomplete="off">'
+      + '<input id="clan-tag" class="code-champ" type="text" maxlength="5" '
+      + 'placeholder="Tag (2 à 5 lettres)" autocomplete="off">'
+      + '<button class="btn" data-clan-creer="1">Créer</button>'
+      + '<p class="sheet-sub">CLANS OUVERTS</p>';
+
+    if (!clanEtat.liste) h += '<p class="duel-intro">Chargement…</p>';
+    else if (!clanEtat.liste.length) h += '<p class="duel-intro">Aucun clan pour l\u2019instant. Créez le premier.</p>';
+    else {
+      h += '<div class="clan-liste">';
+      clanEtat.liste.forEach(function (c) {
+        var plein = (c.nbMembres || 0) >= CLAN_MAX;
+        h += '<button class="clan-membre clan-dispo" '
+          + (plein ? 'disabled' : 'data-clan-rejoindre="' + esc(c.id) + '"') + '>'
+          + '<span class="clan-m-nom"><span class="clan-tag">' + esc(c.tag || '') + '</span> '
+          + esc(c.nom || '') + '</span>'
+          + '<span class="clan-m-stat">' + (c.nbMembres || 0) + '/' + CLAN_MAX + '</span>'
+          + '</button>';
+      });
+      h += '</div>';
+    }
+    b.innerHTML = h;
+  }
+
+  el('clan-body').addEventListener('click', function (e) {
+    if (!e.target.closest) return;
+    if (e.target.closest('[data-clan-creer]')) {
+      clanCreer(el('clan-nom').value, el('clan-tag').value); return;
+    }
+    if (e.target.closest('[data-clan-quitter]')) { clanQuitter(); return; }
+    var pa = e.target.closest('[data-clan-passation]');
+    if (pa) {
+      clanEtat.passation = pa.getAttribute('data-clan-passation') === '1';
+      clanEtat.msg = ''; showClan(); return;
+    }
+    var tr = e.target.closest('[data-clan-transmettre]');
+    if (tr) { clanEtat.passation = false; clanTransmettre(tr.getAttribute('data-clan-transmettre')); return; }
+    if (e.target.closest('[data-clan-reprendre]')) { clanReprendre(); return; }
+    var r = e.target.closest('[data-clan-rejoindre]');
+    if (r) { clanRejoindre(r.getAttribute('data-clan-rejoindre')); return; }
+  });
+
   var sousCombat = 'raid', sousCombatRendu = null;
   function montrerCombat(quoi) {
     if (sousCombatRendu !== null && quoi !== sousCombatRendu) { vib(5); hautDePage(); }
@@ -9102,19 +9414,23 @@
     el('duel-body').hidden = quoi !== 'duel';
     el('histoire-body').hidden = quoi !== 'hist';
     el('quiz-body').hidden = quoi !== 'quiz';
+    el('clan-body').hidden = quoi !== 'clan';
     el('sub-raid').classList.toggle('is-active', quoi === 'raid');
     el('sub-duel').classList.toggle('is-active', quoi === 'duel');
     el('sub-hist').classList.toggle('is-active', quoi === 'hist');
     el('sub-quiz').classList.toggle('is-active', quoi === 'quiz');
+    el('sub-clan').classList.toggle('is-active', quoi === 'clan');
     if (quoi === 'raid') showRaid();
     if (quoi === 'duel') showDuel();
     if (quoi === 'hist') showHistoire();
     if (quoi === 'quiz') showQuiz();
+    if (quoi === 'clan') { showClan(); clanCharger(); }
   }
   el('sub-raid').addEventListener('click', function () { montrerCombat('raid'); });
   el('sub-duel').addEventListener('click', function () { montrerCombat('duel'); });
   el('sub-hist').addEventListener('click', function () { montrerCombat('hist'); });
   el('sub-quiz').addEventListener('click', function () { montrerCombat('quiz'); });
+  el('sub-clan').addEventListener('click', function () { montrerCombat('clan'); });
   el('quiz-body').addEventListener('click', function (e) {
     if (!e.target.closest) return;
     if (e.target.closest('#quiz-start')) { demarrerQuiz(); return; }
