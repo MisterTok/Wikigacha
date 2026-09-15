@@ -1028,6 +1028,54 @@
   /* --- ligues --- */
   .lig-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
   .lig-nom { font-family: var(--display); font-size: 21px; }
+  /* --- plateau de duel --- */
+  .db-tour {
+    font-size: 11px; letter-spacing: .08em; color: var(--glass-dim);
+    text-align: center; margin-bottom: 8px;
+  }
+  .db-camp { margin-bottom: 10px; }
+  .db-camp-t {
+    font-size: 10.5px; letter-spacing: .08em; color: var(--glass-dim);
+    margin: 4px 0; text-align: center;
+  }
+  .db-ligne { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 5px; }
+  .db-carte {
+    position: relative; padding: 5px 4px 6px; text-align: center;
+    background: var(--night-up); border: 1px solid var(--night-line);
+    border-top: 2px solid var(--tier, var(--night-line));
+    transition: opacity .25s ease, transform .18s ease;
+  }
+  .db-carte.morte { opacity: .28; }
+  .db-carte.frappe { transform: translateY(-3px); border-color: #c9992e; }
+  .db-carte.touchee { animation: db-choc .28s ease; }
+  @keyframes db-choc {
+    0% { transform: translateX(0); } 25% { transform: translateX(-3px); }
+    60% { transform: translateX(3px); } 100% { transform: translateX(0); }
+  }
+  .db-vue {
+    display: block; height: 52px; overflow: hidden; margin-bottom: 4px;
+    border: 1px solid var(--night-line);
+  }
+  .db-vue img, .db-vue .art { width: 100%; height: 100%; display: block; object-fit: cover; }
+  .db-nom {
+    display: block; font-size: 10px; line-height: 1.25; color: var(--glass-dim);
+    height: 25px; overflow: hidden; margin-bottom: 4px;
+  }
+  .db-jauge { display: block; height: 4px; background: rgba(0,0,0,.45); }
+  .db-jauge i { display: block; height: 100%; background: #4f8d72; transition: width .25s ease; }
+  .db-camp.adverse .db-jauge i { background: #8d5050; }
+  .db-journal {
+    min-height: 34px; font-size: 12.5px; line-height: 1.5; text-align: center;
+    color: var(--glass); margin: 8px 0 10px;
+  }
+  .db-mort { font-style: normal; color: #cf7f7f; }
+  .eq-ligne-t {
+    font-size: 10px; letter-spacing: .08em; color: var(--glass-dim); margin: 0 0 6px;
+  }
+  .eq-vit { font-style: normal; color: #c9992e; }
+  .adv-fort { font-style: normal; color: #cf7f7f; }
+  .adv-faible { font-style: normal; color: #7fb99a; }
+
   /* --- raid de clan --- */
   .rc-boss { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
   .rc-vue, .rc-art {
@@ -2743,6 +2791,15 @@
   var bonusStat = function (c) { return 1 + ETOILE_BONUS[niveau(c) - 1]; };
   var atkEff = function (c) { return Math.max(1, Math.round(c.atk * bonusStat(c))); };
   var defEff = function (c) { return Math.max(1, Math.round(c.def * bonusStat(c))); };
+  /* Vitesse : troisieme dimension du combat, deduite des donnees deja en
+     collection pour que les cartes anciennes en aient une sans rien
+     retelecharger. Un article tres lu mais court est vif ; un pave est lent.
+     Volontairement non correlee a l'attaque et a la defense : une Commune
+     rapide doit pouvoir frapper avant une Legendaire. */
+  var vitEff = function (c) {
+    var v = 60 + Math.log10((c.views || 0) + 1) * 14 - Math.log10((c.bytes || 1000) + 1) * 8;
+    return Math.max(20, Math.min(140, Math.round(v * bonusStat(c))));
+  };
   var coutProchain = function (c) {
     var n = niveau(c);
     return n >= ETOILE_MAX ? 0 : ETOILE_COUT[n];
@@ -4635,8 +4692,8 @@
      lancé à l'avance, pendant que le joueur regarde le paquet précédent. */
   var paquetPret = null, prechargeEnCours = false;
 
-  function chargerCartes() {
-    return fetchPack().then(function (pages) {
+  function chargerCartes(nb) {
+    return fetchPack(nb).then(function (pages) {
       return Promise.all(pages.map(function (p) {
         /* Les vues passent par un service lent : on lui laisse 4 s, puis on
            se contente de 0 plutôt que de bloquer les quatre autres cartes. */
@@ -6056,10 +6113,9 @@
     }).catch(function () {});
   }
 
-  /* ---------- duel 5 contre 5 ----------
-     Cinq articles tires au hasard forment l'equipe adverse. Chaque manche
-     oppose votre attaque a leur defense, et l'inverse : celui qui perce le
-     plus l'emporte. Trois manches gagnees suffisent. */
+  /* ---------- duel ----------
+     Six contre six, en lignes avant et arriere. Le deroulement est dans
+     « moteur de combat » plus bas ; ici, les reglages et l'equipe. */
 
   var DUELS_PAR_JOUR = 5;
   var GAIN_DUEL = 40;   /* Wikigold par duel gagné */
@@ -6094,23 +6150,41 @@
 
   var QKEY_EQ = 'wikigacha:equipe';
 
+  /* Six cases : trois devant, trois derriere. Les equipes de cinq d'avant la
+     refonte sont completees automatiquement, sans rien demander au joueur. */
+  var EQ_TAILLE = 6;
+
   function readEquipe() {
     var e;
     try { e = JSON.parse(localStorage.getItem(QKEY_EQ)); } catch (err) { e = null; }
-    if (!e || !e.length) e = [null, null, null, null, null];
-    /* Une carte effacée entre deux sessions ne doit pas laisser un trou muet. */
-    return e.slice(0, 5).map(function (t) { return (t && collection[t]) ? t : null; });
+    if (!e || !e.length) e = [];
+    e = e.slice(0, EQ_TAILLE).map(function (t) { return (t && collection[t]) ? t : null; });
+    while (e.length < EQ_TAILLE) e.push(null);
+    /* Migration des anciennes ecuries : on comble avec la meilleure carte
+       encore libre plutot que de laisser une case vide bloquer le duel. */
+    if (e.filter(function (t) { return !!t; }).length === EQ_TAILLE - 1) {
+      var libre = meilleureEquipe().filter(function (c) { return e.indexOf(c.title) < 0; })[0];
+      if (libre) { for (var i = 0; i < e.length; i++) { if (!e[i]) { e[i] = libre.title; break; } } }
+    }
+    return e;
   }
   function writeEquipe(e) {
     try { localStorage.setItem(QKEY_EQ, JSON.stringify(e)); } catch (err) {}
   }
   function equipeComplete(e) {
-    return e.filter(function (t) { return !!t; }).length === 5
+    return e.filter(function (t) { return !!t; }).length === EQ_TAILLE
         && e.filter(function (t, i) { return e.indexOf(t) !== i; }).length === 0;
   }
+  /* Composition automatique : les plus resistantes devant, les plus
+     frappeuses derriere. C'est le placement qu'un joueur ferait, et il rend le
+     resultat lisible quand on decouvre le systeme. */
   function composerAuto() {
-    var e = meilleureEquipe().map(function (c) { return c.title; });
-    while (e.length < 5) e.push(null);
+    var dispo = meilleureEquipe().slice(0, EQ_TAILLE);
+    var devant = dispo.slice().sort(function (a, b) { return defEff(b) - defEff(a); }).slice(0, 3);
+    var derriere = dispo.filter(function (c) { return devant.indexOf(c) < 0; })
+      .sort(function (a, b) { return atkEff(b) - atkEff(a); });
+    var e = devant.concat(derriere).map(function (c) { return c.title; });
+    while (e.length < EQ_TAILLE) e.push(null);
     writeEquipe(e);
     return e;
   }
@@ -6179,46 +6253,222 @@
 
   var duelCourant = null;
 
+  /* ================= moteur de combat =================
+     Six contre six : cases 0-2 devant, 3-5 derriere. A chaque tour, toutes les
+     cartes encore debout agissent une fois, dans l'ordre de vitesse
+     decroissante ; a vitesse egale, la position tranche — ligne avant de
+     gauche a droite, puis ligne arriere.
+
+     La ligne arriere est a l'abri tant qu'une carte tient devant, mais elle
+     frappe a 85 %. C'est tout l'interet du placement : on met devant ce qui
+     encaisse, derriere ce qui fait mal.
+
+     Le moteur ne dessine rien. Il renvoie la liste des actions, que l'interface
+     rejoue ensuite au rythme qu'elle veut — c'est ce qui permet d'animer le
+     combat, ou de le passer d'un coup. */
+
+  var TOURS_MAX = 30;
+  /* Huit points de vie par point de defense : a trois, les combats se
+     terminaient en trois tours, trop vite pour qu'on voie quoi que ce soit.
+     A huit, ils tiennent une dizaine de tours — assez pour que le placement
+     compte et que l'animation ait un sens. */
+  var PV_PAR_DEF = 8;
+  var MALUS_ARRIERE = 0.85;
+
+  function enCombattant(c, camp, pos) {
+    var pv = Math.max(1, defEff(c) * PV_PAR_DEF);
+    return { c: c, camp: camp, pos: pos, pv: pv, pvMax: pv, vit: vitEff(c) };
+  }
+
+  function degatsDuel(src, cible) {
+    var m = MULT[rankIndex(src.c.rank)] || 1;
+    var reduction = 900 / (900 + defEff(cible.c));
+    var base = atkEff(src.c) * m * reduction;
+    if (src.pos >= 3) base *= MALUS_ARRIERE;
+    return Math.max(1, Math.round(base));
+  }
+
+  /* Cible : la premiere carte encore debout de la ligne avant adverse, sinon
+     la premiere de la ligne arriere. Ordre de gauche a droite, donc previsible
+     — le joueur doit pouvoir anticiper ou tombent les coups. */
+  function choisirCible(ennemis) {
+    var vivants = ennemis.filter(function (x) { return x.pv > 0; });
+    if (!vivants.length) return null;
+    var devant = vivants.filter(function (x) { return x.pos < 3; });
+    var pool = devant.length ? devant : vivants;
+    return pool.sort(function (a, b) { return a.pos - b.pos; })[0];
+  }
+
+  function simulerDuel(mien, adverse) {
+    var A = mien.map(function (c, i) { return enCombattant(c, 'moi', i); });
+    var B = adverse.map(function (c, i) { return enCombattant(c, 'lui', i); });
+    var actions = [], tour = 0;
+
+    var vivant = function (t) { return t.some(function (x) { return x.pv > 0; }); };
+
+    while (tour < TOURS_MAX && vivant(A) && vivant(B)) {
+      tour += 1;
+      var ordre = A.concat(B).filter(function (x) { return x.pv > 0; })
+        .sort(function (a, b) {
+          if (b.vit !== a.vit) return b.vit - a.vit;
+          return a.pos - b.pos;   /* avant avant arriere, gauche avant droite */
+        });
+      actions.push({ type: 'tour', n: tour });
+
+      for (var i = 0; i < ordre.length; i++) {
+        var src = ordre[i];
+        if (src.pv <= 0) continue;                  /* tombee plus tot dans le tour */
+        var ennemis = src.camp === 'moi' ? B : A;
+        var cible = choisirCible(ennemis);
+        if (!cible) break;
+        var d = degatsDuel(src, cible);
+        cible.pv = Math.max(0, cible.pv - d);
+        actions.push({
+          type: 'coup', camp: src.camp, src: src.c.title, srcPos: src.pos,
+          cible: cible.c.title, ciblePos: cible.pos, ciblecamp: cible.camp,
+          degats: d, pv: cible.pv, pvMax: cible.pvMax, mort: cible.pv === 0
+        });
+        if (!vivant(ennemis)) break;
+      }
+    }
+
+    var pvA = A.reduce(function (s, x) { return s + x.pv; }, 0);
+    var pvB = B.reduce(function (s, x) { return s + x.pv; }, 0);
+    var survivantsA = A.filter(function (x) { return x.pv > 0; }).length;
+    var survivantsB = B.filter(function (x) { return x.pv > 0; }).length;
+
+    /* Depart en cas d'egalite : d'abord les cartes debout, puis les PV, puis
+       la vitesse cumulee. Sans ces criteres, un miroir parfait comptait comme
+       une defaite — ce qui n'a aucune raison d'etre. */
+    var gagne;
+    if (!vivant(B)) gagne = true;
+    else if (!vivant(A)) gagne = false;
+    else if (survivantsA !== survivantsB) gagne = survivantsA > survivantsB;
+    else if (pvA !== pvB) gagne = pvA > pvB;
+    else {
+      var vA = A.reduce(function (s, x) { return s + x.vit; }, 0);
+      var vB = B.reduce(function (s, x) { return s + x.vit; }, 0);
+      gagne = vA >= vB;   /* la plus vive l'emporte ; l'egalite absolue profite au joueur */
+    }
+
+    return {
+      actions: actions, tours: tour, gagne: gagne,
+      survivants: survivantsA, survivantsAdv: survivantsB,
+      pvRestants: pvA, pvAdverse: pvB, A: A, B: B
+    };
+  }
+
+  /* La cote se joue desormais sur les cartes encore debout : ecraser 6-0
+     rapporte plus que l'emporter d'un souffle, et l'inverse pour les defaites. */
+  function deltaCoteDuel(r) {
+    var ecart = r.survivants - r.survivantsAdv;
+    if (r.gagne) return 26 + Math.min(6, Math.max(0, ecart));
+    return -(26 + Math.min(6, Math.max(0, -ecart)));
+  }
+
+  /* Quatre adversaires proposes : on voit leur equipe avant de s'engager, ce
+     qui donne enfin un role au placement. Le duel n'est decompte qu'au moment
+     ou l'on frappe, pas a la recherche. */
+  var NB_ADVERSAIRES = 4;
+  var NOMS_BOTS = ['Archiviste', 'Copiste', 'Glossateur', 'Palimpseste', 'Scoliaste',
+                   'Compilateur', 'Enlumineur', 'Cartulaire'];
+
   function lancerDuel() {
     var d = readJour();
     if (d.duelsJoues >= DUELS_PAR_JOUR) return;
-    var eq = readEquipe();
-    if (!equipeComplete(eq)) return;
+    if (!equipeComplete(readEquipe())) return;
 
-    el('duel-body').innerHTML = '<p class="duel-titre">DUEL CLASSÉ</p>'
-      + '<p class="status">Recherche d’un adversaire…</p>';
+    el('duel-body').innerHTML = '<p class="duel-titre">DUEL</p>'
+      + '<p class="status">Recherche d’adversaires…</p>';
 
-    chargerCartes()
-      .then(function (adverse) {
-        /* Le bot range ses cartes de la plus forte à la plus faible, comme
-           le ferait un joueur. */
-        adverse.sort(function (a, b) {
-          return (atkEff(b) + defEff(b)) - (atkEff(a) + defEff(a));
-        });
-        var j = readJour();
-        j.duelsJoues += 1;
-        writeJour(j);
-        duelCourant = { adverse: adverse };
-        resoudreDuel(eq);
+    var lots = [];
+    for (var i = 0; i < NB_ADVERSAIRES; i++) lots.push(chargerCartes(EQ_TAILLE));
+    Promise.all(lots)
+      .then(function (equipes) {
+        duelCourant = { choix: equipes.map(function (cartes, i) {
+          /* Le bot place ses plus resistantes devant et ses frappeuses
+             derriere, exactement comme la composition automatique. */
+          var six = cartes.slice(0, EQ_TAILLE);
+          var devant = six.slice().sort(function (a, b) { return defEff(b) - defEff(a); }).slice(0, 3);
+          var derriere = six.filter(function (c) { return devant.indexOf(c) < 0; })
+            .sort(function (a, b) { return atkEff(b) - atkEff(a); });
+          var eq = devant.concat(derriere);
+          return {
+            nom: NOMS_BOTS[i % NOMS_BOTS.length],
+            cartes: eq,
+            puissance: eq.reduce(function (s, c) { return s + atkEff(c) + defEff(c); }, 0)
+          };
+        }) };
+        peindreChoixAdversaire();
       })
       ['catch'](function () {
-        el('duel-body').innerHTML = '<p class="duel-titre">DUEL CLASSÉ</p>'
-          + '<p class="status">Adversaire introuvable. Réessayez.</p>' + boutonDuel();
+        el('duel-body').innerHTML = '<p class="duel-titre">DUEL</p>'
+          + '<p class="status">Adversaires introuvables. Réessayez.</p>' + boutonDuel();
       });
   }
 
-  function resoudreDuel(eq) {
-    if (!duelCourant) return;
-    var adverse = duelCourant.adverse;
-    var manches = [], gagnees = 0;
-    for (var i = 0; i < 5; i++) {
-      var moi = collection[eq[i]];
-      if (!moi) return;
-      var r = manche(moi, adverse[i]);
-      if (r > 0) gagnees += 1;
-      manches.push({ moi: moi, lui: adverse[i], r: r });
-    }
-    var gagne = gagnees >= 3;
+  function peindreChoixAdversaire() {
+    var ma = readEquipe().map(function (t) { return collection[t]; });
+    var maPuissance = ma.reduce(function (s, c) { return s + atkEff(c) + defEff(c); }, 0);
+    var h = '<p class="duel-titre">CHOISISSEZ VOTRE ADVERSAIRE</p>'
+      + '<p class="duel-intro">Votre puissance : <b>' + maPuissance.toLocaleString('fr-FR')
+      + '</b>. Touchez un adversaire pour examiner son équipe.</p>'
+      + '<div class="clan-liste">';
+    duelCourant.choix.forEach(function (adv, i) {
+      var ecart = adv.puissance - maPuissance;
+      var signe = ecart > 0 ? '+' : '';
+      h += '<button class="clan-membre clan-dispo" data-adv="' + i + '">'
+        + '<span class="clan-m-nom">' + esc(adv.nom) + '</span>'
+        + '<span class="clan-m-stat">' + adv.puissance.toLocaleString('fr-FR')
+        + ' · <i class="' + (ecart > 0 ? 'adv-fort' : 'adv-faible') + '">'
+        + signe + ecart.toLocaleString('fr-FR') + '</i></span>'
+        + '</button>';
+    });
+    h += '</div><button class="btn" data-duel-retour="1">Retour</button>';
+    el('duel-body').innerHTML = h;
+  }
+
+  /* Fiche detaillee d'un adversaire : ses six cartes, dans leurs lignes. */
+  function examinerAdversaire(i) {
+    var adv = duelCourant && duelCourant.choix[i];
+    if (!adv) return;
+    var ligne = function (de, a) {
+      return '<div class="eq-grille">' + adv.cartes.slice(de, a).map(function (c) {
+        var tr = tierOf(c.rank);
+        return '<div class="eq-slot" style="--tier:' + tr.color + '">'
+          + '<span class="eq-vue">'
+          + (c.thumb ? '<img src="' + esc(c.thumb) + '" alt="" loading="lazy">'
+                     : artSVG(c.title, tr.color))
+          + '</span><span class="eq-nom">' + esc(c.title) + '</span>'
+          + '<span class="eq-pui">' + atkEff(c) + '/' + defEff(c)
+          + ' · <i class="eq-vit">' + vitEff(c) + '</i></span></div>';
+      }).join('') + '</div>';
+    };
+    el('duel-body').innerHTML = '<p class="duel-titre">' + esc(adv.nom).toUpperCase() + '</p>'
+      + '<p class="duel-intro">Puissance ' + adv.puissance.toLocaleString('fr-FR') + '</p>'
+      + '<p class="eq-ligne-t">LIGNE AVANT</p>' + ligne(0, 3)
+      + '<p class="eq-ligne-t">LIGNE ARRIÈRE</p>' + ligne(3, 6)
+      + '<button class="btn btn-solid" data-duel-go="' + i + '">Engager le combat</button>'
+      + '<button class="btn" data-duel-choix="1">Voir les autres</button>';
+  }
+
+  function engagerDuel(i) {
+    var adv = duelCourant && duelCourant.choix[i];
+    var eq = readEquipe();
+    if (!adv || !equipeComplete(eq)) return;
+    var mien = eq.map(function (t) { return collection[t]; });
+
+    var j = readJour();
+    j.duelsJoues += 1;
+    writeJour(j);
+
+    var r = simulerDuel(mien, adv.cartes);
+    duelCourant = { adv: adv, mien: mien, resultat: r };
+    animerDuel();
+  }
+
+  function resoudreDuel(r, adv, mien) {
+    var gagne = r.gagne;
 
     var j = readJour();
     if (gagne) j.duels += 1;
@@ -6226,7 +6476,7 @@
 
     var c = readClassement();
     var avant = c.cote;
-    c.cote = entierBorne(c.cote + deltaCote(gagnees), COTE_DEPART, COTE_MIN, COTE_MAX);
+    c.cote = entierBorne(c.cote + deltaCoteDuel(r), COTE_DEPART, COTE_MIN, COTE_MAX);
     /* Le delta affiche est l'ecart reellement applique : contre le plancher
        ou le plafond, annoncer +32 alors que la cote n'a pas bouge serait faux. */
     var delta = c.cote - avant;
@@ -6245,7 +6495,7 @@
     ligueGagner(delta);
     nuagePousser();
     clanContribuer();
-    peindreDuel(manches, gagnees, gagne, recu, delta, c.cote);
+    peindreDuel(r, adv, mien, gagne, recu, delta, c.cote);
     showMissions();
     refreshSucces();
   }
@@ -6254,8 +6504,8 @@
     var d = readJour();
     var reste = DUELS_PAR_JOUR - d.duelsJoues;
     var n = Object.keys(collection).length;
-    if (n < 5) {
-      return '<p class="status">Il faut cinq cartes pour engager un duel. '
+    if (n < EQ_TAILLE) {
+      return '<p class="status">Il faut six cartes pour engager un duel. '
         + 'Vous en avez ' + n + '.</p>';
     }
     if (!equipeComplete(readEquipe())) {
@@ -6265,7 +6515,7 @@
       return '<p class="status">Vos ' + DUELS_PAR_JOUR
         + ' duels du jour sont joués. Retour demain.</p>';
     }
-    return '<button class="btn btn-solid" id="duel-lancer">Chercher un adversaire ('
+    return '<button class="btn btn-solid" id="duel-lancer">Chercher des adversaires ('
       + reste + ' duel' + (reste > 1 ? 's' : '') + ')</button>';
   }
 
@@ -6285,29 +6535,33 @@
      carte à la première de l'adversaire, et ainsi de suite. */
   function grilleEquipe() {
     var eq = readEquipe();
+    var cases = function (de, a) {
+      return '<div class="eq-grille">' + eq.slice(de, a).map(function (t, k) {
+        var i = de + k;
+        var c = t ? collection[t] : null;
+        var tr = c ? tierOf(c.rank) : null;
+        return '<button class="eq-slot' + (c ? '' : ' vide') + '" data-eq="' + i + '"'
+          + (c ? ' style="--tier:' + tr.color + '"' : '') + '>'
+          + (c
+              ? '<span class="eq-vue">'
+                + (c.thumb
+                    ? '<img src="' + esc(c.thumb) + '" alt="" loading="lazy" decoding="async">'
+                    : artSVG(c.title, tr.color))
+                + '</span>'
+                + '<span class="eq-nom">' + esc(c.title) + '</span>'
+                + '<span class="eq-pui">' + atkEff(c) + '/' + defEff(c)
+                + ' · <i class="eq-vit">' + vitEff(c) + '</i></span>'
+              : '<span class="eq-vue vide">+</span><span class="eq-nom">Vide</span>')
+          + '</button>';
+      }).join('') + '</div>';
+    };
     return '<div class="eq-tete"><p class="sheet-sub eq-titre">VOTRE ÉQUIPE</p>'
       + '<button class="duel-auto" data-eq-auto="1">Composer</button></div>'
-      + '<p class="duel-intro">Les cartes combattent dans cet ordre : votre 1<sup>re</sup> '
-      + 'contre la 1<sup>re</sup> de l’adversaire. Touchez une case pour la changer.</p>'
-      + '<div class="eq-grille">'
-      + eq.map(function (t, i) {
-          var c = t ? collection[t] : null;
-          var tr = c ? tierOf(c.rank) : null;
-          return '<button class="eq-slot' + (c ? '' : ' vide') + '" data-eq="' + i + '"'
-            + (c ? ' style="--tier:' + tr.color + '"' : '') + '>'
-            + '<span class="eq-no">' + (i + 1) + '</span>'
-            + (c
-                ? '<span class="eq-vue">'
-                  + (c.thumb
-                      ? '<img src="' + esc(c.thumb) + '" alt="" loading="lazy" decoding="async">'
-                      : artSVG(c.title, tr.color))
-                  + '</span>'
-                  + '<span class="eq-nom">' + esc(c.title) + '</span>'
-                  + '<span class="eq-pui">' + (atkEff(c) + defEff(c)) + '</span>'
-                : '<span class="eq-vue vide">+</span><span class="eq-nom">Vide</span>')
-            + '</button>';
-        }).join('')
-      + '</div>';
+      + '<p class="duel-intro">Six cartes, trois devant et trois derrière. La ligne '
+      + 'arrière est protégée tant qu’une carte tient devant, mais frappe à 85 %. '
+      + 'L’ordre des coups suit la vitesse (le chiffre en doré).</p>'
+      + '<p class="eq-ligne-t">LIGNE AVANT</p>' + cases(0, 3)
+      + '<p class="eq-ligne-t">LIGNE ARRIÈRE</p>' + cases(3, 6);
   }
 
   /* Choix d'une carte pour une case de l'équipe. */
@@ -6319,7 +6573,8 @@
       });
     var inner = el('sheet-inner');
     inner.style.setProperty('--tier', '#c9992e');
-    inner.innerHTML = '<h2>Case ' + (slot + 1) + '</h2>'
+    inner.innerHTML = '<h2>' + (slot < 3 ? 'Ligne avant · place ' + (slot + 1)
+                                 : 'Ligne arrière · place ' + (slot - 2)) + '</h2>'
       + '<div class="sel-cible"><span class="sheet-sub">Vos cartes, de la plus forte '
       + 'à la plus faible</span></div>'
       + '<div class="sel-liste">'
@@ -6340,6 +6595,7 @@
             + '<span class="sel-ecart">' + pc + '</span>'
             + '<span class="sel-nom">' + esc(c.title) + '</span>'
             + '<span class="sel-st">' + atkEff(c) + ' ATQ · ' + defEff(c) + ' DÉF · '
+            + vitEff(c) + ' VIT · '
             + t.short + (ailleurs ? ' · déjà dans l’équipe' : '') + '</span>'
             + '</span></button>';
         }).join('')
@@ -6350,36 +6606,119 @@
     el('sheet-close').addEventListener('click', closeSheet);
   }
 
-  function peindreDuel(manches, gagnees, gagne, recu, delta, cote) {
-    var html = '<p class="duel-titre">DUEL CLASSÉ</p>'
+  /* ---------- animation du combat ----------
+     Le moteur a deja tout calcule : on ne fait que rejouer la liste des
+     actions. Cela garantit que l'image montree correspond exactement au
+     resultat, et rend le bouton « passer » trivial — il suffit de sauter a
+     la fin. */
+
+  var DUEL_RYTHME = 520;   /* millisecondes entre deux coups */
+  var duelMinuteur = null;
+
+  function plateau(etat) {
+    var ligne = function (liste, de, a, droite) {
+      return '<div class="db-ligne">' + liste.slice(de, a).map(function (x) {
+        var tr = tierOf(x.c.rank);
+        var pct = Math.max(0, x.pv / x.pvMax * 100);
+        return '<div class="db-carte' + (x.pv <= 0 ? ' morte' : '')
+          + (x.eclair ? ' frappe' : '') + (x.touchee ? ' touchee' : '') + '" '
+          + 'style="--tier:' + tr.color + '">'
+          + '<span class="db-vue">'
+          + (x.c.thumb ? '<img src="' + esc(x.c.thumb) + '" alt="" loading="lazy">'
+                       : artSVG(x.c.title, tr.color))
+          + '</span>'
+          + '<span class="db-nom">' + esc(x.c.title) + '</span>'
+          + '<span class="db-jauge"><i style="width:' + pct + '%"></i></span>'
+          + '</div>';
+      }).join('') + '</div>';
+    };
+    return '<div class="db-camp adverse">'
+      + '<p class="db-camp-t">' + esc(etat.nomAdv) + '</p>'
+      + ligne(etat.B, 3, 6) + ligne(etat.B, 0, 3)
+      + '</div>'
+      + '<div class="db-camp mien">'
+      + ligne(etat.A, 0, 3) + ligne(etat.A, 3, 6)
+      + '<p class="db-camp-t">Votre équipe</p>'
+      + '</div>';
+  }
+
+  function animerDuel() {
+    var d = duelCourant;
+    if (!d) return;
+    var r = d.resultat;
+    /* On rejoue sur des copies : le resultat calcule reste intact. */
+    var etat = {
+      nomAdv: d.adv.nom,
+      A: d.mien.map(function (c, i) { var x = enCombattant(c, 'moi', i); return x; }),
+      B: d.adv.cartes.map(function (c, i) { return enCombattant(c, 'lui', i); })
+    };
+    var i = 0, tour = 0;
+
+    var dessiner = function (journal) {
+      el('duel-body').innerHTML = '<p class="duel-titre">DUEL</p>'
+        + '<div class="db-tour">Tour ' + tour + ' / ' + TOURS_MAX + '</div>'
+        + plateau(etat)
+        + '<p class="db-journal">' + (journal || '&nbsp;') + '</p>'
+        + '<button class="btn" data-duel-passer="1">Passer le combat</button>';
+    };
+
+    var pas = function () {
+      /* On efface les marques de l'action precedente. */
+      etat.A.concat(etat.B).forEach(function (x) { x.eclair = false; x.touchee = false; });
+
+      while (i < r.actions.length && r.actions[i].type === 'tour') {
+        tour = r.actions[i].n; i += 1;
+      }
+      if (i >= r.actions.length) { finAnimation(); return; }
+
+      var a = r.actions[i]; i += 1;
+      var src = (a.camp === 'moi' ? etat.A : etat.B)[a.srcPos];
+      var cib = (a.ciblecamp === 'moi' ? etat.A : etat.B)[a.ciblePos];
+      if (src) src.eclair = true;
+      if (cib) { cib.touchee = true; cib.pv = a.pv; }
+
+      dessiner('<b>' + esc(a.src) + '</b> frappe <b>' + esc(a.cible) + '</b> — '
+        + a.degats.toLocaleString('fr-FR') + ' dégâts'
+        + (a.mort ? ' · <i class="db-mort">éliminée</i>' : ''));
+      if (a.mort) vib(10);
+      duelMinuteur = setTimeout(pas, DUEL_RYTHME);
+    };
+
+    var finAnimation = function () {
+      clearTimeout(duelMinuteur); duelMinuteur = null;
+      resoudreDuel(r, d.adv, d.mien);
+    };
+
+    duelCourant.passer = function () {
+      clearTimeout(duelMinuteur); duelMinuteur = null;
+      finAnimation();
+    };
+
+    dessiner('');
+    duelMinuteur = setTimeout(pas, DUEL_RYTHME);
+  }
+
+  function peindreDuel(r, adv, mien, gagne, recu, delta, cote) {
+    var etat = {
+      nomAdv: adv.nom,
+      A: r.A, B: r.B
+    };
+    var html = '<p class="duel-titre">DUEL</p>'
       + '<div class="duel-verdict ' + (gagne ? 'gagne' : 'perdu') + '">'
-      + '<b>' + (gagne ? 'Victoire' : 'Défaite') + '</b> — ' + gagnees + ' manche'
-      + (gagnees > 1 ? 's' : '') + ' sur 5'
+      + '<b>' + (gagne ? 'Victoire' : 'Défaite') + '</b> — '
+      + r.survivants + ' carte' + (r.survivants > 1 ? 's' : '') + ' debout contre '
+      + r.survivantsAdv + ', en ' + r.tours + ' tour' + (r.tours > 1 ? 's' : '')
       + (gagne ? ' · ' + recu + ' Wikigold' : '')
       + '<span class="duel-delta">' + (delta > 0 ? '+' : '') + delta
-      + ' · cote ' + cote.toLocaleString('fr-FR') + '</span></div>';
-
-    manches.forEach(function (m, i) {
-      var tm = tierOf(m.moi.rank), tl = tierOf(m.lui.rank);
-      html += '<div class="manche ' + (m.r > 0 ? 'ok' : (m.r < 0 ? 'ko' : 'nul')) + '">'
-        + '<div class="cote" style="--tier:' + tm.color + '"><span class="cote-nom">'
-        + esc(m.moi.title) + '</span>'
-        + '<span class="cote-st">' + (atkEff(m.moi) + defEff(m.moi)) + ' · ATQ '
-        + atkEff(m.moi) + ' · DÉF ' + defEff(m.moi) + '</span></div>'
-        + '<div class="verdict">' + (m.r > 0 ? '▲' : (m.r < 0 ? '▼' : '=')) + '</div>'
-        + '<div class="cote droite" style="--tier:' + tl.color + '"><span class="cote-nom">'
-        + esc(m.lui.title) + '</span>'
-        + '<span class="cote-st">' + (atkEff(m.lui) + defEff(m.lui)) + ' · ATQ '
-        + atkEff(m.lui) + ' · DÉF ' + defEff(m.lui) + '</span></div>'
-        + '</div>';
-    });
-
-    html += boutonDuel();
+      + ' · cote ' + cote.toLocaleString('fr-FR') + '</span></div>'
+      + plateau(etat)
+      + boutonDuel();
     el('duel-body').innerHTML = html;
   }
 
   function showDuel() {
-    el('duel-body').innerHTML = '<p class="duel-titre">DUEL CLASSÉ</p>'
+    if (duelMinuteur) { clearTimeout(duelMinuteur); duelMinuteur = null; }
+    el('duel-body').innerHTML = '<p class="duel-titre">DUEL</p>'
       + bandeauCote()
       + grilleEquipe()
       + boutonDuel();
@@ -9779,6 +10118,16 @@
   el('duel-body').addEventListener('click', function (e) {
     if (!e.target.closest) return;
     if (e.target.closest('#duel-lancer')) { lancerDuel(); return; }
+    if (e.target.closest('[data-duel-passer]')) {
+      if (duelCourant && duelCourant.passer) duelCourant.passer();
+      return;
+    }
+    if (e.target.closest('[data-duel-retour]')) { duelCourant = null; showDuel(); return; }
+    if (e.target.closest('[data-duel-choix]')) { peindreChoixAdversaire(); return; }
+    var dg = e.target.closest('[data-duel-go]');
+    if (dg) { engagerDuel(parseInt(dg.getAttribute('data-duel-go'), 10)); return; }
+    var av = e.target.closest('[data-adv]');
+    if (av) { examinerAdversaire(parseInt(av.getAttribute('data-adv'), 10)); return; }
     if (e.target.closest('[data-eq-auto]')) { composerAuto(); showDuel(); return; }
     var slot = e.target.closest('[data-eq]');
     if (slot) { ouvrirSelecteurEquipe(parseInt(slot.getAttribute('data-eq'), 10)); }
