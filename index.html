@@ -17,6 +17,12 @@
 <script src="pont-pub.js" defer></script>
 <script src="pont-notif.js" defer></script>
 <script src="pont-achats.js" defer></script>
+<!-- Firebase en version « compat » : expose un objet global, donc pas besoin
+     de restructurer le fichier en modules ES. Chargement differe : si ces
+     scripts n'arrivent jamais, le jeu tourne exactement comme avant. -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js" defer></script>
 <style>
   :root {
     --night:     #141826;
@@ -969,6 +975,8 @@
   .serie-case.pret .serie-jour { color: #c9992e; }
   .serie-case.pret .serie-lot { color: var(--ivory); }
   .serie-note { font-size: 10.5px; color: var(--glass-dim); margin: 0 0 8px; }
+  .compte-mot { font-size: 12.5px; line-height: 1.6; color: var(--glass-dim); margin: 0 0 8px; }
+  .compte-err { font-size: 12px; color: #cf7f7f; margin: 0 0 8px; }
   .mission-etat {
     flex: none; font-size: 11px; color: var(--glass-dim);
     font-variant-numeric: tabular-nums;
@@ -4699,10 +4707,13 @@
         + ligneOption('opt-vibr', 'Vibrations')
         + ligneOption('opt-notif', 'Rappel de réserve pleine')
         + '</div>'
+        + '<p class="sheet-sub profil-titre">COMPTE</p>'
+        + '<div id="zone-compte"></div>'
         + '<p class="sheet-sub profil-titre">VOTRE PROGRESSION</p>'
         + '<div id="coll-zone-sauvegarde"></div>'
         + '<div id="coll-zone-raz"></div>'
         + '<button class="btn" id="sheet-close">Fermer</button>';
+      majCompte();
       montrerSauvegarde();
       el('coll-zone-raz').innerHTML = Object.keys(collection).length
         ? '<div class="raz"><p class="raz-mot">Tout effacer supprime définitivement '
@@ -4745,6 +4756,8 @@
       el('profil-nom').addEventListener('input', function () {
         profil.nom = el('profil-nom').value.trim();
         saveProfil(); majProfil();
+        clearTimeout(nuage._tNom);
+        nuage._tNom = setTimeout(function () { nuagePousser(true); }, 1200);
         var n = el('sheet-inner').querySelector('.pui-nom');
         if (n) n.textContent = profil.nom || 'Sans nom';
       });
@@ -4754,6 +4767,27 @@
     calerVisuels(inner);
     inner.scrollTop = pos;
     el('sheet-close').addEventListener('click', closeSheet);
+  }
+
+  /* Etat du compte. Volontairement sobre : un joueur qui ne veut pas de
+     compte Google ne doit pas se sentir harcele — l'anonyme suffit a jouer. */
+  function majCompte(erreur) {
+    var z = el('zone-compte');
+    if (!z) return;
+    if (!nuage.pret || !nuage.uid) {
+      z.innerHTML = '<p class="compte-mot">Hors ligne : votre partie est '
+        + 'enregistrée sur cet appareil.</p>';
+      return;
+    }
+    if (nuage.lie) {
+      z.innerHTML = '<p class="compte-mot">Compte Google rattaché : votre '
+        + 'progression vous suivra si vous changez d\u2019appareil.</p>';
+      return;
+    }
+    z.innerHTML = '<p class="compte-mot">Votre partie n\u2019est liée à aucun '
+      + 'compte : elle serait perdue en changeant d\u2019appareil.</p>'
+      + (erreur ? '<p class="compte-err">' + esc(erreur) + '</p>' : '')
+      + '<button class="btn" data-lier="1">Rattacher un compte Google</button>';
   }
 
   /* Une ligne de réglage : intitulé à gauche, état à droite. Plus lisible
@@ -8075,6 +8109,106 @@
      le plafond de regeneration (comme les recompenses), c'est le but de la
      boutique : convertir la monnaie accumulee en tirages. */
 
+  /* ================= nuage : identite et profil partage =================
+     Principe directeur : le nuage est une COUCHE OPTIONNELLE. Le jeu reste
+     entierement jouable hors ligne, exactement comme avant. Rien ici ne doit
+     bloquer un demarrage, faire attendre une interface, ni casser quoi que ce
+     soit si Firebase ne repond pas. En cas d'echec : on se tait et on continue.
+
+     Ce qui monte au serveur est volontairement minuscule : le nom affiche, le
+     portrait, le niveau, la cote de duel et le nombre de cartes. La collection
+     elle-meme reste sur l'appareil — c'est la partie volumineuse, elle n'a
+     aucune raison de voyager, et le quota gratuit s'en porte mieux. */
+
+  var FB_CONFIG = {
+    apiKey: 'AIzaSyCjev9oBwakKthkETqMArVc77G4Vbb4ssY',
+    authDomain: 'wikigacha-ab4b2.firebaseapp.com',
+    projectId: 'wikigacha-ab4b2',
+    storageBucket: 'wikigacha-ab4b2.firebasestorage.app',
+    messagingSenderId: '864638704510',
+    appId: '1:864638704510:web:c6515e4064f68e6d63f12f'
+  };
+
+  var nuage = {
+    pret: false,      /* SDK charge et application initialisee */
+    uid: '',          /* identifiant du joueur, vide tant qu'anonyme non etabli */
+    lie: false,       /* le compte anonyme a-t-il ete rattache a un compte Google */
+    db: null,
+    auth: null,
+    dernierEnvoi: 0
+  };
+
+  var NUAGE_DELAI = 60000;   /* une ecriture par minute au maximum */
+
+  function nuageInit() {
+    if (!window.firebase || !firebase.initializeApp) return;   /* SDK absent : on continue sans */
+    try {
+      firebase.initializeApp(FB_CONFIG);
+      nuage.auth = firebase.auth();
+      nuage.db = firebase.firestore();
+      nuage.pret = true;
+    } catch (e) { return; }
+
+    nuage.auth.onAuthStateChanged(function (u) {
+      if (!u) {
+        /* Compte anonyme : le joueur a une identite des le premier lancement,
+           sans rien saisir. Il pourra la rattacher a Google plus tard. */
+        nuage.auth.signInAnonymously().catch(function () {});
+        return;
+      }
+      nuage.uid = u.uid;
+      nuage.lie = (u.providerData || []).length > 0;
+      nuagePousser(true);
+      if (typeof majCompte === 'function') majCompte();
+    });
+  }
+
+  /* Profil pousse au serveur. « force » ignore le delai anti-rafale : on s'en
+     sert a la connexion et quand le joueur change son nom, pas en boucle. */
+  function nuagePousser(force) {
+    if (!nuage.pret || !nuage.uid) return;
+    var t = Date.now();
+    if (!force && t - nuage.dernierEnvoi < NUAGE_DELAI) return;
+    nuage.dernierEnvoi = t;
+
+    var niv = niveauDe(readXp());
+    var cl = readClassement();
+    var doc = {
+      nom: (profil.nom || 'Sans nom').slice(0, 18),
+      avatar: profil.avatar || '',
+      niveau: niv.niveau,
+      cote: (cl && cl.cote) || 0,
+      cartes: Object.keys(collection).length,
+      maj: Date.now()
+    };
+    try {
+      nuage.db.collection('joueurs').doc(nuage.uid).set(doc, { merge: true })
+        .catch(function () {});   /* hors ligne ou regle refusee : sans consequence */
+    } catch (e) {}
+  }
+
+  /* Rattachement a un compte Google : la progression suit le joueur s'il
+     change de telephone. Sans ca, un compte anonyme perdu est perdu. */
+  function nuageLierGoogle() {
+    if (!nuage.pret || !nuage.auth.currentUser) return;
+    var p = new firebase.auth.GoogleAuthProvider();
+    nuage.auth.currentUser.linkWithPopup(p).then(function () {
+      nuage.lie = true;
+      majCompte();
+      nuagePousser(true);
+    }).catch(function (err) {
+      /* Compte Google deja rattache a une autre partie : on bascule dessus
+         plutot que d'echouer en silence. */
+      if (err && err.code === 'auth/credential-already-in-use') {
+        nuage.auth.signInWithCredential(err.credential).catch(function () {});
+        return;
+      }
+      majCompte(err && err.code === 'auth/popup-blocked'
+        ? 'La fenêtre Google a été bloquée par le navigateur.'
+        : 'La liaison n\u2019a pas abouti.');
+    });
+  }
+
   /* ---------- dos de cartes : puits d'or purement decoratif ----------
      Aucun effet sur l'equilibre, donc aucun risque pour l'economie : c'est
      du prestige, et ca donne un sens a l'or quand on a deja tout. */
@@ -9018,6 +9152,8 @@
       else acheterPlay(sku);
       return;
     }
+    var li = e.target.closest ? e.target.closest('[data-lier]') : null;
+    if (li) { nuageLierGoogle(); return; }
     var dd = e.target.closest ? e.target.closest('[data-dos]') : null;
     if (dd) { choisirDos(dd.getAttribute('data-dos')); return; }
     var a = e.target.closest ? e.target.closest('[data-achat]') : null;
@@ -9224,6 +9360,10 @@
   litAchats();
   appliquerAchats();
   appliquerDos();
+  /* Le SDK est charge en differe : on attend qu'il soit la, sans rien bloquer. */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', nuageInit);
+  } else { nuageInit(); }
   restaurerAchats(true).then(function () {
     chargerPrix().then(function () {
       if (!el('view-boutique').hidden) showBoutique();
