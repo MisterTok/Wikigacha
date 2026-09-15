@@ -998,6 +998,19 @@
   .clan-m-nom { flex: 1 1 auto; min-width: 0; }
   .clan-m-stat { flex: none; font-size: 12px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
   .clan-chef { font-style: normal; font-size: 10.5px; letter-spacing: .04em; color: #c9992e; }
+  .clan-vues { display: flex; gap: 6px; margin-bottom: 12px; }
+  .clan-vue {
+    flex: 1 1 0; padding: 8px 4px; font: inherit; font-size: 12px; cursor: pointer;
+    color: var(--glass-dim); background: var(--night-up);
+    border: 1px solid var(--night-line); border-top: 2px solid var(--night-line);
+  }
+  .clan-vue.actif { color: var(--ivory); border-top-color: #c9992e; background: #262c40; }
+  .clan-rang {
+    flex: none; width: 22px; font-size: 12px; color: var(--glass-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .clan-moi { border-left-color: #c9992e; }
+  .clan-note { font-size: 11px; line-height: 1.6; color: var(--glass-dim); margin: 0 0 8px; }
   .mission-etat {
     flex: none; font-size: 11px; color: var(--glass-dim);
     font-variant-numeric: tabular-nums;
@@ -6132,6 +6145,10 @@
     gagnerXp(gagne ? XP.duelGagne : XP.duelPerdu);
 
     duelCourant = null;
+    /* La cote vient de bouger : on la remonte, et on reporte la variation sur
+       le total du clan. Bride a une ecriture par minute. */
+    nuagePousser();
+    clanContribuer();
     peindreDuel(manches, gagnees, gagne, recu, delta, c.cote);
     showMissions();
     refreshSucces();
@@ -8250,7 +8267,8 @@
   var CLAN_ABANDON = 30 * 24 * 3600 * 1000;   /* 30 jours sans chef actif */
   var CLAN_SIGNE = 12 * 3600 * 1000;          /* on ne repointe pas plus de 2x/jour */
   var clanEtat = { id: '', doc: null, membres: [], liste: null, msg: '',
-                   occupe: false, passation: false };
+                   occupe: false, passation: false,
+                   vue: 'clan', topJ: null, topC: null };
 
   function clanRef(id) { return nuage.db.collection('clans').doc(id); }
 
@@ -8267,7 +8285,7 @@
             .set({ clan: '' }, { merge: true }).then(clanListe);
         }
         clanEtat.id = c.id; clanEtat.doc = c.data();
-        return clanMembres().then(clanSignerPresence);
+        return clanMembres().then(clanSignerPresence).then(clanContribuer);
       });
     }).catch(function () {
       clanEtat.msg = 'Connexion impossible.';
@@ -8342,6 +8360,55 @@
       });
   }
 
+  /* ---------- classements ----------
+     Une limite a garder en tete : la cote est calculee sur l'appareil du
+     joueur, donc DECLAREE par lui. Les regles bornent la valeur (0 a 5000),
+     mais personne ne peut verifier qu'elle a ete gagnee. Entre amis c'est sans
+     importance ; a grande echelle, un classement de ce type finit toujours par
+     etre truque. Il faudrait un serveur arbitre pour faire mieux.
+
+     Pour classer les clans, on ne peut pas additionner les cotes au moment de
+     la requete : Firestore ne sait pas agreger. Le total est donc tenu a jour
+     par chaque membre, qui ajoute sa propre variation dans une transaction. */
+
+  function clanContribuer() {
+    if (!nuage.pret || !nuage.uid || !clanEtat.id) return;
+    var cl = readClassement();
+    var cote = (cl && cl.cote) || 0;
+    var ref = clanRef(clanEtat.id);
+    var moi = nuage.db.collection('joueurs').doc(nuage.uid);
+    nuage.db.runTransaction(function (tx) {
+      return tx.get(moi).then(function (d) {
+        var ancienne = (d.exists && d.data().coteClan) || 0;
+        var delta = cote - ancienne;
+        if (!delta) return;
+        tx.set(moi, { coteClan: cote }, { merge: true });
+        tx.update(ref, {
+          coteTotale: firebase.firestore.FieldValue.increment(delta),
+          maj: Date.now()
+        });
+      });
+    }).catch(function () {});
+  }
+
+  function topJoueurs() {
+    return nuage.db.collection('joueurs').orderBy('cote', 'desc').limit(30).get()
+      .then(function (q) {
+        var out = [];
+        q.forEach(function (d) { var v = d.data(); v.uid = d.id; out.push(v); });
+        clanEtat.topJ = out;
+      }).catch(function () { clanEtat.topJ = []; });
+  }
+
+  function topClans() {
+    return nuage.db.collection('clans').orderBy('coteTotale', 'desc').limit(30).get()
+      .then(function (q) {
+        var out = [];
+        q.forEach(function (d) { var v = d.data(); v.id = d.id; out.push(v); });
+        clanEtat.topC = out;
+      }).catch(function () { clanEtat.topC = []; });
+  }
+
   /* Les clans les plus fournis d'abord : sans serveur de recherche, c'est le
      classement le plus utile a un joueur qui cherche ou atterrir. */
   function clanListe() {
@@ -8362,7 +8429,8 @@
     var ref = nuage.db.collection('clans').doc();
     ref.set({
       nom: nom, tag: tag, chef: nuage.uid,
-      membres: [nuage.uid], nbMembres: 1, chefVu: Date.now(), maj: Date.now()
+      membres: [nuage.uid], nbMembres: 1, chefVu: Date.now(),
+      coteTotale: 0, maj: Date.now()
     }).then(function () {
       return nuage.db.collection('joueurs').doc(nuage.uid).set({ clan: ref.id }, { merge: true });
     }).then(function () { clanCharger(); })
@@ -9314,10 +9382,56 @@
 
     var alerte = clanEtat.msg ? '<p class="duel-alerte">' + esc(clanEtat.msg) + '</p>' : '';
 
+    var bascule = '<div class="clan-vues">'
+      + ['clan', 'clans', 'joueurs'].map(function (v) {
+          return '<button class="clan-vue' + (clanEtat.vue === v ? ' actif' : '') + '" '
+            + 'data-clan-vue="' + v + '">'
+            + (v === 'clan' ? 'Mon clan' : (v === 'clans' ? 'Top clans' : 'Top joueurs'))
+            + '</button>';
+        }).join('')
+      + '</div>';
+
+    if (clanEtat.vue !== 'clan') {
+      var top = clanEtat.vue === 'clans' ? clanEtat.topC : clanEtat.topJ;
+      var t = '<p class="duel-titre">CLASSEMENT</p>' + bascule;
+      if (!top) t += '<p class="duel-intro">Chargement…</p>';
+      else if (!top.length) t += '<p class="duel-intro">Personne pour l\u2019instant.</p>';
+      else {
+        t += '<div class="clan-liste">';
+        var maCote = (readClassement() || {}).cote || 0;
+        top.forEach(function (x, i) {
+          var moi = clanEtat.vue === 'clans'
+            ? (x.id === clanEtat.id)
+            : (x.uid === nuage.uid);
+          /* Le tableau est un instantane, fige pour la session : c'est voulu,
+             sinon il sauterait sous les yeux du joueur. Sa propre ligne fait
+             exception — il doit voir ses +28 tout de suite. */
+          if (moi && clanEtat.vue === 'joueurs') x = { nom: x.nom, niveau: x.niveau, cote: maCote, uid: x.uid };
+          t += '<div class="clan-membre' + (moi ? ' clan-moi' : '') + '">'
+            + '<span class="clan-rang">' + (i + 1) + '</span>'
+            + '<span class="clan-m-nom">'
+            + (clanEtat.vue === 'clans'
+                ? '<span class="clan-tag">' + esc(x.tag || '') + '</span> ' + esc(x.nom || '')
+                : esc(x.nom || 'Sans nom'))
+            + '</span>'
+            + '<span class="clan-m-stat">'
+            + (clanEtat.vue === 'clans'
+                ? (x.coteTotale || 0) + ' · ' + (x.nbMembres || 0) + ' memb.'
+                : 'niv. ' + (x.niveau || 1) + ' · ' + (x.cote || 0))
+            + '</span></div>';
+        });
+        t += '</div>';
+      }
+      t += '<p class="clan-note">Les cotes sont calculées sur l\u2019appareil de '
+        + 'chaque joueur : ce classement repose sur la bonne foi.</p>';
+      b.innerHTML = t;
+      return;
+    }
+
     if (clanEtat.id && clanEtat.doc) {
       var d = clanEtat.doc;
       var estChef = d.chef === nuage.uid;
-      var html = '<p class="duel-titre">CLAN</p>'
+      var html = '<p class="duel-titre">CLAN</p>' + bascule
         + '<div class="clan-tete"><span class="clan-tag">' + esc(d.tag) + '</span>'
         + '<span class="clan-nom">' + esc(d.nom) + '</span></div>'
         + '<p class="duel-intro">' + clanEtat.membres.length + ' membre'
@@ -9357,7 +9471,7 @@
     }
 
     /* Sans clan : creation d'un cote, liste de l'autre. */
-    var h = '<p class="duel-titre">CLAN</p>'
+    var h = '<p class="duel-titre">CLAN</p>' + bascule
       + '<p class="duel-intro">Rejoignez un clan pour voir la progression des '
       + 'autres joueurs, ou créez le vôtre.</p>'
       + alerte
@@ -9393,6 +9507,14 @@
       clanCreer(el('clan-nom').value, el('clan-tag').value); return;
     }
     if (e.target.closest('[data-clan-quitter]')) { clanQuitter(); return; }
+    var vv = e.target.closest('[data-clan-vue]');
+    if (vv) {
+      clanEtat.vue = vv.getAttribute('data-clan-vue');
+      clanEtat.msg = ''; showClan();
+      if (clanEtat.vue === 'clans' && !clanEtat.topC) topClans().then(showClan);
+      if (clanEtat.vue === 'joueurs' && !clanEtat.topJ) topJoueurs().then(showClan);
+      return;
+    }
     var pa = e.target.closest('[data-clan-passation]');
     if (pa) {
       clanEtat.passation = pa.getAttribute('data-clan-passation') === '1';
