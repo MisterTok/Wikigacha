@@ -1075,6 +1075,10 @@
   .eq-vit { font-style: normal; color: #c9992e; }
   .adv-fort { font-style: normal; color: #cf7f7f; }
   .adv-faible { font-style: normal; color: #7fb99a; }
+  .adv-note {
+    display: block; font-style: normal; font-size: 10.5px; color: var(--glass-dim);
+    margin-top: 2px;
+  }
 
   /* --- raid de clan --- */
   .rc-boss { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
@@ -6381,6 +6385,67 @@
      ou l'on frappe, pas a la recherche. */
   var NB_ADVERSAIRES = 3;
 
+  /* Ecuries de secours : adversaires fabriques a la main, sans le moindre
+     appel reseau. Elles servent quand Wikipedia ne repond pas — sinon le duel
+     devient injouable, ce qui est arrive. Elles ont aussi l'avantage d'etre
+     identiques d'une fois sur l'autre, donc utilisables pour comparer deux
+     reglages d'equipe. « vues » et « octets » sont fournis parce que la
+     vitesse s'en deduit. */
+  function carteFictive(t, rank, atk, def, vues, octets) {
+    return { title: t, rank: rank, atk: atk, def: def, views: vues, bytes: octets,
+             count: 1, star: 0, thumb: '' };
+  }
+
+  var ECURIES = [
+    { nom: 'Les Ébauches', note: 'la plus accessible',
+      cartes: [
+        carteFictive('Sentier de randonnée', 'Commune', 150, 300, 800, 90000),
+        carteFictive('Moulin à eau', 'Commune', 165, 320, 1200, 110000),
+        carteFictive('Gare de campagne', 'Commune', 140, 340, 900, 120000),
+        carteFictive('Fougère', 'Peu commune', 260, 130, 9000, 30000),
+        carteFictive('Colibri', 'Peu commune', 280, 120, 14000, 22000),
+        carteFictive('Éclair', 'Commune', 240, 110, 11000, 26000)
+      ] },
+    { nom: 'Le Scriptorium', note: 'équilibrée',
+      cartes: [
+        carteFictive('Cathédrale gothique', 'Peu commune', 210, 400, 60000, 260000),
+        carteFictive('Muraille de Chine', 'Peu commune', 220, 390, 80000, 240000),
+        carteFictive('Aqueduc romain', 'Commune', 195, 380, 40000, 210000),
+        carteFictive('Faucon pèlerin', 'Rare', 360, 150, 300000, 35000),
+        carteFictive('Sprint', 'Peu commune', 330, 145, 180000, 28000),
+        carteFictive('Télégraphe', 'Peu commune', 310, 160, 120000, 40000)
+      ] },
+    { nom: 'La Bibliothèque', note: 'exigeante',
+      cartes: [
+        carteFictive('Forteresse de Carcassonne', 'Rare', 260, 480, 150000, 380000),
+        carteFictive('Blindage', 'Rare', 250, 490, 120000, 400000),
+        carteFictive('Bouclier thermique', 'Peu commune', 235, 470, 90000, 350000),
+        carteFictive('Vitesse de la lumière', 'Épique', 430, 175, 1200000, 45000),
+        carteFictive('Guépard', 'Rare', 410, 180, 900000, 38000),
+        carteFictive('Foudre', 'Rare', 380, 185, 600000, 42000)
+      ] },
+    { nom: 'Le Codex', note: 'la plus dure',
+      cartes: [
+        carteFictive('Empire romain', 'Épique', 300, 580, 2000000, 700000),
+        carteFictive('Himalaya', 'Rare', 290, 570, 1500000, 650000),
+        carteFictive('Océan Pacifique', 'Rare', 280, 560, 1100000, 600000),
+        carteFictive('Big Bang', 'Légendaire', 520, 200, 4000000, 90000),
+        carteFictive('Soleil', 'Épique', 500, 210, 3500000, 110000),
+        carteFictive('Internet', 'Épique', 470, 220, 2800000, 130000)
+      ] }
+  ];
+
+  function ecuriesDeSecours() {
+    return ECURIES.map(function (e) {
+      return {
+        nom: e.nom, note: e.note, cartes: e.cartes,
+        puissance: e.cartes.reduce(function (s, c) { return s + atkEff(c) + defEff(c); }, 0)
+      };
+    });
+  }
+
+  var duelDerniereErreur = '';
+
   function lancerDuel() {
     var d = readJour();
     if (d.duelsJoues >= DUELS_PAR_JOUR) return;
@@ -6389,44 +6454,73 @@
     el('duel-body').innerHTML = '<p class="duel-titre">DUEL</p>'
       + '<p class="status">Recherche d’adversaires…</p>';
 
-    /* Chaque equipe est cherchee independamment : avec Promise.all, une seule
-       requete en echec faisait tomber la recherche entiere, ce qui arrive vite
-       quand on interroge Wikipedia trois fois d'un coup. On garde donc ce qui
-       aboutit, et on n'echoue que si tout echoue. */
-    var lots = [];
-    for (var i = 0; i < NB_ADVERSAIRES; i++) {
-      lots.push(
-        chargerCartes(EQ_TAILLE)
-          .then(function (cartes) {
-            return (cartes && cartes.length >= EQ_TAILLE) ? cartes : null;
-          })
-          ['catch'](function () { return null; })
-      );
-    }
-
-    Promise.all(lots)
-      .then(function (equipes) {
-        var valides = equipes.filter(function (c) { return !!c; });
-        if (!valides.length) {
-          el('duel-body').innerHTML = '<p class="duel-titre">DUEL</p>'
-            + '<p class="status">Wikipédia n’a pas répondu. Réessayez.</p>' + boutonDuel();
-          return;
+    /* On affronte de vrais joueurs : leur equipe, dans leur ordre, telle
+       qu'ils l'ont composee. Les ecuries fictives ne servent que si le jeu
+       n'en trouve aucun — au demarrage, ou hors ligne. */
+    adversairesReels()
+      .then(function (reels) {
+        if (reels.length) {
+          duelCourant = { choix: reels };
+        } else {
+          duelCourant = { choix: ecuriesDeSecours(), secours: true,
+                          erreur: duelDerniereErreur };
         }
-        duelCourant = { choix: valides.map(function (cartes, i) {
-          /* Le bot place ses plus resistantes devant et ses frappeuses
-             derriere, exactement comme la composition automatique. */
-          var six = cartes.slice(0, EQ_TAILLE);
-          var devant = six.slice().sort(function (a, b) { return defEff(b) - defEff(a); }).slice(0, 3);
-          var derriere = six.filter(function (c) { return devant.indexOf(c) < 0; })
-            .sort(function (a, b) { return atkEff(b) - atkEff(a); });
-          var eq = devant.concat(derriere);
-          return {
-            nom: NOMS_BOTS[i % NOMS_BOTS.length],
-            cartes: eq,
-            puissance: eq.reduce(function (s, c) { return s + atkEff(c) + defEff(c); }, 0)
-          };
-        }) };
         peindreChoixAdversaire();
+      });
+
+  }
+
+  /* Cartes transmises par un autre joueur : donnees etrangeres, donc on ne
+     garde que les champs attendus et on borne chaque valeur. Une equipe
+     bricolee dans une console ne doit pas pouvoir fausser le combat. */
+  function carteDistante(x) {
+    if (!x || typeof x !== 'object') return null;
+    var titre = String(x.t || '').slice(0, 120);
+    if (!titre) return null;
+    return {
+      title: titre,
+      rank: (rankIndex(x.r) >= 0) ? x.r : 'Commune',
+      atk: Math.max(1, Math.min(4000, Math.round(Number(x.a) || 1))),
+      def: Math.max(1, Math.min(4000, Math.round(Number(x.d) || 1))),
+      views: Math.max(0, Math.min(50000000, Number(x.v) || 0)),
+      bytes: Math.max(1, Math.min(20000000, Number(x.o) || 1000)),
+      thumb: /^https:\/\//.test(x.i || '') ? String(x.i).slice(0, 300) : '',
+      count: 1, star: 0
+    };
+  }
+
+  function adversairesReels() {
+    if (!nuage.pret || !nuage.uid) return Promise.resolve([]);
+    /* Les profils vus recemment : une seule requete triee, donc aucun index
+       composite a declarer. */
+    return nuage.db.collection('joueurs').orderBy('maj', 'desc').limit(30).get()
+      .then(function (q) {
+        var pool = [];
+        q.forEach(function (d) {
+          if (d.id === nuage.uid) return;              /* pas soi-meme */
+          var v = d.data();
+          if (!v.equipe || v.equipe.length < EQ_TAILLE) return;
+          var cartes = v.equipe.slice(0, EQ_TAILLE).map(carteDistante)
+            .filter(function (c) { return !!c; });
+          if (cartes.length < EQ_TAILLE) return;
+          pool.push({
+            nom: (v.nom || 'Sans nom').slice(0, 18),
+            note: 'joueur · cote ' + (v.cote || 0),
+            cartes: cartes,
+            puissance: cartes.reduce(function (s, c) { return s + atkEff(c) + defEff(c); }, 0)
+          });
+        });
+        /* Melange puis on en retient trois : sans cela, on retomberait
+           toujours sur les memes joueurs, les plus recemment actifs. */
+        for (var i = pool.length - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+        }
+        return pool.slice(0, NB_ADVERSAIRES);
+      })
+      ['catch'](function (err) {
+        duelDerniereErreur = (err && (err.message || err.name)) || 'inconnue';
+        return [];
       });
   }
 
@@ -6437,12 +6531,17 @@
     var h = '<p class="duel-titre">CHOISISSEZ VOTRE ADVERSAIRE</p>'
       + '<p class="duel-intro">Votre puissance : <b>' + maPuissance.toLocaleString('fr-FR')
       + '</b>. Touchez un adversaire pour examiner son équipe.</p>'
+      + (duelCourant.secours
+          ? '<p class="duel-alerte">Aucun autre joueur trouvé pour l’instant : '
+            + 'voici des adversaires d’entraînement.</p>'
+          : '')
       + '<div class="clan-liste">';
     duelCourant.choix.forEach(function (adv, i) {
       var ecart = adv.puissance - maPuissance;
       var signe = ecart > 0 ? '+' : '';
       h += '<button class="clan-membre clan-dispo" data-adv="' + i + '">'
-        + '<span class="clan-m-nom">' + esc(adv.nom) + '</span>'
+        + '<span class="clan-m-nom">' + esc(adv.nom)
+        + (adv.note ? '<i class="adv-note">' + esc(adv.note) + '</i>' : '') + '</span>'
         + '<span class="clan-m-stat">' + adv.puissance.toLocaleString('fr-FR')
         + ' · <i class="' + (ecart > 0 ? 'adv-fort' : 'adv-faible') + '">'
         + signe + ecart.toLocaleString('fr-FR') + '</i></span>'
@@ -8698,6 +8797,20 @@
       ligSem: lig.sem,
       ligPts: Math.min(lig.pts, 100000),
       cartes: Object.keys(collection).length,
+      /* L'equipe part avec le profil : c'est elle que les autres joueurs
+         affronteront. On n'envoie que ce dont le combat a besoin — pas la
+         collection entiere, qui n'a aucune raison de voyager. */
+      equipe: readEquipe().map(function (t) {
+        var c = t && collection[t];
+        if (!c) return null;
+        return {
+          t: String(c.title).slice(0, 120),
+          r: c.rank || 'Commune',
+          a: atkEff(c), d: defEff(c),
+          v: c.views || 0, o: c.bytes || 1000,
+          i: (c.thumb || '').slice(0, 300)
+        };
+      }).filter(function (x) { return !!x; }),
       maj: Date.now()
     };
     try {
