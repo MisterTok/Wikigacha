@@ -541,6 +541,18 @@
   body.dos-orfevre .face-back small { color: #6b5120; }
 
   /* Vignettes d'apercu dans la boutique. */
+  .theme-grille { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 4px; }
+  .theme-offre {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+    padding: 11px 12px; font: inherit; text-align: left; cursor: pointer;
+    color: var(--glass); background: var(--night-up);
+    border: 1px solid var(--night-line); border-left: 3px solid var(--night-line);
+  }
+  .theme-offre:active:not([disabled]) { background: #262c40; }
+  .theme-offre[disabled] { opacity: .5; cursor: default; }
+  .th-nom { font-size: 13px; color: var(--ivory); }
+  .th-prix { font-size: 11px; color: #c9992e; font-variant-numeric: tabular-nums; }
+
   .dos-grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .dos-offre {
     display: flex; flex-direction: column; align-items: center; gap: 5px;
@@ -3276,11 +3288,11 @@
 
   /* Export tableur de la collection, réservé au premium. */
   function exporterCSV() {
-    var lignes = [['Titre', 'Rareté', 'ATQ', 'DÉF', 'Exemplaires',
+    var lignes = [['Titre', 'Rareté', 'ATQ', 'DÉF', 'VIT', 'Exemplaires',
                    'Domaine', 'Vues', 'Octets', 'Lien']];
     Object.keys(collection).forEach(function (k) {
       var c = collection[k];
-      lignes.push([c.title, c.rank, atkEff(c), defEff(c), c.count,
+      lignes.push([c.title, c.rank, atkEff(c), defEff(c), vitEff(c), c.count,
                    domaineNom(c.domaine || 'divers'), c.views || 0,
                    c.bytes || 0, c.url || '']);
     });
@@ -3557,6 +3569,50 @@
      articles en privilegiant ceux qui ont deja une vignette. Les statistiques
      (vues, qualite) ne sont demandees que pour les cinq retenus : le surcout
      reseau est donc quasi nul. */
+  /* Paquet a theme. Wikipedia ne sait pas tirer « au hasard dans un domaine » :
+     on passe donc par la recherche, avec un tri aleatoire et des mots-cles par
+     domaine, puis on verifie le domaine reellement obtenu comme pour n'importe
+     quelle carte. Les articles hors sujet sont ecartes ; s'il n'en reste pas
+     assez, on complete avec ce qui a ete trouve plutot que d'echouer — le
+     theme est donc une forte tendance, pas une garantie absolue. */
+  var RECHERCHE_DOMAINE = {
+    geo: 'commune OR ville OR fleuve OR montagne OR région OR île',
+    hist: 'histoire OR bataille OR empire OR dynastie OR révolution OR traité',
+    sci: 'physique OR chimie OR biologie OR astronomie OR espèce OR mathématiques',
+    art: 'peintre OR musique OR cinéma OR roman OR sculpture OR compositeur',
+    sport: 'football OR championnat OR athlète OR cyclisme OR tennis OR olympique',
+    soc: 'politique OR entreprise OR religion OR économie OR institution OR philosophie'
+  };
+
+  function fetchPackTheme(dom, nb) {
+    nb = nb || 5;
+    var q = RECHERCHE_DOMAINE[dom] || '';
+    var url = 'https://' + WIKI + '.org/w/api.php'
+      + '?action=query&format=json&origin=*'
+      + '&generator=search&gsrnamespace=0&gsrlimit=20&gsrsort=random'
+      + '&gsrsearch=' + encodeURIComponent(q)
+      + '&prop=info|pageimages|description|extracts|pageprops'
+      + '&inprop=url&piprop=thumbnail&pithumbsize=500&pilicense=any'
+      + '&exintro=1&explaintext=1&exlimit=max&ppprop=disambiguation';
+    return fetchVite(url).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (d) {
+      var pages = d && d.query && d.query.pages;
+      if (!pages) throw new Error('reponse vide');
+      var tous = Object.keys(pages).map(function (k) { return pages[k]; })
+        .filter(function (p) {
+          return !(p.pageprops && p.pageprops.hasOwnProperty('disambiguation'))
+            && (p.length || 0) > 1200;
+        });
+      var avec = tous.filter(function (p) { return p.thumbnail && p.thumbnail.source; });
+      var sans = tous.filter(function (p) { return !(p.thumbnail && p.thumbnail.source); });
+      var choix = avec.concat(sans).slice(0, nb);
+      if (!choix.length) throw new Error('aucun article');
+      return choix;
+    });
+  }
+
   function fetchPack(nb) {
     nb = nb || 5;
     var url = 'https://' + WIKI + '.org/w/api.php'
@@ -4395,6 +4451,7 @@
       + '<span class="card-foot">'
       + '<span>ATQ <b>' + atkEff(c) + '</b></span>'
       + '<span>DÉF <b>' + defEff(c) + '</b></span>'
+      + '<span>VIT <b>' + vitEff(c) + '</b></span>'
       + (niveau(c) > 1 ? '<span class="stars">' + etoiles(niveau(c)) + '</span>' : '')
       + (dupes > 1 ? '<span class="dupe">\u00d7' + dupes + '</span>' : '')
       + (neuve ? '<span class="neuve-chip">NOUVELLE</span>' : '')
@@ -4418,6 +4475,7 @@
       + '<p>' + esc(blurb(c, 150)) + '</p>'
       + '<div class="face-foot"><span>ATQ <b>' + atkEff(c) + '</b></span>'
       + '<span>DÉF <b>' + defEff(c) + '</b></span>'
+      + '<span>VIT <b>' + vitEff(c) + '</b></span>'
       + '<button class="more" data-title="' + esc(c.title) + '">Fiche complète</button>'
       + '</div>';
   }
@@ -4696,8 +4754,41 @@
      lancé à l'avance, pendant que le joueur regarde le paquet précédent. */
   var paquetPret = null, prechargeEnCours = false;
 
-  function chargerCartes(nb) {
-    return fetchPack(nb).then(function (pages) {
+  /* Paquet a theme : garantie stricte. On tire large, on ne garde QUE les
+     articles dont le domaine detecte correspond, et on recommence tant qu'il
+     en manque. Sans ce filtre, la recherche Wikipedia laissait passer des
+     cartes hors sujet — or ce qu'on vend ici, c'est precisement l'absence de
+     hors-sujet. Au bout de quelques essais infructueux on rend ce qu'on a :
+     mieux vaut un paquet un peu court qu'une attente sans fin. */
+  var THEME_ESSAIS = 4;
+
+  function chargerCartesTheme(dom, nb) {
+    nb = nb || 5;
+    var gardees = [], essais = 0;
+
+    var tour = function () {
+      essais += 1;
+      return chargerCartes(12, dom).then(function (lot) {
+        lot.forEach(function (c) {
+          if (c && c.domaine === dom && gardees.length < nb
+              && !gardees.some(function (g) { return g.title === c.title; })) {
+            gardees.push(c);
+          }
+        });
+        if (gardees.length >= nb || essais >= THEME_ESSAIS) return gardees;
+        return tour();
+      })['catch'](function () { return gardees; });
+    };
+
+    return tour().then(function (r) {
+      if (!r.length) throw new Error('theme introuvable');
+      return r;
+    });
+  }
+
+  function chargerCartes(nb, theme) {
+    var source = theme ? fetchPackTheme(theme, nb) : fetchPack(nb);
+    return source.then(function (pages) {
       return Promise.all(pages.map(function (p) {
         /* Les vues passent par un service lent : on lui laisse 4 s, puis on
            se contente de 0 plutôt que de bloquer les quatre autres cartes. */
@@ -4744,8 +4835,18 @@
     status.hidden = true;
     var tirageDebut = Date.now();
 
+    /* Un paquet a theme achete en boutique passe avant la reserve ordinaire :
+       il est consomme des l'ouverture suivante. */
+    var pkEtat = readPacks();
+    var themeEnCours = (pkEtat.themes && pkEtat.themes.length) ? pkEtat.themes[0] : null;
+
     var source;
-    if (paquetPret) {
+    if (themeEnCours) {
+      source = chargerCartesTheme(themeEnCours, 5)
+        ['catch'](function () { return chargerCartes(); });   /* theme muet : paquet normal */
+      var pk2 = readPacks();
+      if (pk2.themes && pk2.themes.length) { pk2.themes.shift(); writePacks(pk2); }
+    } else if (paquetPret) {
       /* Déjà chargé pendant que le joueur retournait les cartes précédentes :
          l'ouverture est instantanée. */
       source = Promise.resolve(paquetPret);
@@ -5287,7 +5388,8 @@
       + c.views.toLocaleString('fr-FR') + ' vues sur deux mois<br>'
       + 'DÉF <b>' + defEff(c) + '</b>'
       + (niveau(c) > 1 ? ' (base ' + c.def + ')' : '') + ' — '
-      + (Math.round(c.bytes / 102.4) / 10) + ' Ko d’article'
+      + (Math.round(c.bytes / 102.4) / 10) + ' Ko d’article<br>'
+      + 'VIT <b>' + vitEff(c) + '</b> — décide de l’ordre des coups en duel'
       + (typeof c.score === 'number'
           ? '<br>Qualité <b>' + c.score + '</b> / 100'
             + (c.refs !== null && c.refs !== undefined
@@ -5927,9 +6029,9 @@
       if (r.gar > courant) noterGarantieDue(r.gar);
     }
     refreshPacks();
-    showMissions(r.p + (r.p > 1 ? ' paquets ajoutés.' : ' paquet ajouté.')
-      + (r.gar ? ' ' + TIERS[r.gar].name + ' garanti au prochain.' : ''));
+    showMissions('');
     vib(12);
+    ouvrirDansLaFoulee();
   }
 
   function blocSerie() {
@@ -7141,7 +7243,8 @@
       + '<span class="butin-corps">'
       + '<span class="butin-rang">' + esc(c.rank.toUpperCase()) + '</span>'
       + '<span class="butin-nom">' + esc(c.title) + '</span>'
-      + '<span class="butin-st">ATQ ' + atkEff(c) + ' · DÉF ' + defEff(c) + ' · '
+      + '<span class="butin-st">ATQ ' + atkEff(c) + ' · DÉF ' + defEff(c)
+      + ' · VIT ' + vitEff(c) + ' · '
       + (histButin.nouvelle ? 'nouvelle carte' : c.count + ' exemplaires')
       + ' · touchez pour la fiche</span>'
       + '</span></button>';
@@ -8549,7 +8652,12 @@
 
   var QKEY_QUIZ = 'wikigacha:quiz';
   var QUIZ_TAILLE = 5;
-  var QUIZ_GAIN = 15;      /* Wikigold par bonne reponse */
+  /* 10 et non 15 : depuis qu'un essai s'achete 80 or, un sans-faute a 15
+     rapportait 75 or plus un paquet — soit davantage que son cout, donc une
+     boucle a fabriquer de l'or indefiniment. A 10, un essai achete plafonne a
+     50 or : on l'achete pour l'experience et le classement, jamais pour
+     s'enrichir. Les deux essais quotidiens, eux, restent gratuits. */
+  var QUIZ_GAIN = 10;      /* Wikigold par bonne reponse */
   /* Le sans-faute donne un paquet, pas des pièces : c'est la récompense qui
      se voit. Il passe au-dessus du plafond de dix, comme celui du raid. */
   var QUIZ_BONUS_PAQUET = 1;
@@ -8563,7 +8671,7 @@
     return (d && d.date === jour()) ? (d.n || 0) : 0;
   }
   function quizRestants() {
-    return Math.max(0, QUIZ_PAR_JOUR - quizFaitsAujourdhui());
+    return Math.max(0, QUIZ_PAR_JOUR + quizBonus() - quizFaitsAujourdhui());
   }
 
   function melange(arr) {
@@ -8633,7 +8741,10 @@
       /* Fin : on verse les gains et on verrouille pour la journee. */
       var gain = s.bonnes * QUIZ_GAIN;
       ajouterGold(gain);
-      var parfait = s.bonnes === QUIZ_TAILLE;
+      /* Le paquet du sans-faute ne recompense que les essais gratuits du jour :
+         sinon il suffirait d'acheter des essais pour fabriquer des paquets. */
+      var surEssaiGratuit = quizFaitsAujourdhui() < QUIZ_PAR_JOUR;
+      var parfait = s.bonnes === QUIZ_TAILLE && surEssaiGratuit;
       if (parfait) {
         /* Au-dessus du plafond : la régénération reste bloquée tant qu'on
            dépasse dix, mais un paquet mérité ne se perd pas. */
@@ -8650,7 +8761,10 @@
       body.innerHTML = '<p class="hist-titre">QUIZ TERMINÉ</p>'
         + '<div class="win"><h3>' + s.bonnes + ' / ' + QUIZ_TAILLE + ' bonnes réponses</h3>'
         + '<p>' + gain + ' Wikigold gagnés'
-        + (parfait ? ' <b>et un paquet</b> — sans-faute !' : '.') + '</p>'
+        + (parfait ? ' <b>et un paquet</b> — sans-faute !'
+                   : (s.bonnes === QUIZ_TAILLE
+                        ? ' — sans-faute ! (le paquet ne récompense que les essais du jour)'
+                        : '.')) + '</p>'
         + '<p>' + (quizRestants() > 0
             ? 'Il vous reste ' + quizRestants() + ' quiz aujourd’hui.'
             : 'À demain pour de nouveaux quiz.') + '</p></div>'
@@ -8814,8 +8928,15 @@
       maj: Date.now()
     };
     try {
-      nuage.db.collection('joueurs').doc(nuage.uid).set(doc, { merge: true })
-        .catch(function () {});   /* hors ligne ou regle refusee : sans consequence */
+      var ref = nuage.db.collection('joueurs').doc(nuage.uid);
+      ref.set(doc, { merge: true })['catch'](function () {
+        /* Un champ recent — « equipe » — peut etre refuse tant que les regles
+           publiees ne le connaissent pas. Firestore rejette alors le document
+           ENTIER, cote et ligue comprises. On repousse donc le reste sans lui
+           plutot que de perdre toute la synchronisation. */
+        delete doc.equipe;
+        ref.set(doc, { merge: true })['catch'](function () {});
+      });
     } catch (e) {}
   }
 
@@ -9330,8 +9451,9 @@
     var pk = readPacks(); pk.n += paquets; writePacks(pk); refreshPacks();
     var cour = readPacks().garDue || 0;
     if (3 > cour) noterGarantieDue(3);   /* Épique garantie au prochain paquet */
-    clanEtat.msg = or + ' or et ' + paquets + ' paquet' + (paquets > 1 ? 's' : '') + '.';
+    clanEtat.msg = or.toLocaleString('fr-FR') + ' or reçus.';
     showClan(); vib(12);
+    ouvrirDansLaFoulee();
   }
 
   /* Paliers collectifs : le clan atteint un seuil dans la semaine, chaque
@@ -9360,9 +9482,10 @@
     pk.n += pal.paquets;
     writePacks(pk);
     refreshPacks();
-    clanEtat.msg = pal.paquets + ' paquets ajoutés.';
+    clanEtat.msg = '';
     showClan();
     vib(12);
+    ouvrirDansLaFoulee();
   }
 
   /* Les clans les plus fournis d'abord : sans serveur de recherche, c'est le
@@ -9487,11 +9610,82 @@
     showBoutique('Dos « ' + o.nom + ' » appliqué.');
   }
 
+  /* Paquets a theme : plus chers qu'un paquet ordinaire, parce qu'ils
+     suppriment le hasard du domaine — c'est exactement ce qu'on vend ici, la
+     direction, pas la rarete. */
+  var PRIX_THEME = 150;
+  /* Prix croissant dans la journee, et cinq essais au maximum. Un tarif fixe
+     et illimite aurait laisse un joueur riche convertir son or en experience
+     — donc en points d'activite, donc en classement de ligue — aussi
+     longtemps qu'il aurait de quoi payer. La marche d'escalier rend le
+     premier essai abordable et le cinquieme dissuasif. */
+  var PRIX_QUIZ = [80, 110, 150, 200, 260];
+  var QUIZ_ACHATS_MAX = PRIX_QUIZ.length;
+
   var OFFRES = [
     { id: 'p1',  paquets: 1,  prix: 40,  nom: 'Un paquet' },
     { id: 'p5',  paquets: 5,  prix: 180, nom: 'Cinq paquets', note: '10 % de remise' },
     { id: 'p12', paquets: 12, prix: 400, nom: 'Douze paquets', note: 'meilleure offre' }
   ];
+
+  /* Essais de quiz supplementaires, valables le jour meme. */
+  var QKEY_QUIZBONUS = 'wikigacha:quizbonus';
+
+  function quizBonus() {
+    var d;
+    try { d = JSON.parse(localStorage.getItem(QKEY_QUIZBONUS)); } catch (e) { d = null; }
+    return (d && d.date === jour()) ? (d.n || 0) : 0;
+  }
+  function ajouterQuizBonus(n) {
+    try {
+      localStorage.setItem(QKEY_QUIZBONUS, JSON.stringify({ date: jour(), n: quizBonus() + n }));
+    } catch (e) {}
+  }
+
+  /* Emmene le joueur sur l'ecran d'ouverture et declenche le tirage. Sert a
+     tout ce qui donne des paquets — achat, serie, palier de clan, butin, fin
+     de semaine en ligue : recevoir un paquet et devoir aller le chercher soi
+     -meme dans un autre onglet cassait l'elan. */
+  function ouvrirDansLaFoulee() {
+    if (tirageEnCours) return;
+    if (readPacks().n <= 0) return;
+    sousCartes = 'ouvrir';
+    switchTo('cartes');
+    basculerColl('ouvrir');
+    setTimeout(function () {
+      if (tirageEnCours) return;
+      var p = el('pack');
+      if (p) p.classList.add('ouvert');
+      openPack();
+    }, 320);
+  }
+
+  function acheterTheme(dom) {
+    if (readGold() < PRIX_THEME) { showBoutique('Pas assez de Wikigold.'); return; }
+    ajouterGold(-PRIX_THEME);
+    var pk = readPacks();
+    pk.themes = pk.themes || [];
+    pk.themes.push(dom);
+    writePacks(pk);
+    refreshPacks();
+    vib(10);
+    ouvrirDansLaFoulee();
+  }
+
+  function prixQuizSuivant() {
+    var n = quizBonus();
+    return (n >= QUIZ_ACHATS_MAX) ? 0 : PRIX_QUIZ[n];
+  }
+
+  function acheterQuiz() {
+    var prix = prixQuizSuivant();
+    if (!prix) { showBoutique('Cinq essais achetés aujourd’hui, c’est le maximum.'); return; }
+    if (readGold() < prix) { showBoutique('Pas assez de Wikigold.'); return; }
+    ajouterGold(-prix);
+    ajouterQuizBonus(1);
+    showBoutique('Un essai de quiz supplémentaire pour aujourd’hui.');
+    vib(10);
+  }
 
   function acheter(id) {
     var o = OFFRES.filter(function (x) { return x.id === id; })[0];
@@ -9502,7 +9696,8 @@
     pk.n += o.paquets;   /* les achats peuvent depasser le plafond auto */
     writePacks(pk);
     refreshPacks();
-    showBoutique(o.paquets + (o.paquets > 1 ? ' paquets ajoutés.' : ' paquet ajouté.'));
+    vib(10);
+    ouvrirDansLaFoulee();
   }
 
   function showBoutique(msg) {
@@ -9532,6 +9727,47 @@
         + '</button>';
     });
     html += '</div>';
+
+    /* --- paquets a theme --- */
+    var fileThemes = (readPacks().themes || []);
+    html += '<div class="bt-section"><h3>PAQUETS À THÈME</h3></div>'
+      + '<p class="bt-mot">Cinq cartes du domaine choisi, sans aucune carte '
+      + 'hors sujet. Le paquet s’ouvre immédiatement.</p>'
+      + (fileThemes.length
+          ? '<p class="bt-mot">En attente : '
+            + fileThemes.map(function (d) { return domaineNom(d); }).join(', ') + '.</p>'
+          : '')
+      + '<div class="theme-grille">';
+    DOMAINES.forEach(function (d) {
+      var ok = or >= PRIX_THEME;
+      html += '<button class="theme-offre" '
+        + (ok ? 'data-theme="' + d.id + '"' : 'disabled') + '>'
+        + '<span class="th-nom">' + esc(d.nom) + '</span>'
+        + '<span class="th-prix">' + PRIX_THEME + ' or</span>'
+        + '</button>';
+    });
+    html += '</div>';
+
+    /* --- essais de quiz --- */
+    var prixQ = prixQuizSuivant();
+    var achetes = quizBonus();
+    html += '<div class="bt-section"><h3>ESSAIS DE QUIZ</h3></div>'
+      + '<p class="bt-mot">Un essai de plus pour aujourd’hui, cinq au maximum. '
+      + 'Le prix monte à chaque achat. Il vous reste ' + quizRestants()
+      + ' essai' + (quizRestants() > 1 ? 's' : '') + ' à jouer.</p>';
+    if (!prixQ) {
+      html += '<p class="bt-mot">Vos cinq essais du jour sont achetés. À demain.</p>';
+    } else {
+      html += '<button class="or-offre" '
+        + (or >= prixQ ? 'data-quiz-achat="1"' : 'disabled') + '>'
+        + '<span class="or-nb">1</span>'
+        + '<span class="or-mot">essai</span>'
+        + '<span class="or-note">' + (achetes ? achetes + ' déjà acheté'
+            + (achetes > 1 ? 's' : '') : '') + '</span>'
+        + '<span class="or-prix">' + prixQ + ' or</span>'
+        + (or >= prixQ ? '' : '<span class="or-manque">−' + (prixQ - or) + '</span>')
+        + '</button>';
+    }
 
     /* --- dos de cartes : le second usage des Wikigold --- */
     var etatDos = readDos();
@@ -10685,7 +10921,8 @@
     if (tr) { clanEtat.passation = false; clanTransmettre(tr.getAttribute('data-clan-transmettre')); return; }
     if (e.target.closest('[data-clan-reprendre]')) { clanReprendre(); return; }
     if (e.target.closest('[data-lig-vu]')) {
-      var lv = readLigue(); lv.bilan = null; writeLigue(lv); showClan(); return;
+      var lv = readLigue(); lv.bilan = null; writeLigue(lv); showClan();
+      ouvrirDansLaFoulee(); return;
     }
     var pl = e.target.closest('[data-clan-palier]');
     if (pl) { clanReclamerPalier(parseInt(pl.getAttribute('data-clan-palier'), 10)); return; }
@@ -10758,6 +10995,9 @@
     }
     var li = e.target.closest ? e.target.closest('[data-lier]') : null;
     if (li) { nuageLierGoogle(); return; }
+    var th = e.target.closest ? e.target.closest('[data-theme]') : null;
+    if (th) { acheterTheme(th.getAttribute('data-theme')); return; }
+    if (e.target.closest && e.target.closest('[data-quiz-achat]')) { acheterQuiz(); return; }
     var dd = e.target.closest ? e.target.closest('[data-dos]') : null;
     if (dd) { choisirDos(dd.getAttribute('data-dos')); return; }
     var a = e.target.closest ? e.target.closest('[data-achat]') : null;
