@@ -9460,11 +9460,30 @@
      membre reclame sa part. Ca pousse a recruter et a entrainer les autres,
      pas a jouer seul dans son coin. La reclamation est notee sur l'appareil —
      comme le reste du jeu, elle repose sur la bonne foi. */
+  /* Seuils PAR MEMBRE, et non pour le clan entier. Deux raisons.
+
+     D'abord l'echelle : les points d'activite sont l'experience gagnee, or
+     l'experience monte vite — dix paquets ouverts rapportent pres de 500
+     points a eux seuls, et un joueur assidu depasse 6 000 dans la semaine.
+     Les anciens seuils (500, 1500, 3000 pour tout le clan) tombaient donc des
+     le lundi matin.
+
+     Ensuite l'equite : un seuil fixe favorise mecaniquement les gros clans.
+     Rapporte a l'effectif, l'effort demande a chaque membre reste le meme
+     qu'on soit trois ou vingt. Le plancher a trois membres evite qu'un clan
+     naissant ait des paliers ridicules. */
   var CLAN_PALIERS = [
-    { seuil: 500,  paquets: 3 },
-    { seuil: 1500, paquets: 8 },
-    { seuil: 3000, paquets: 15 }
+    { parMembre: 2500,  paquets: 2, or: 150 },
+    { parMembre: 6000,  paquets: 4, or: 400 },
+    { parMembre: 9500,  paquets: 7, or: 900 }
   ];
+  var CLAN_PALIER_PLANCHER = 3;
+
+  function seuilPalier(i) {
+    var membres = Math.max(CLAN_PALIER_PLANCHER,
+      (clanEtat.doc && clanEtat.doc.membres && clanEtat.doc.membres.length) || 1);
+    return CLAN_PALIERS[i].parMembre * membres;
+  }
 
   function clanActuelle() {
     var d = clanEtat.doc;
@@ -9475,9 +9494,10 @@
   function clanReclamerPalier(i) {
     var pal = CLAN_PALIERS[i];
     var a = readActivite();
-    if (!pal || a.paliers.indexOf(i) >= 0 || clanActuelle() < pal.seuil) return;
+    if (!pal || a.paliers.indexOf(i) >= 0 || clanActuelle() < seuilPalier(i)) return;
     a.paliers.push(i);
     writeActivite(a);
+    if (pal.or) ajouterGold(pal.or);
     var pk = readPacks();
     pk.n += pal.paquets;
     writePacks(pk);
@@ -10659,16 +10679,19 @@
       var moi = readActivite();
       html += '<p class="sheet-sub">ACTIVITÉ DE LA SEMAINE</p>'
         + '<p class="duel-intro">' + act.toLocaleString('fr-FR') + ' points · '
-        + 'votre part : ' + moi.pts.toLocaleString('fr-FR') + '</p>'
+        + 'votre part : ' + moi.pts.toLocaleString('fr-FR')
+        + ' · seuils calculés sur ' + Math.max(CLAN_PALIER_PLANCHER, clanEtat.membres.length)
+        + ' membres</p>'
         + '<div class="clan-paliers">';
       CLAN_PALIERS.forEach(function (pal, i) {
-        var atteint = act >= pal.seuil;
+        var seuil = seuilPalier(i);
+        var atteint = act >= seuil;
         var pris = moi.paliers.indexOf(i) >= 0;
         html += (atteint && !pris
             ? '<button class="clan-palier pret" data-clan-palier="' + i + '">'
             : '<div class="clan-palier' + (pris ? ' pris' : '') + '">')
-          + '<span class="cp-seuil">' + pal.seuil.toLocaleString('fr-FR') + '</span>'
-          + '<span class="cp-lot">' + pal.paquets + ' paquets</span>'
+          + '<span class="cp-seuil">' + seuil.toLocaleString('fr-FR') + '</span>'
+          + '<span class="cp-lot">' + pal.paquets + ' pq · ' + pal.or + ' or</span>'
           + '<span class="cp-etat">' + (pris ? 'reçu' : (atteint ? 'à prendre' : '—')) + '</span>'
           + (atteint && !pris ? '</button>' : '</div>');
       });
