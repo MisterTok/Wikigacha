@@ -429,6 +429,17 @@
     -webkit-background-clip: text; background-clip: text; color: transparent;
   }
   .pack-label { font-size: 11px; letter-spacing: .12em; color: var(--glass-dim); }
+  /* Pochette a theme : meme structure, autre parure. */
+  .pack-theme .pack-corps {
+    border-color: var(--th-bord);
+    background:
+      linear-gradient(100deg, transparent 0 8%, rgba(255,255,255,.10) 12%, transparent 18%),
+      linear-gradient(100deg, transparent 0 42%, rgba(255,255,255,.07) 47%, transparent 54%),
+      linear-gradient(100deg, transparent 0 76%, rgba(255,255,255,.09) 82%, transparent 90%),
+      repeating-linear-gradient(135deg, transparent 0 11px, rgba(255,255,255,.045) 11px 22px),
+      linear-gradient(180deg, var(--th-h) 0%, var(--th-b) 100%);
+  }
+  .pack-theme .pack-label { color: rgba(255,255,255,.72); }
   .pack.inerte { pointer-events: none; }
   .pack.inerte .pack-corps, .pack.inerte .pack-bande { opacity: .42; }
   .hint { font-size: 12px; color: var(--glass-dim); margin: 16px 0 0; }
@@ -2597,7 +2608,7 @@
          aria-label="Ouvrir un paquet de cinq cartes">
       <div class="pack-corps">
         <span class="pack-marque">Wikigacha</span>
-        <span class="pack-label">POCHETTE DE 5 CARTES</span>
+        <span class="pack-label" id="pack-label">POCHETTE DE 5 CARTES</span>
       </div>
       <div class="pack-breche"></div>
       <div class="pack-dents"></div>
@@ -3708,6 +3719,17 @@
      Wikipedia (deja recuperees ci-dessus). Il est ensuite stocke avec la carte,
      donc le mode histoire n'a jamais besoin du reseau. */
 
+  /* Habillage des pochettes a theme : une teinte et un motif par domaine, pour
+     qu'on voie ce qu'on ouvre avant meme de tirer la languette. */
+  var TEINTES_DOMAINE = {
+    geo:   { h: '#2e5f52', b: '#12261f', bord: '#3f7a68' },
+    hist:  { h: '#6b4a2a', b: '#2a1b0f', bord: '#8a6238' },
+    sci:   { h: '#2b4a78', b: '#101d33', bord: '#3d689f' },
+    art:   { h: '#5c3a70', b: '#22142c', bord: '#7b4e93' },
+    sport: { h: '#7a3a34', b: '#2c1412', bord: '#9c4d44' },
+    soc:   { h: '#4a4a62', b: '#1c1c27', bord: '#66667f' }
+  };
+
   var DOMAINES = [
     { id: 'geo', nom: 'Géographie', mots: ['commune', 'ville', 'village', 'pays', 'région',
       'département', 'géographie', 'fleuve', 'rivière', 'montagne', 'massif', 'île', 'lac',
@@ -4264,6 +4286,9 @@
   function refreshPacks() {
     var d = readPacks();
     writePacks(d);
+    /* L'habillage suit la file : des qu'un paquet a theme est achete ou
+       consomme, la pochette change d'apparence sans intervention. */
+    if (typeof majPochette === 'function') majPochette();
     /* Au-dessus du plafond (recompenses accumulees), on affiche le total brut ;
        la regeneration a la minute ne reprend qu'une fois repasse sous le plafond. */
     var txt = d.n > MAX_PAQUETS
@@ -9686,6 +9711,10 @@
     var pk = readPacks();
     pk.themes = pk.themes || [];
     pk.themes.push(dom);
+    /* Le paquet achete s'AJOUTE a la reserve. Sans cette ligne, l'ouverture
+       consommait un paquet deja possede : le joueur payait 150 or ET perdait
+       un paquet. */
+    pk.n += 1;
     writePacks(pk);
     refreshPacks();
     vib(10);
@@ -10066,6 +10095,28 @@
     showAlbums();
   }
 
+  /* Applique (ou retire) l'habillage du prochain paquet a theme. */
+  function majPochette() {
+    var p = el('pack'), lab = el('pack-label');
+    if (!p || !lab) return;
+    var f = readPacks().themes || [];
+    var dom = f.length ? f[0] : null;
+    var t = dom && TEINTES_DOMAINE[dom];
+    if (!t) {
+      p.classList.remove('pack-theme');
+      p.style.removeProperty('--th-h');
+      p.style.removeProperty('--th-b');
+      p.style.removeProperty('--th-bord');
+      lab.textContent = 'POCHETTE DE 5 CARTES';
+      return;
+    }
+    p.classList.add('pack-theme');
+    p.style.setProperty('--th-h', t.h);
+    p.style.setProperty('--th-b', t.b);
+    p.style.setProperty('--th-bord', t.bord);
+    lab.textContent = domaineNom(dom).toUpperCase() + ' · 5 CARTES';
+  }
+
   function basculerColl(quoi) {
     if (sousCartesRendu !== null && quoi !== sousCartesRendu) { vib(5); hautDePage(); }
     sousCartesRendu = quoi;
@@ -10083,6 +10134,7 @@
        est bien visible : sinon un changement d'onglet en plein reveal laissait
        l'ecran vide. */
     if (quoi === 'ouvrir' && !tirageEnCours && el('reveal').hidden) {
+      majPochette();
       el('pack-stage').hidden = false;
       el('pack').classList.remove('inerte', 'ouvert');
       el('pack').style.setProperty('--tear', 0);
