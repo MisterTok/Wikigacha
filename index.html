@@ -6288,14 +6288,24 @@
     return Math.max(1, Math.round(base));
   }
 
-  /* Cible : la premiere carte encore debout de la ligne avant adverse, sinon
-     la premiere de la ligne arriere. Ordre de gauche a droite, donc previsible
-     — le joueur doit pouvoir anticiper ou tombent les coups. */
-  function choisirCible(ennemis) {
+  /* Cible : la carte d'en face, colonne contre colonne. A defaut, la plus a
+     gauche de la ligne accessible.
+
+     Ce choix n'est pas cosmetique. Avec un ciblage qui concentrait tout sur la
+     carte la plus a gauche, le camp qui prenait l'avantage accelerait — moins
+     d'ennemis debout, donc des morts plus rapides — et le moindre ecart de
+     puissance finissait en balayage 6-0. La colonne repartit les degats, les
+     combats restent serres, et surtout le placement devient une decision :
+     on voit l'equipe adverse avant de s'engager, donc on choisit qui affronte
+     qui. */
+  function choisirCible(ennemis, src) {
     var vivants = ennemis.filter(function (x) { return x.pv > 0; });
     if (!vivants.length) return null;
     var devant = vivants.filter(function (x) { return x.pos < 3; });
     var pool = devant.length ? devant : vivants;
+    var colonne = src.pos % 3;
+    var face = pool.filter(function (x) { return x.pos % 3 === colonne; });
+    if (face.length) return face.sort(function (a, b) { return a.pos - b.pos; })[0];
     return pool.sort(function (a, b) { return a.pos - b.pos; })[0];
   }
 
@@ -6319,7 +6329,7 @@
         var src = ordre[i];
         if (src.pv <= 0) continue;                  /* tombee plus tot dans le tour */
         var ennemis = src.camp === 'moi' ? B : A;
-        var cible = choisirCible(ennemis);
+        var cible = choisirCible(ennemis, src);
         if (!cible) break;
         var d = degatsDuel(src, cible);
         cible.pv = Math.max(0, cible.pv - d);
@@ -6370,8 +6380,6 @@
      qui donne enfin un role au placement. Le duel n'est decompte qu'au moment
      ou l'on frappe, pas a la recherche. */
   var NB_ADVERSAIRES = 4;
-  var NOMS_BOTS = ['Archiviste', 'Copiste', 'Glossateur', 'Palimpseste', 'Scoliaste',
-                   'Compilateur', 'Enlumineur', 'Cartulaire'];
 
   function lancerDuel() {
     var d = readJour();
@@ -6612,7 +6620,11 @@
      resultat, et rend le bouton « passer » trivial — il suffit de sauter a
      la fin. */
 
-  var DUEL_RYTHME = 520;   /* millisecondes entre deux coups */
+  /* 330 ms : a 520, un combat de quarante coups durait vingt secondes, ce qui
+     est trop long pour un geste qu'on repete dix fois par jour. */
+  var DUEL_RYTHME = 330;
+  var DUEL_RYTHME_VITE = 170;   /* passe les tours suivants au pas de course */
+  var DUEL_TOURS_LENTS = 3;
   var duelMinuteur = null;
 
   function plateau(etat) {
@@ -6681,7 +6693,10 @@
         + a.degats.toLocaleString('fr-FR') + ' dégâts'
         + (a.mort ? ' · <i class="db-mort">éliminée</i>' : ''));
       if (a.mort) vib(10);
-      duelMinuteur = setTimeout(pas, DUEL_RYTHME);
+      /* Les premiers tours posent la scene ; ensuite on accelere, sinon un
+         combat de soixante coups dure vingt secondes. */
+      duelMinuteur = setTimeout(pas,
+        tour <= DUEL_TOURS_LENTS ? DUEL_RYTHME : DUEL_RYTHME_VITE);
     };
 
     var finAnimation = function () {
