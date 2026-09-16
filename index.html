@@ -6379,7 +6379,7 @@
   /* Quatre adversaires proposes : on voit leur equipe avant de s'engager, ce
      qui donne enfin un role au placement. Le duel n'est decompte qu'au moment
      ou l'on frappe, pas a la recherche. */
-  var NB_ADVERSAIRES = 4;
+  var NB_ADVERSAIRES = 3;
 
   function lancerDuel() {
     var d = readJour();
@@ -6389,11 +6389,30 @@
     el('duel-body').innerHTML = '<p class="duel-titre">DUEL</p>'
       + '<p class="status">Recherche d’adversaires…</p>';
 
+    /* Chaque equipe est cherchee independamment : avec Promise.all, une seule
+       requete en echec faisait tomber la recherche entiere, ce qui arrive vite
+       quand on interroge Wikipedia trois fois d'un coup. On garde donc ce qui
+       aboutit, et on n'echoue que si tout echoue. */
     var lots = [];
-    for (var i = 0; i < NB_ADVERSAIRES; i++) lots.push(chargerCartes(EQ_TAILLE));
+    for (var i = 0; i < NB_ADVERSAIRES; i++) {
+      lots.push(
+        chargerCartes(EQ_TAILLE)
+          .then(function (cartes) {
+            return (cartes && cartes.length >= EQ_TAILLE) ? cartes : null;
+          })
+          ['catch'](function () { return null; })
+      );
+    }
+
     Promise.all(lots)
       .then(function (equipes) {
-        duelCourant = { choix: equipes.map(function (cartes, i) {
+        var valides = equipes.filter(function (c) { return !!c; });
+        if (!valides.length) {
+          el('duel-body').innerHTML = '<p class="duel-titre">DUEL</p>'
+            + '<p class="status">Wikipédia n’a pas répondu. Réessayez.</p>' + boutonDuel();
+          return;
+        }
+        duelCourant = { choix: valides.map(function (cartes, i) {
           /* Le bot place ses plus resistantes devant et ses frappeuses
              derriere, exactement comme la composition automatique. */
           var six = cartes.slice(0, EQ_TAILLE);
@@ -6408,15 +6427,12 @@
           };
         }) };
         peindreChoixAdversaire();
-      })
-      ['catch'](function () {
-        el('duel-body').innerHTML = '<p class="duel-titre">DUEL</p>'
-          + '<p class="status">Adversaires introuvables. Réessayez.</p>' + boutonDuel();
       });
   }
 
   function peindreChoixAdversaire() {
-    var ma = readEquipe().map(function (t) { return collection[t]; });
+    var ma = readEquipe().map(function (t) { return collection[t]; })
+      .filter(function (c) { return !!c; });
     var maPuissance = ma.reduce(function (s, c) { return s + atkEff(c) + defEff(c); }, 0);
     var h = '<p class="duel-titre">CHOISISSEZ VOTRE ADVERSAIRE</p>'
       + '<p class="duel-intro">Votre puissance : <b>' + maPuissance.toLocaleString('fr-FR')
