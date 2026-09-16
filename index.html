@@ -2940,11 +2940,13 @@
 
   function puissanceCarte(c) { return atkEff(c) + defEff(c); }
 
-  /* Les cinq cartes que le jeu placerait pour vous. */
+  /* Les cartes que le jeu placerait pour vous. La coupe suivait encore les
+     cinq cases d'avant la refonte : la composition automatique ne remplissait
+     donc que cinq des six places. */
   function meilleureEquipe() {
     return Object.keys(collection).map(function (k) { return collection[k]; })
       .sort(function (a, b) { return puissanceCarte(b) - puissanceCarte(a); })
-      .slice(0, 5);
+      .slice(0, EQ_TAILLE);
   }
 
   /* ---------- profil ----------
