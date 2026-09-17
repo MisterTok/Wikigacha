@@ -5724,22 +5724,51 @@
      vignette de l'article, a defaut celle du flux, a defaut l'image officielle
      Wikidata (P18). L'ordre etant celui du jour, le boss reste le meme toute
      la journee. */
-  function resoudreBoss(liste, i) {
+  /* ---------- memoire des adversaires recents ----------
+     Le flux du jour contient l'article de la une, puis les plus consultes. Ces
+     derniers sont en grande partie les MEMES d'un jour a l'autre : quand la
+     une n'a pas d'image exploitable, on retombait donc plusieurs jours de
+     suite sur le meme adversaire. On garde la liste des derniers boss pour les
+     ecarter — sauf s'il ne reste plus rien d'autre, auquel cas mieux vaut un
+     adversaire deja vu que pas d'adversaire du tout. */
+  var BOSSKEY = 'wikigacha:bossrecents';
+  var BOSS_MEMOIRE = 10;
+
+  function bossRecents() {
+    var d;
+    try { d = JSON.parse(localStorage.getItem(BOSSKEY)); } catch (e) { d = null; }
+    return (d && d.length) ? d : [];
+  }
+  function noterBoss(titre) {
+    if (!titre) return;
+    var l = bossRecents().filter(function (t) { return t !== titre; });
+    l.unshift(titre);
+    try { localStorage.setItem(BOSSKEY, JSON.stringify(l.slice(0, BOSS_MEMOIRE))); } catch (e) {}
+  }
+
+  function resoudreBoss(liste, i, secondPassage) {
     i = i || 0;
-    if (i >= liste.length) return Promise.resolve(null);
+    if (i >= liste.length) {
+      /* Premier passage epuise : on recommence en acceptant les deja-vus. */
+      return secondPassage ? Promise.resolve(null) : resoudreBoss(liste, 0, true);
+    }
     var a = liste[i];
     var titre = (a.titles && a.titles.normalized) || a.title || '';
+    if (!secondPassage && titre && bossRecents().indexOf(titre) >= 0) {
+      return resoudreBoss(liste, i + 1, secondPassage);
+    }
     return fetchInfo(a.pageid)
       .then(function (page) {
         var t = (page && page.thumbnail && page.thumbnail.source)
              || (a.thumbnail && a.thumbnail.source) || '';
         if (t) return { a: a, page: page, thumb: t };
-        if (!titre) return resoudreBoss(liste, i + 1);
+        if (!titre) return resoudreBoss(liste, i + 1, secondPassage);
         return fetchImageCorps(titre).then(function (u) {
-          return u ? { a: a, page: page, thumb: u } : resoudreBoss(liste, i + 1);
+          return u ? { a: a, page: page, thumb: u }
+                   : resoudreBoss(liste, i + 1, secondPassage);
         });
       })
-      .catch(function () { return resoudreBoss(liste, i + 1); });
+      .catch(function () { return resoudreBoss(liste, i + 1, secondPassage); });
   }
 
   function fetchInfo(pageid) {
@@ -5918,6 +5947,7 @@
              une. Une equipe de six qui frappe a chaque tour le descendait en
              deux tours : il faut environ quarante fois pour qu'un assaut se
              joue, et que les trois tentatives du jour aient un sens. */
+          noterBoss(boss.title);
           var pv = Math.round(boss.def * 40);
           var etat2 = {
             date: jour(), boss: boss, pv: pv, pvMax: pv,
