@@ -6481,23 +6481,25 @@
 
     while (tour < TOURS_MAX && vivant(A) && vivant(B)) {
       tour += 1;
-      /* Ordre des coups : la LIGNE d'abord, la vitesse ensuite.
-         La ligne avant frappe avant la ligne arriere ; a l'interieur d'une
-         ligne, la plus vive part la premiere, et la position departage les
-         vitesses egales.
+      /* Ordre des coups : PLACE PAR PLACE, en se repondant.
+         On parcourt les six places dans l'ordre — ligne avant de gauche a
+         droite, puis ligne arriere — et a chaque place les deux cartes qui se
+         font face echangent leurs coups. La VITESSE decide laquelle des deux
+         frappe la premiere : c'est la seule chose qu'elle determine, mais elle
+         peut valoir une elimination avant riposte.
 
-         L'ordre inverse — vitesse d'abord — revenait a ignorer le placement,
-         puisque deux cartes ont rarement la meme vitesse au point pres. Mais
-         un ordre purement positionnel aurait le defaut symetrique : chaque
-         carte ayant une place unique, la vitesse ne servirait plus jamais.
-         Ce classement en deux temps est le seul ou les deux comptent. */
-      var ordre = A.concat(B).filter(function (x) { return x.pv > 0; })
-        .sort(function (a, b) {
-          var la = a.pos < 3 ? 0 : 1, lb = b.pos < 3 ? 0 : 1;
-          if (la !== lb) return la - lb;          /* ligne avant, puis arriere */
-          if (b.vit !== a.vit) return b.vit - a.vit;   /* la plus vive d'abord */
-          return a.pos - b.pos;                   /* puis de gauche a droite */
+         Ce deroulement se lit : on suit une colonne, on voit l'attaque et la
+         replique, on passe a la suivante. Un tri global par vitesse melangeait
+         les deux camps et rendait le combat illisible. */
+      var ordre = [];
+      for (var pl = 0; pl < EQ_TAILLE; pl++) {
+        var duo = [A[pl], B[pl]].filter(function (x) { return x && x.pv > 0; });
+        duo.sort(function (a, b) {
+          if (b.vit !== a.vit) return b.vit - a.vit;   /* la plus vive ouvre */
+          return a.camp === 'moi' ? -1 : 1;            /* egalite : l'attaquant */
         });
+        ordre = ordre.concat(duo);
+      }
       actions.push({ type: 'tour', n: tour });
 
       for (var i = 0; i < ordre.length; i++) {
@@ -6853,8 +6855,9 @@
       + '<button class="duel-auto" data-eq-auto="1">Composer</button></div>'
       + '<p class="duel-intro">Six cartes, trois devant et trois derrière. La ligne '
       + 'arrière est protégée tant qu’une carte tient devant, mais frappe à 85 %. '
-      + 'La ligne avant frappe en premier ; dans chaque ligne, la carte la plus '
-      + 'rapide part devant (le chiffre en doré).</p>'
+      + 'Les places s’affrontent l’une après l’autre, avant puis arrière : à '
+      + 'chaque place, la carte la plus rapide frappe avant celle d’en face '
+      + '(le chiffre en doré).</p>'
       + '<p class="eq-ligne-t">LIGNE AVANT</p>' + cases(0, 3)
       + '<p class="eq-ligne-t">LIGNE ARRIÈRE</p>' + cases(3, 6);
   }
