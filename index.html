@@ -9731,9 +9731,16 @@
     basculerColl('ouvrir');
     setTimeout(function () {
       if (tirageEnCours) return;
+      /* La pochette garde la classe « ouvert » apres un tirage precedent ;
+         sans ce nettoyage, le declencheur refuserait d'agir en silence. */
       var p = el('pack');
-      if (p) p.classList.add('ouvert');
-      openPack();
+      if (p && el('reveal') && el('reveal').hidden) {
+        p.classList.remove('ouvert');
+        p.style.setProperty('--tear', 0);
+      }
+      /* On passe par le meme chemin que la dechirure a la main, pour que
+         l'ouverture compte exactement pareil. */
+      if (typeof window.__wgDeclencher === 'function') window.__wgDeclencher();
     }, 320);
   }
 
@@ -10524,6 +10531,11 @@
     }, { passive: true });
     /* Exposé pour le démarrage, une fois l'écran de lancement retiré. */
     window.__wgDemo = demoGeste;
+    /* Exposé pour l'ouverture automatique d'une récompense : le décompte du
+       paquet, l'expérience, le compteur de missions et la garantie premium
+       vivent tous ici. Appeler openPack() directement les sautait — le paquet
+       n'était pas consommé et le joueur ne gagnait rien. */
+    window.__wgDeclencher = declencher;
     pack.addEventListener('touchmove', function (e) {
       bouge(e.touches[0].clientX, e);
     }, { passive: false });
