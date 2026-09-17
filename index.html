@@ -1057,14 +1057,60 @@
   .db-jauge i { display: block; height: 100%; background: #4f8d72; transition: width .25s ease; }
   .db-camp.adverse .db-jauge i { background: #8d5050; }
   .db-journal {
-    min-height: 34px; font-size: 12.5px; line-height: 1.5; text-align: center;
+    min-height: 40px; font-size: 12.5px; line-height: 1.5; text-align: center;
     color: var(--glass); margin: 8px 0 10px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 10px;
+    border-left: 2px solid transparent;
   }
+  .db-journal.cap { color: #f0dda4; border-left-color: #c9992e; }
+  .db-journal.mort { border-left-color: #8d5050; }
   .db-mort { font-style: normal; color: #cf7f7f; }
+
+  .db-entete {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 10px; margin-bottom: 8px;
+  }
+  .db-col { font-size: 11px; letter-spacing: .04em; color: #c9992e; }
+  .db-boutons { display: flex; gap: 8px; }
+  .db-boutons .btn { flex: 1 1 0; }
+
+  /* La colonne en cours ressort : c'est le fil que l'oeil doit suivre. */
+  .db-carte.active { background: #232a3e; border-color: #3f4a6b; }
+  .db-carte.frappe { transform: translateY(-4px); border-color: #c9992e; z-index: 2; }
+  .db-pv {
+    display: block; margin-top: 3px; font-size: 10px; color: var(--glass-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .db-degats {
+    position: absolute; top: 2px; right: 4px; z-index: 3;
+    font-size: 13px; font-weight: 600; color: #ffb4a8;
+    text-shadow: 0 1px 3px rgba(0,0,0,.9);
+    animation: db-monte .5s ease-out both;
+  }
+  @keyframes db-monte {
+    0% { opacity: 0; transform: translateY(6px); }
+    25% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 1; transform: translateY(-6px); }
+  }
+  .db-cap-tag {
+    position: absolute; top: 2px; left: 4px; z-index: 3;
+    padding: 1px 5px; font-size: 9px; letter-spacing: .04em;
+    color: #14161f; background: #c9992e;
+  }
   .eq-ligne-t {
     font-size: 10px; letter-spacing: .08em; color: var(--glass-dim); margin: 0 0 6px;
   }
   .eq-vit { font-style: normal; color: #c9992e; }
+  .eq-cap {
+    display: block; padding: 0 4px 4px; font-size: 9.5px; letter-spacing: .03em;
+    color: #c9992e;
+  }
+  .sel-cap {
+    display: inline-block; margin-top: 3px; padding: 1px 6px;
+    font-size: 10px; letter-spacing: .03em; color: #14161f; background: #c9992e;
+  }
+  .cap-nom { color: #c9992e; }
   .adv-fort { font-style: normal; color: #cf7f7f; }
   .adv-faible { font-style: normal; color: #7fb99a; }
   .adv-note {
@@ -6430,6 +6476,82 @@
      rejoue ensuite au rythme qu'elle veut — c'est ce qui permet d'animer le
      combat, ou de le passer d'un coup. */
 
+  /* ================= capacites =================
+     Une capacite par carte, deduite du domaine de l'article — donc de ce que
+     la carte EST, comme l'attaque vient des vues et la defense de la longueur.
+     Reservees a l'Épique et au-dessus : en dessous, elles seraient partout et
+     ne voudraient plus rien dire. Les 6 % de cartes sans domaine (« Divers »)
+     empruntent celle qui correspond a leur statistique dominante, ce qui evite
+     un trou incomprehensible pour le joueur.
+
+     Les valeurs croissent avec la rarete, et de 8 % par etoile au-dessus de la
+     premiere : la fusion recompense, elle ne decide pas du combat. */
+
+  var CAPACITES = {
+    ancrage:    { nom: 'Ancrage',        dom: 'geo',
+                  txt: 'Points de vie augmentés' },
+    heritage:   { nom: 'Héritage',       dom: 'hist',
+                  txt: 'En tombant, lègue une part de son attaque à sa colonne' },
+    methode:    { nom: 'Méthode',        dom: 'sci',
+                  txt: 'Ignore une part de la défense adverse' },
+    inspiration:{ nom: 'Inspiration',    dom: 'art',
+                  txt: 'Au premier coup, renforce toute sa ligne' },
+    souffle:    { nom: 'Second souffle', dom: 'sport',
+                  txt: 'Frappe deux fois si elle est plus rapide que sa vis-à-vis' },
+    influence:  { nom: 'Influence',      dom: 'soc',
+                  txt: 'Affaiblit l’attaque de la carte d’en face' }
+  };
+
+  /* Valeur de base par rarete : [Épique, Légendaire, Mythique]. */
+  var CAP_VALEURS = {
+    ancrage:     [0.25, 0.37, 0.50],
+    heritage:    [0.40, 0.60, 0.80],
+    methode:     [0.30, 0.45, 0.60],
+    inspiration: [0.15, 0.22, 0.30],
+    souffle:     [0.50, 0.65, 0.80],
+    influence:   [0.20, 0.28, 0.35]
+  };
+
+  /* Plafonds. Sans eux, le bonus d'etoiles poussait « Second souffle » a
+     106 % en Mythique ★5 : le second coup aurait frappe plus fort que le
+     premier, ce qui n'a aucun sens. Chaque capacite a donc une limite au-dela
+     de laquelle la fusion n'apporte plus rien. */
+  var CAP_PLAFONDS = {
+    ancrage: 0.65, heritage: 0.95, methode: 0.72,
+    inspiration: 0.40, souffle: 0.90, influence: 0.45
+  };
+
+  var CAP_RANG_MIN = 3;        /* index dans TIERS : Épique */
+  var CAP_PAR_ETOILE = 0.08;
+
+  /* Sans domaine, on retombe sur la statistique dominante : une carte
+     offensive perce, une resistante encaisse, une vive frappe deux fois. */
+  function capaciteId(c) {
+    var d = c.domaine;
+    if (d) {
+      for (var k in CAPACITES) {
+        if (CAPACITES.hasOwnProperty(k) && CAPACITES[k].dom === d) return k;
+      }
+    }
+    var a = atkEff(c), df = defEff(c), v = vitEff(c) * 4;   /* remis a l'echelle */
+    if (v >= a && v >= df) return 'souffle';
+    return (a >= df) ? 'methode' : 'ancrage';
+  }
+
+  function capaciteDe(c) {
+    var ri = rankIndex(c.rank);
+    if (ri < CAP_RANG_MIN) return null;
+    var id = capaciteId(c);
+    var base = CAP_VALEURS[id][Math.min(2, ri - CAP_RANG_MIN)];
+    var etoiles = Math.max(0, niveau(c) - 1);
+    return {
+      id: id,
+      nom: CAPACITES[id].nom,
+      txt: CAPACITES[id].txt,
+      val: Math.min(CAP_PLAFONDS[id], base * (1 + etoiles * CAP_PAR_ETOILE))
+    };
+  }
+
   var TOURS_MAX = 30;
   /* Huit points de vie par point de defense : a trois, les combats se
      terminaient en trois tours, trop vite pour qu'on voie quoi que ce soit.
@@ -6439,15 +6561,30 @@
   var MALUS_ARRIERE = 0.85;
 
   function enCombattant(c, camp, pos) {
+    var cap = capaciteDe(c);
     var pv = Math.max(1, defEff(c) * PV_PAR_DEF);
-    return { c: c, camp: camp, pos: pos, pv: pv, pvMax: pv, vit: vitEff(c) };
+    /* Ancrage agit sur les points de vie et non sur la defense : augmenter la
+       defense ferait gagner deux fois, puisqu'elle sert aussi a reduire les
+       degats recus. L'effet reel aurait valu le double de l'affiche. */
+    if (cap && cap.id === 'ancrage') pv = Math.round(pv * (1 + cap.val));
+    return {
+      c: c, camp: camp, pos: pos, pv: pv, pvMax: pv, vit: vitEff(c),
+      cap: cap,
+      atkBonus: 0,      /* attaque leguee par Heritage */
+      atkMult: 1,       /* Inspiration (hausse) et Influence (baisse) */
+      capUtilisee: false
+    };
   }
 
-  function degatsDuel(src, cible) {
+  function degatsDuel(src, cible, part) {
     var m = MULT[rankIndex(src.c.rank)] || 1;
-    var reduction = 900 / (900 + defEff(cible.c));
-    var base = atkEff(src.c) * m * reduction;
+    var def = defEff(cible.c);
+    if (src.cap && src.cap.id === 'methode') def *= (1 - src.cap.val);
+    var reduction = 900 / (900 + def);
+    var atk = (atkEff(src.c) + src.atkBonus) * src.atkMult;
+    var base = atk * m * reduction;
     if (src.pos >= 3) base *= MALUS_ARRIERE;
+    if (part) base *= part;
     return Math.max(1, Math.round(base));
   }
 
@@ -6505,16 +6642,71 @@
       for (var i = 0; i < ordre.length; i++) {
         var src = ordre[i];
         if (src.pv <= 0) continue;                  /* tombee plus tot dans le tour */
+        var siens = src.camp === 'moi' ? A : B;
         var ennemis = src.camp === 'moi' ? B : A;
         var cible = choisirCible(ennemis, src);
         if (!cible) break;
-        var d = degatsDuel(src, cible);
-        cible.pv = Math.max(0, cible.pv - d);
-        actions.push({
-          type: 'coup', camp: src.camp, src: src.c.title, srcPos: src.pos,
-          cible: cible.c.title, ciblePos: cible.pos, ciblecamp: cible.camp,
-          degats: d, pv: cible.pv, pvMax: cible.pvMax, mort: cible.pv === 0
-        });
+
+        /* Capacites qui s'activent AVANT le coup, une seule fois par combat. */
+        if (src.cap && !src.capUtilisee) {
+          if (src.cap.id === 'inspiration') {
+            src.capUtilisee = true;
+            var ligne = src.pos < 3 ? [0, 1, 2] : [3, 4, 5];
+            ligne.forEach(function (q) {
+              if (siens[q] && siens[q].pv > 0) siens[q].atkMult *= (1 + src.cap.val);
+            });
+            actions.push({ type: 'capacite', camp: src.camp, srcPos: src.pos,
+              src: src.c.title, cap: src.cap.nom,
+              detail: 'sa ligne gagne ' + Math.round(src.cap.val * 100) + ' % d’attaque' });
+          } else if (src.cap.id === 'influence') {
+            src.capUtilisee = true;
+            cible.atkMult *= (1 - src.cap.val);
+            actions.push({ type: 'capacite', camp: src.camp, srcPos: src.pos,
+              src: src.c.title, cap: src.cap.nom,
+              cible: cible.c.title, ciblePos: cible.pos, ciblecamp: cible.camp,
+              detail: esc(cible.c.title) + ' perd ' + Math.round(src.cap.val * 100) + ' % d’attaque' });
+          }
+        }
+
+        /* Le coup lui-meme, puis l'eventuel second de « Second souffle ». */
+        var coups = [{ part: 0, second: false }];
+        if (src.cap && src.cap.id === 'souffle') {
+          var face = ennemis[src.pos];
+          if (face && face.pv > 0 && src.vit > face.vit) {
+            coups.push({ part: src.cap.val, second: true });
+          }
+        }
+
+        for (var k = 0; k < coups.length; k++) {
+          if (cible.pv <= 0) cible = choisirCible(ennemis, src);
+          if (!cible) break;
+          var d = degatsDuel(src, cible, coups[k].part || 0);
+          cible.pv = Math.max(0, cible.pv - d);
+          actions.push({
+            type: 'coup', camp: src.camp, src: src.c.title, srcPos: src.pos,
+            cible: cible.c.title, ciblePos: cible.pos, ciblecamp: cible.camp,
+            degats: d, pv: cible.pv, pvMax: cible.pvMax, mort: cible.pv === 0,
+            second: coups[k].second,
+            cap: coups[k].second ? src.cap.nom : null
+          });
+
+          /* Heritage : la carte qui tombe legue une part de son attaque a
+             l'alliee de sa colonne. C'est la seule capacite qui recompense un
+             placement reflechi plutot qu'une statistique. */
+          if (cible.pv === 0 && cible.cap && cible.cap.id === 'heritage') {
+            var allies = cible.camp === 'moi' ? A : B;
+            var col = cible.pos < 3 ? cible.pos + 3 : cible.pos - 3;
+            var hg = allies[col];
+            if (hg && hg.pv > 0) {
+              var leg = Math.round(atkEff(cible.c) * cible.cap.val);
+              hg.atkBonus += leg;
+              actions.push({ type: 'capacite', camp: cible.camp, srcPos: cible.pos,
+                src: cible.c.title, cap: cible.cap.nom,
+                ciblePos: hg.pos, ciblecamp: hg.camp,
+                detail: esc(hg.c.title) + ' hérite de ' + leg + ' d’attaque' });
+            }
+          }
+        }
         if (!vivant(ennemis)) break;
       }
     }
@@ -6747,7 +6939,12 @@
                      : artSVG(c.title, tr.color))
           + '</span><span class="eq-nom">' + esc(c.title) + '</span>'
           + '<span class="eq-pui">' + atkEff(c) + '/' + defEff(c)
-          + ' · <i class="eq-vit">' + vitEff(c) + '</i></span></div>';
+          + ' · <i class="eq-vit">' + vitEff(c) + '</i></span>'
+          + (function () {
+              var cp = capaciteDe(c);
+              return cp ? '<span class="eq-cap">' + esc(cp.nom) + '</span>' : '';
+            })()
+          + '</div>';
       }).join('') + '</div>';
     };
     el('duel-body').innerHTML = '<p class="duel-titre">' + esc(adv.nom).toUpperCase() + '</p>'
@@ -6857,6 +7054,10 @@
                 + '<span class="eq-nom">' + esc(c.title) + '</span>'
                 + '<span class="eq-pui">' + atkEff(c) + '/' + defEff(c)
                 + ' · <i class="eq-vit">' + vitEff(c) + '</i></span>'
+                + (function () {
+                    var cp = capaciteDe(c);
+                    return cp ? '<span class="eq-cap">' + esc(cp.nom) + '</span>' : '';
+                  })()
               : '<span class="eq-vue vide">+</span><span class="eq-nom">Vide</span>')
           + '</button>';
       }).join('') + '</div>';
@@ -6922,25 +7123,34 @@
 
   /* 330 ms : a 520, un combat de quarante coups durait vingt secondes, ce qui
      est trop long pour un geste qu'on repete dix fois par jour. */
-  var DUEL_RYTHME = 330;
-  var DUEL_RYTHME_VITE = 170;   /* passe les tours suivants au pas de course */
-  var DUEL_TOURS_LENTS = 3;
+  var DUEL_RYTHME = 460;
+  var DUEL_RYTHME_VITE = 200;
   var duelMinuteur = null;
+  var duelAccelere = false;
 
-  function plateau(etat) {
-    var ligne = function (liste, de, a, droite) {
+  /* Le plateau montre l'etat a un instant donne. Les marques posees sur les
+     combattants — colonne active, carte qui frappe, carte touchee, degats
+     flottants — sont effacees a chaque pas : l'affichage ne conserve aucun
+     etat propre, il ne fait que peindre ce que le moteur a deja calcule. */
+  function plateau(etat, colonne) {
+    var ligne = function (liste, de, a) {
       return '<div class="db-ligne">' + liste.slice(de, a).map(function (x) {
         var tr = tierOf(x.c.rank);
         var pct = Math.max(0, x.pv / x.pvMax * 100);
+        var col = (colonne != null && x.pos % 3 === colonne % 3
+                   && (x.pos < 3) === (colonne < 3));
         return '<div class="db-carte' + (x.pv <= 0 ? ' morte' : '')
-          + (x.eclair ? ' frappe' : '') + (x.touchee ? ' touchee' : '') + '" '
-          + 'style="--tier:' + tr.color + '">'
+          + (x.eclair ? ' frappe' : '') + (x.touchee ? ' touchee' : '')
+          + (col ? ' active' : '') + '" style="--tier:' + tr.color + '">'
+          + (x.degats ? '<span class="db-degats">−' + x.degats + '</span>' : '')
+          + (x.capFlash ? '<span class="db-cap-tag">' + esc(x.capFlash) + '</span>' : '')
           + '<span class="db-vue">'
           + (x.c.thumb ? '<img src="' + esc(x.c.thumb) + '" alt="" loading="lazy">'
                        : artSVG(x.c.title, tr.color))
           + '</span>'
           + '<span class="db-nom">' + esc(x.c.title) + '</span>'
           + '<span class="db-jauge"><i style="width:' + pct + '%"></i></span>'
+          + '<span class="db-pv">' + (x.pv > 0 ? x.pv : '✕') + '</span>'
           + '</div>';
       }).join('') + '</div>';
     };
@@ -6958,25 +7168,45 @@
     var d = duelCourant;
     if (!d) return;
     var r = d.resultat;
+    duelAccelere = false;
     /* On rejoue sur des copies : le resultat calcule reste intact. */
     var etat = {
       nomAdv: d.adv.nom,
-      A: d.mien.map(function (c, i) { var x = enCombattant(c, 'moi', i); return x; }),
+      A: d.mien.map(function (c, i) { return enCombattant(c, 'moi', i); }),
       B: d.adv.cartes.map(function (c, i) { return enCombattant(c, 'lui', i); })
     };
-    var i = 0, tour = 0;
+    var i = 0, tour = 0, colonne = null;
 
-    var dessiner = function (journal) {
+    var nomColonne = function (pos) {
+      if (pos == null) return '';
+      var l = pos < 3 ? 'avant' : 'arrière';
+      return 'Ligne ' + l + ' · place ' + ((pos % 3) + 1);
+    };
+
+    var dessiner = function (journal, classe) {
       el('duel-body').innerHTML = '<p class="duel-titre">DUEL</p>'
-        + '<div class="db-tour">Tour ' + tour + ' / ' + TOURS_MAX + '</div>'
-        + plateau(etat)
-        + '<p class="db-journal">' + (journal || '&nbsp;') + '</p>'
-        + '<button class="btn" data-duel-passer="1">Passer le combat</button>';
+        + '<div class="db-entete">'
+        + '<span class="db-tour">Tour ' + tour + ' / ' + TOURS_MAX + '</span>'
+        + '<span class="db-col">' + nomColonne(colonne) + '</span>'
+        + '</div>'
+        + plateau(etat, colonne)
+        + '<p class="db-journal' + (classe ? ' ' + classe : '') + '">'
+        + (journal || '&nbsp;') + '</p>'
+        + '<div class="db-boutons">'
+        + '<button class="btn" data-duel-vite="1">'
+        + (duelAccelere ? 'Vitesse normale' : 'Accélérer') + '</button>'
+        + '<button class="btn" data-duel-passer="1">Passer</button>'
+        + '</div>';
+    };
+
+    var effacer = function () {
+      etat.A.concat(etat.B).forEach(function (x) {
+        x.eclair = false; x.touchee = false; x.degats = 0; x.capFlash = null;
+      });
     };
 
     var pas = function () {
-      /* On efface les marques de l'action precedente. */
-      etat.A.concat(etat.B).forEach(function (x) { x.eclair = false; x.touchee = false; });
+      effacer();
 
       while (i < r.actions.length && r.actions[i].type === 'tour') {
         tour = r.actions[i].n; i += 1;
@@ -6984,19 +7214,41 @@
       if (i >= r.actions.length) { finAnimation(); return; }
 
       var a = r.actions[i]; i += 1;
+      colonne = (a.srcPos != null) ? a.srcPos : colonne;
       var src = (a.camp === 'moi' ? etat.A : etat.B)[a.srcPos];
+
+      if (a.type === 'capacite') {
+        if (src) { src.eclair = true; src.capFlash = a.cap; }
+        if (a.ciblePos != null) {
+          var t = (a.ciblecamp === 'moi' ? etat.A : etat.B)[a.ciblePos];
+          if (t) t.touchee = true;
+        }
+        dessiner('<b>' + esc(a.src) + '</b> — <i>' + esc(a.cap) + '</i> : '
+          + a.detail, 'cap');
+        vib(6);
+        duelMinuteur = setTimeout(pas, rythme());
+        return;
+      }
+
       var cib = (a.ciblecamp === 'moi' ? etat.A : etat.B)[a.ciblePos];
       if (src) src.eclair = true;
-      if (cib) { cib.touchee = true; cib.pv = a.pv; }
+      if (cib) { cib.touchee = true; cib.pv = a.pv; cib.degats = a.degats; }
 
-      dessiner('<b>' + esc(a.src) + '</b> frappe <b>' + esc(a.cible) + '</b> — '
+      dessiner('<b>' + esc(a.src) + '</b>'
+        + (a.second ? ' <i>(' + esc(a.cap) + ')</i>' : '')
+        + ' frappe <b>' + esc(a.cible) + '</b> — '
         + a.degats.toLocaleString('fr-FR') + ' dégâts'
-        + (a.mort ? ' · <i class="db-mort">éliminée</i>' : ''));
-      if (a.mort) vib(10);
-      /* Les premiers tours posent la scene ; ensuite on accelere, sinon un
-         combat de soixante coups dure vingt secondes. */
-      duelMinuteur = setTimeout(pas,
-        tour <= DUEL_TOURS_LENTS ? DUEL_RYTHME : DUEL_RYTHME_VITE);
+        + (a.mort ? ' · <i class="db-mort">éliminée</i>' : ''),
+        a.mort ? 'mort' : '');
+      if (a.mort) vib(14); else if (a.second) vib(8);
+      duelMinuteur = setTimeout(pas, rythme());
+    };
+
+    var rythme = function () {
+      if (duelAccelere) return DUEL_RYTHME_VITE;
+      /* Les premiers tours posent la scene ; ensuite on resserre un peu, sans
+         aller jusqu'a rendre le combat illisible. */
+      return tour <= 2 ? DUEL_RYTHME : Math.round(DUEL_RYTHME * 0.72);
     };
 
     var finAnimation = function () {
@@ -7008,7 +7260,13 @@
       clearTimeout(duelMinuteur); duelMinuteur = null;
       finAnimation();
     };
+    duelCourant.basculerVitesse = function () {
+      duelAccelere = !duelAccelere;
+      dessiner(el('duel-body').querySelector('.db-journal')
+        ? el('duel-body').querySelector('.db-journal').innerHTML : '');
+    };
 
+    colonne = null;
     dessiner('');
     duelMinuteur = setTimeout(pas, DUEL_RYTHME);
   }
@@ -10660,6 +10918,10 @@
     if (e.target.closest('#duel-lancer')) { lancerDuel(); return; }
     if (e.target.closest('[data-duel-passer]')) {
       if (duelCourant && duelCourant.passer) duelCourant.passer();
+      return;
+    }
+    if (e.target.closest('[data-duel-vite]')) {
+      if (duelCourant && duelCourant.basculerVitesse) duelCourant.basculerVitesse();
       return;
     }
     if (e.target.closest('[data-duel-retour]')) { duelCourant = null; showDuel(); return; }
