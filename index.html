@@ -1093,6 +1093,16 @@
     25% { opacity: 1; transform: translateY(0); }
     100% { opacity: 1; transform: translateY(-6px); }
   }
+  .as-boss {
+    padding: 12px 14px; margin-bottom: 10px; text-align: center;
+    background: var(--night-up); border: 1px solid var(--night-line);
+    border-top: 2px solid #8d5050;
+  }
+  .as-boss.touchee { animation: db-choc .28s ease; border-top-color: #cf7f7f; }
+  .as-boss-nom {
+    display: block; margin-bottom: 8px; font-family: var(--display);
+    font-size: 17px; color: var(--ivory);
+  }
   .db-cap-tag {
     position: absolute; top: 2px; left: 4px; z-index: 3;
     padding: 1px 5px; font-size: 9px; letter-spacing: .04em;
@@ -5752,6 +5762,106 @@
     return Math.max(1, Math.round(atkEff(c) * m * reduction));
   }
 
+  /* ================= assaut de raid =================
+     Le raid n'etait pas un combat : on envoyait des cartes, les degats
+     tombaient, le boss ne faisait jamais rien. Il devient un ASSAUT mene par
+     six cartes placees comme en duel, et le boss riposte.
+
+     La regle qui donne son sel a l'ensemble : une equipe qui echoue est
+     CONSOMMEE pour la journee. On retente, mais avec d'autres cartes. Le duel
+     mesure la qualite d'une collection, le raid en mesure la profondeur. */
+
+  var RAID_ASSAUTS = 3;
+  var RAID_TOURS_MAX = 12;
+  var RAID_RIPOSTE = 0.55;   /* le boss frappe moins fort qu'il n'encaisse */
+
+  function equipeAssaut(etat) {
+    var pris = etat.utilisees || [];
+    var libre = function (t) { return t && collection[t] && pris.indexOf(t) < 0; };
+    var eq = readEquipe().filter(libre);
+    if (eq.length < EQ_TAILLE) {
+      var reste = Object.keys(collection)
+        .filter(function (t) { return libre(t) && eq.indexOf(t) < 0; })
+        .map(function (t) { return collection[t]; })
+        .sort(function (a, b) { return degats(b, etat.boss) - degats(a, etat.boss); });
+      eq = eq.concat(reste.slice(0, EQ_TAILLE - eq.length)
+        .map(function (c) { return c.title; }));
+    }
+    return eq.map(function (t) { return collection[t]; }).filter(Boolean);
+  }
+
+  /* Riposte volontairement plus douce que nos coups : un assaut doit tenir
+     plusieurs tours, sinon le placement ne sert a rien. */
+  function degatsBoss(boss, cible) {
+    var base = boss.atk * (900 / (900 + defEff(cible.c))) * RAID_RIPOSTE;
+    if (cible.cap && cible.cap.id === 'ancrage') base *= 0.9;
+    return Math.max(1, Math.round(base));
+  }
+
+  function simulerAssaut(cartes, etat) {
+    var b = etat.boss;
+    var A = cartes.map(function (c, i) { return enCombattant(c, 'moi', i); });
+    var pvBoss = etat.pv;
+    var actions = [], tour = 0, inflige = 0;
+    var vivant = function () { return A.some(function (x) { return x.pv > 0; }); };
+
+    while (tour < RAID_TOURS_MAX && vivant() && pvBoss > 0) {
+      tour += 1;
+      actions.push({ type: 'tour', n: tour });
+
+      for (var i = 0; i < A.length && pvBoss > 0; i++) {
+        var src = A[i];
+        if (src.pv <= 0) continue;
+
+        if (src.cap && !src.capUtilisee && src.cap.id === 'inspiration') {
+          src.capUtilisee = true;
+          var ligne = src.pos < 3 ? [0, 1, 2] : [3, 4, 5];
+          ligne.forEach(function (q) {
+            if (A[q] && A[q].pv > 0) A[q].atkMult *= (1 + src.cap.val);
+          });
+          actions.push({ type: 'capacite', src: src.c.title, srcPos: src.pos,
+            cap: src.cap.nom,
+            detail: 'sa ligne gagne ' + Math.round(src.cap.val * 100) + ' % d\u2019attaque' });
+        }
+
+        var def = b.def;
+        if (src.cap && src.cap.id === 'methode') def *= (1 - src.cap.val);
+        var m = MULT[rankIndex(src.c.rank)] || 1;
+        var atk = (atkEff(src.c) + src.atkBonus) * src.atkMult;
+        var d = Math.max(1, Math.round(atk * m * (900 / (900 + def))
+                * (src.pos >= 3 ? MALUS_ARRIERE : 1)));
+        pvBoss = Math.max(0, pvBoss - d);
+        inflige += d;
+        actions.push({ type: 'coup', vers: 'boss', src: src.c.title, srcPos: src.pos,
+          degats: d, pvBoss: pvBoss, mort: pvBoss === 0 });
+      }
+      if (pvBoss <= 0) break;
+
+      var cible = A.filter(function (x) { return x.pv > 0 && x.pos < 3; })[0]
+               || A.filter(function (x) { return x.pv > 0; })[0];
+      if (!cible) break;
+      var db = degatsBoss(b, cible);
+      cible.pv = Math.max(0, cible.pv - db);
+      actions.push({ type: 'coup', vers: 'carte', src: b.title,
+        ciblePos: cible.pos, cible: cible.c.title,
+        degats: db, pv: cible.pv, pvMax: cible.pvMax, mort: cible.pv === 0 });
+
+      if (cible.pv === 0 && cible.cap && cible.cap.id === 'heritage') {
+        var col = cible.pos < 3 ? cible.pos + 3 : cible.pos - 3;
+        if (A[col] && A[col].pv > 0) {
+          var leg = Math.round(atkEff(cible.c) * cible.cap.val);
+          A[col].atkBonus += leg;
+          actions.push({ type: 'capacite', src: cible.c.title, srcPos: cible.pos,
+            cap: cible.cap.nom,
+            detail: esc(A[col].c.title) + ' h\u00e9rite de ' + leg + ' d\u2019attaque' });
+        }
+      }
+    }
+
+    return { actions: actions, tours: tour, A: A, pvBoss: pvBoss,
+             inflige: inflige, vaincu: pvBoss <= 0 };
+  }
+
   function readRaid() {
     var d;
     try { d = JSON.parse(localStorage.getItem(RKEY)); } catch (e) { d = null; }
@@ -5804,7 +5914,11 @@
     body.innerHTML = '<p class="status">Recherche de l’adversaire du jour…</p>';
     construireBoss()
       .then(function (boss) {
-          var pv = Math.round(boss.def * 10);
+          /* Dix fois la defense suffisait quand on envoyait les cartes une par
+             une. Une equipe de six qui frappe a chaque tour le descendait en
+             deux tours : il faut environ quarante fois pour qu'un assaut se
+             joue, et que les trois tentatives du jour aient un sens. */
+          var pv = Math.round(boss.def * 40);
           var etat2 = {
             date: jour(), boss: boss, pv: pv, pvMax: pv,
             utilisees: [], vaincu: false, journal: []
@@ -5874,38 +5988,42 @@
     }
 
     if (!etat.vaincu) {
-      var places = MAX_COMBATTANTS - etat.utilisees.length;
-      html += '<p class="raid-title">VOS COMBATTANTS — ' + places + ' place'
-        + (places > 1 ? 's' : '') + ' sur ' + MAX_COMBATTANTS + ' aujourd’hui</p>';
+      var restants = RAID_ASSAUTS - (etat.assauts || 0);
+      var eq = equipeAssaut(etat);
+      html += '<p class="raid-title">ASSAUT — ' + restants + ' tentative'
+        + (restants > 1 ? 's' : '') + ' sur ' + RAID_ASSAUTS + ' aujourd’hui</p>';
 
-      if (places <= 0) {
-        html += '<p class="status">Vos ' + MAX_COMBATTANTS
-          + ' combattants du jour ont donné. Revenez demain — '
-          + 'seules vos meilleures cartes comptent, pas leur nombre.</p>';
-      } else if (!dispo.length) {
-        html += '<p class="status">Votre collection est vide. '
-          + 'Ouvrez un paquet pour recruter des combattants.</p>';
+      if (restants <= 0) {
+        html += '<p class="status">Vos ' + RAID_ASSAUTS + ' assauts du jour sont menés. '
+          + 'L’adversaire tient encore — un autre vous attend demain.</p>';
+      } else if (eq.length < EQ_TAILLE) {
+        html += '<p class="status">Il faut six cartes encore disponibles pour monter '
+          + 'un assaut. ' + (etat.utilisees.length
+              ? etat.utilisees.length + ' sont déjà hors de combat aujourd’hui.'
+              : 'Ouvrez des paquets pour étoffer votre collection.') + '</p>';
       } else {
-        var equipe = dispo.slice(0, places);
-        var total = equipe.reduce(function (n, c) { return n + degats(c, b); }, 0);
-        html += '<p class="puissance">Vos ' + equipe.length + ' meilleures cartes valent <b>'
-          + total.toLocaleString('fr-FR') + '</b> dégâts, sur '
-          + etat.pv.toLocaleString('fr-FR') + ' PV restants'
-          + (total >= etat.pv
-              ? ' — de quoi l’achever.'
-              : ' — il manque ' + (etat.pv - total).toLocaleString('fr-FR') + '.')
-          + '</p>'
-          + '<button class="btn btn-solid" data-allin="1">Envoyer les '
-          + equipe.length + ' meilleures</button>';
-        html += dispo.slice(0, 30).map(function (c) {
+        var parTour = eq.reduce(function (n, c) { return n + degats(c, b); }, 0);
+        var vignette = function (c) {
           var ct = tierOf(c.rank);
-          return '<button class="fighter" style="--tier:' + ct.color + '" '
-            + 'data-attack="' + esc(c.title) + '">'
-            + '<span class="fighter-name">' + esc(c.title) + '</span>'
-            + '<span class="rank">' + ct.short + '</span>'
-            + '<span class="fighter-dmg">−' + degats(c, b) + '</span>'
-            + '</button>';
-        }).join('');
+          return '<div class="db-carte" style="--tier:' + ct.color + '">'
+            + '<span class="db-vue">'
+            + (c.thumb ? '<img src="' + esc(c.thumb) + '" alt="" loading="lazy">'
+                       : artSVG(c.title, ct.color))
+            + '</span><span class="db-nom">' + esc(c.title) + '</span></div>';
+        };
+        html += '<p class="puissance">Cette équipe vaut environ <b>'
+          + parTour.toLocaleString('fr-FR') + '</b> dégâts par tour, sur '
+          + etat.pv.toLocaleString('fr-FR') + ' PV restants.</p>'
+          + '<p class="duel-intro">L’adversaire riposte sur votre ligne avant. '
+          + 'Si l’assaut échoue, ces six cartes sont hors de combat pour la journée : '
+          + 'il faudra en envoyer d’autres.</p>'
+          + '<div class="db-ligne">' + eq.slice(0, 3).map(vignette).join('') + '</div>'
+          + '<div class="db-ligne">' + eq.slice(3, 6).map(vignette).join('') + '</div>'
+          + '<button class="btn btn-solid" data-assaut="1">Lancer l’assaut</button>';
+      }
+      if (etat.utilisees.length) {
+        html += '<p class="duel-intro">' + etat.utilisees.length + ' carte'
+          + (etat.utilisees.length > 1 ? 's' : '') + ' hors de combat aujourd’hui.</p>';
       }
     }
 
@@ -5995,6 +6113,140 @@
     writeRaid(etat);
     refreshPacks();
     paintRaid(etat);
+  }
+
+  var assautCourant = null;
+
+  function lancerAssaut() {
+    var etat = readRaid();
+    if (!etat || etat.vaincu) return;
+    if ((etat.assauts || 0) >= RAID_ASSAUTS) return;
+    var cartes = equipeAssaut(etat);
+    if (cartes.length < EQ_TAILLE) return;
+    assautCourant = { cartes: cartes, resultat: simulerAssaut(cartes, etat) };
+    animerAssaut();
+  }
+
+  function conclureAssaut() {
+    var etat = readRaid(), a = assautCourant;
+    if (!etat || !a) return;
+    var r = a.resultat;
+    etat.pv = Math.max(0, r.pvBoss);
+    etat.assauts = (etat.assauts || 0) + 1;
+    noterJour('degats', r.inflige);
+    noterCoup(r.inflige);
+
+    if (r.vaincu) {
+      etat.journal.push('<b>Assaut victorieux</b> — '
+        + r.inflige.toLocaleString('fr-FR') + ' dégâts.');
+    } else {
+      /* Le boss tient : l'equipe engagee est hors course pour la journee.
+         C'est toute la tension du raid — on retente, mais avec d'autres
+         cartes, donc une collection profonde vaut mieux qu'une brillante. */
+      a.cartes.forEach(function (c) {
+        if (etat.utilisees.indexOf(c.title) < 0) etat.utilisees.push(c.title);
+      });
+      etat.journal.push('Assaut repoussé — ' + r.inflige.toLocaleString('fr-FR')
+        + ' dégâts, ' + a.cartes.length + ' cartes hors de combat.');
+    }
+    verifierPaliers(etat);
+    writeRaid(etat);
+    assautCourant = null;
+    paintRaid(etat);
+  }
+
+  function animerAssaut() {
+    var a = assautCourant;
+    if (!a) return;
+    var r = a.resultat, etat = readRaid(), b = etat.boss;
+    var A = a.cartes.map(function (c, i) { return enCombattant(c, 'moi', i); });
+    var pvBoss = etat.pv, i = 0, tour = 0, minuteur = null, vite = false, secoue = false;
+
+    var dessiner = function (journal, classe) {
+      var pct = Math.max(0, pvBoss / etat.pvMax * 100);
+      var ligne = function (de, fin) {
+        return '<div class="db-ligne">' + A.slice(de, fin).map(function (x) {
+          var tr = tierOf(x.c.rank);
+          var p = Math.max(0, x.pv / x.pvMax * 100);
+          return '<div class="db-carte' + (x.pv <= 0 ? ' morte' : '')
+            + (x.eclair ? ' frappe' : '') + (x.touchee ? ' touchee' : '')
+            + '" style="--tier:' + tr.color + '">'
+            + (x.degats ? '<span class="db-degats">−' + x.degats + '</span>' : '')
+            + (x.capFlash ? '<span class="db-cap-tag">' + esc(x.capFlash) + '</span>' : '')
+            + '<span class="db-vue">'
+            + (x.c.thumb ? '<img src="' + esc(x.c.thumb) + '" alt="" loading="lazy">'
+                         : artSVG(x.c.title, tr.color))
+            + '</span><span class="db-nom">' + esc(x.c.title) + '</span>'
+            + '<span class="db-jauge"><i style="width:' + p + '%"></i></span>'
+            + '<span class="db-pv">' + (x.pv > 0 ? x.pv : '✕') + '</span></div>';
+        }).join('') + '</div>';
+      };
+      el('raid-body').innerHTML = '<p class="raid-title">ASSAUT</p>'
+        + '<div class="db-entete"><span class="db-tour">Tour ' + tour
+        + ' / ' + RAID_TOURS_MAX + '</span>'
+        + '<span class="db-col">' + r.inflige.toLocaleString('fr-FR')
+        + ' dégâts sur l’assaut</span></div>'
+        + '<div class="as-boss' + (secoue ? ' touchee' : '') + '">'
+        + '<span class="as-boss-nom">' + esc(b.title) + '</span>'
+        + '<div class="bar"><span style="width:' + pct.toFixed(1) + '%"></span>'
+        + '<b>' + pvBoss.toLocaleString('fr-FR') + ' / '
+        + etat.pvMax.toLocaleString('fr-FR') + ' PV</b></div></div>'
+        + ligne(0, 3) + ligne(3, 6)
+        + '<p class="db-journal' + (classe ? ' ' + classe : '') + '">'
+        + (journal || '&nbsp;') + '</p>'
+        + '<div class="db-boutons">'
+        + '<button class="btn" data-as-vite="1">'
+        + (vite ? 'Vitesse normale' : 'Accélérer') + '</button>'
+        + '<button class="btn" data-as-passer="1">Passer</button></div>';
+    };
+
+    var effacer = function () {
+      secoue = false;
+      A.forEach(function (x) {
+        x.eclair = false; x.touchee = false; x.degats = 0; x.capFlash = null;
+      });
+    };
+
+    var pas = function () {
+      effacer();
+      while (i < r.actions.length && r.actions[i].type === 'tour') {
+        tour = r.actions[i].n; i += 1;
+      }
+      if (i >= r.actions.length) { fin(); return; }
+      var ac = r.actions[i]; i += 1;
+
+      if (ac.type === 'capacite') {
+        var sc = A[ac.srcPos];
+        if (sc) { sc.eclair = true; sc.capFlash = ac.cap; }
+        dessiner('<b>' + esc(ac.src) + '</b> — <i>' + esc(ac.cap) + '</i> : '
+          + ac.detail, 'cap');
+      } else if (ac.vers === 'boss') {
+        var s2 = A[ac.srcPos];
+        if (s2) s2.eclair = true;
+        pvBoss = ac.pvBoss; secoue = true;
+        dessiner('<b>' + esc(ac.src) + '</b> inflige '
+          + ac.degats.toLocaleString('fr-FR') + ' dégâts'
+          + (ac.mort ? ' · <i class="db-mort">adversaire vaincu</i>' : ''),
+          ac.mort ? 'mort' : '');
+        if (ac.mort) vib(16);
+      } else {
+        var cb = A[ac.ciblePos];
+        if (cb) { cb.touchee = true; cb.pv = ac.pv; cb.degats = ac.degats; }
+        dessiner('<b>' + esc(b.title) + '</b> riposte sur <b>' + esc(ac.cible)
+          + '</b> — ' + ac.degats.toLocaleString('fr-FR') + ' dégâts'
+          + (ac.mort ? ' · <i class="db-mort">hors de combat</i>' : ''),
+          ac.mort ? 'mort' : '');
+        if (ac.mort) vib(12);
+      }
+      minuteur = setTimeout(pas, vite ? 200 : 460);
+    };
+
+    var fin = function () { clearTimeout(minuteur); minuteur = null; conclureAssaut(); };
+    assautCourant.passer = fin;
+    assautCourant.basculerVitesse = function () { vite = !vite; };
+
+    dessiner('');
+    minuteur = setTimeout(pas, 460);
   }
 
   function attaquer(titre) {
@@ -11532,9 +11784,15 @@
     if (!e.target.closest) return;
     var cl = e.target.closest('[data-claim]');
     if (cl) { reclamer(cl.getAttribute('data-claim')); return; }
-    if (e.target.closest('[data-allin]')) { toutAttaquer(); return; }
-    var f = e.target.closest('[data-attack]');
-    if (f) attaquer(f.getAttribute('data-attack'));
+    if (e.target.closest('[data-assaut]')) { lancerAssaut(); return; }
+    if (e.target.closest('[data-as-passer]')) {
+      if (assautCourant && assautCourant.passer) assautCourant.passer();
+      return;
+    }
+    if (e.target.closest('[data-as-vite]')) {
+      if (assautCourant && assautCourant.basculerVitesse) assautCourant.basculerVitesse();
+      return;
+    }
   });
   el('goto-open').addEventListener('click', function () {
     sousCartes = 'ouvrir'; switchTo('cartes'); basculerColl('ouvrir');
