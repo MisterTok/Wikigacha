@@ -6666,7 +6666,7 @@
     if (!nuage.pret || !nuage.uid) return Promise.resolve([]);
     /* Les profils vus recemment : une seule requete triee, donc aucun index
        composite a declarer. */
-    return nuage.db.collection('joueurs').orderBy('maj', 'desc').limit(30).get()
+    return nuage.db.collection('joueurs').orderBy('maj', 'desc').limit(60).get()
       .then(function (q) {
         var pool = [];
         q.forEach(function (d) {
@@ -6678,18 +6678,28 @@
           if (cartes.length < EQ_TAILLE) return;
           pool.push({
             nom: (v.nom || 'Sans nom').slice(0, 18),
+            cote: v.cote || 0,
             note: 'joueur · cote ' + (v.cote || 0),
             cartes: cartes,
             puissance: cartes.reduce(function (s, c) { return s + atkEff(c) + defEff(c); }, 0)
           });
         });
-        /* Melange puis on en retient trois : sans cela, on retomberait
-           toujours sur les memes joueurs, les plus recemment actifs. */
-        for (var i = pool.length - 1; i > 0; i--) {
+        /* Appariement par la cote : on garde les joueurs les plus proches de
+           son niveau, puis on melange ce vivier restreint. Sans le melange, on
+           retomberait chaque fois sur les trois memes ; sans le tri, on
+           affronterait n'importe qui, ce qui vide le classement de son sens.
+           Le vivier fait le double des places a pourvoir, de quoi varier sans
+           s'eloigner de son niveau. */
+        var maCote = (readClassement() || {}).cote || 0;
+        pool.sort(function (a, b) {
+          return Math.abs(a.cote - maCote) - Math.abs(b.cote - maCote);
+        });
+        var proches = pool.slice(0, NB_ADVERSAIRES * 2);
+        for (var i = proches.length - 1; i > 0; i--) {
           var j = Math.floor(Math.random() * (i + 1));
-          var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+          var t = proches[i]; proches[i] = proches[j]; proches[j] = t;
         }
-        return pool.slice(0, NB_ADVERSAIRES);
+        return proches.slice(0, NB_ADVERSAIRES);
       })
       ['catch'](function (err) {
         duelDerniereErreur = (err && (err.message || err.name)) || 'inconnue';
