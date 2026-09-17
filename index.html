@@ -9766,7 +9766,8 @@
   var CLAN_SIGNE = 12 * 3600 * 1000;          /* on ne repointe pas plus de 2x/jour */
   var clanEtat = { id: '', doc: null, membres: [], liste: null, msg: '',
                    occupe: false, passation: false,
-                   vue: 'clan', topJ: null, topC: null, division: null, raid: null };
+                   vue: 'clan', topJ: null, topC: null, division: null,
+                   raid: 'chargement', raidErr: '' };
 
   function clanRef(id) { return nuage.db.collection('clans').doc(id); }
 
@@ -10174,8 +10175,16 @@
   /* Le premier membre a ouvrir l'onglet de la semaine cree l'adversaire. Si
      deux s'en chargent en meme temps, la creation du second echoue et il relit
      simplement celui qui existe deja. */
+  /* Trois etats distincts, faute de quoi un echec se confondait avec un
+     chargement : « chargement » pendant la requete, un objet en cas de
+     succes, et « erreur » avec sa cause quand ca casse — sinon le bloc
+     affichait « Recherche de l'adversaire… » indefiniment. */
   function raidClanCharger() {
-    if (!nuage.pret || !nuage.uid || !clanEtat.id) { clanEtat.raid = null; return Promise.resolve(); }
+    if (!nuage.pret || !nuage.uid || !clanEtat.id) {
+      clanEtat.raid = 'hors-ligne'; return Promise.resolve();
+    }
+    clanEtat.raid = 'chargement';
+    clanEtat.raidErr = '';
     var ref = raidClanRef();
     return ref.get().then(function (d) {
       if (d.exists) { clanEtat.raid = d.data(); return; }
@@ -10188,16 +10197,28 @@
           pvMax: pvMax, degats: 0, parMembre: {}, cree: Date.now()
         };
         return ref.set(doc).then(function () { clanEtat.raid = doc; })
-          .catch(function () { return ref.get().then(function (d2) {
-            if (d2.exists) clanEtat.raid = d2.data();
-          }); });
+          .catch(function (e) {
+            /* Deux membres ont pu creer l'adversaire en meme temps : la
+               seconde ecriture echoue, il suffit de relire celle qui a
+               abouti. */
+            return ref.get().then(function (d2) {
+              if (d2.exists) { clanEtat.raid = d2.data(); return; }
+              clanEtat.raid = 'erreur';
+              clanEtat.raidErr = (e && (e.code || e.message)) || 'écriture refusée';
+            });
+          });
       });
-    }).catch(function () { clanEtat.raid = null; });
+    }).catch(function (e) {
+      clanEtat.raid = 'erreur';
+      clanEtat.raidErr = (e && (e.code || e.message)) || 'inconnue';
+    });
   }
 
   function raidClanFrapper(titre) {
     var r = clanEtat.raid, c = collection[titre];
-    if (!r || !c) return;
+    /* L'etat porte aussi des chaines (« chargement », « erreur ») : sans ce
+       controle, on frapperait un adversaire qui n'existe pas. */
+    if (!r || typeof r === 'string' || !c) return;
     var loc = readRaidClan();
     if (loc.coups >= RC_COUPS) { clanEtat.msg = 'Plus de frappe aujourd\u2019hui.'; showClan(); return; }
     if ((r.degats || 0) >= r.pvMax) return;
@@ -10221,7 +10242,7 @@
   function raidClanButin() {
     var r = clanEtat.raid;
     var loc = readRaidClan();
-    if (!r || loc.butin || (r.degats || 0) < r.pvMax) return;
+    if (!r || typeof r === 'string' || loc.butin || (r.degats || 0) < r.pvMax) return;
     var mien = (r.parMembre && r.parMembre[nuage.uid]) || 0;
     if (!mien) { clanEtat.msg = 'Il fallait participer au combat.'; showClan(); return; }
     var part = Math.min(1, mien / r.pvMax);
@@ -11602,9 +11623,18 @@
 
   function blocRaidClan() {
     var r = clanEtat.raid;
-    if (r === undefined || r === null) {
-      return '<p class="sheet-sub">RAID DE CLAN</p>'
-        + '<p class="duel-intro">Recherche de l\u2019adversaire…</p>';
+    var tete = '<p class="sheet-sub">RAID DE CLAN</p>';
+    if (!r || r === 'chargement') {
+      return tete + '<p class="duel-intro">Recherche de l\u2019adversaire…</p>';
+    }
+    if (r === 'hors-ligne') {
+      return tete + '<p class="duel-intro">Hors ligne : le raid de clan demande '
+        + 'une connexion.</p>';
+    }
+    if (r === 'erreur') {
+      return tete + '<p class="duel-alerte">L\u2019adversaire n\u2019a pas pu être '
+        + 'chargé' + (clanEtat.raidErr ? ' (' + esc(clanEtat.raidErr) + ')' : '')
+        + '.</p><button class="btn" data-rc-retry="1">Réessayer</button>';
     }
     var loc = readRaidClan();
     var deg = Math.min(r.degats || 0, r.pvMax);
@@ -11757,6 +11787,11 @@
     if (!e.target.closest) return;
     if (e.target.closest('[data-clan-creer]')) {
       clanCreer(el('clan-nom').value, el('clan-tag').value); return;
+    }
+    if (e.target.closest('[data-rc-retry]')) {
+      showClan();
+      raidClanCharger().then(showClan);
+      return;
     }
     var rf = e.target.closest('[data-rc-frappe]');
     if (rf) { raidClanFrapper(rf.getAttribute('data-rc-frappe')); return; }
