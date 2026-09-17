@@ -552,37 +552,6 @@
   body.dos-orfevre .face-back small { color: #6b5120; }
 
   /* Vignettes d'apercu dans la boutique. */
-  .theme-grille { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 4px; }
-  .theme-offre {
-    display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
-    padding: 11px 12px; font: inherit; text-align: left; cursor: pointer;
-    color: var(--glass); background: var(--night-up);
-    border: 1px solid var(--night-line); border-left: 3px solid var(--night-line);
-  }
-  .theme-offre:active:not([disabled]) { background: #262c40; }
-  .theme-offre[disabled] { opacity: .5; cursor: default; }
-  .th-nom { font-size: 13px; color: var(--ivory); }
-  .th-prix { font-size: 11px; color: #c9992e; font-variant-numeric: tabular-nums; }
-
-  .dos-grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .dos-offre {
-    display: flex; flex-direction: column; align-items: center; gap: 5px;
-    padding: 10px 6px 11px; font: inherit; cursor: pointer; text-align: center;
-    color: var(--glass); background: var(--night-up);
-    border: 1px solid var(--night-line); border-top: 3px solid var(--night-line);
-    transition: transform .12s ease, background .12s ease;
-  }
-  .dos-offre:active:not([disabled]) { transform: scale(.98); background: #262c40; }
-  .dos-offre[disabled] { cursor: default; opacity: .75; }
-  .dos-offre.actif { border-top-color: #c9992e; background: #262c40; }
-  .dos-vig {
-    width: 42px; height: 58px; border-radius: 4px;
-    border: 1px solid rgba(255,255,255,.22);
-    box-shadow: inset 0 0 0 3px rgba(201,153,46,.16), 0 2px 8px rgba(0,0,0,.45);
-  }
-  .dos-nom { font-size: 11.5px; color: var(--glass); }
-  .dos-prix { font-size: 10.5px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
-  .dos-offre.actif .dos-prix { color: #c9992e; }
 
   .face-back small { font-size: 10px; letter-spacing: .14em; color: var(--glass-dim); }
 
@@ -1504,17 +1473,104 @@
   .bt-solde b { color: #f0dda4; }
   .bt-mot { margin: 0 0 14px; font-size: 12.5px; line-height: 1.6; color: var(--glass-dim); }
 
+  /* ================= boutique : une seule grammaire =================
+     La boutique empilait quatre systemes visuels differents — cartes
+     arrondies, rectangles a bordure gauche, tuiles carrees, blocs a puces —
+     et rien ne se repondait. Tout passe desormais par un composant unique :
+     meme surface, meme filet de 1 px, et un LISERE SUPERIEUR dont la couleur
+     dit l'etat. C'est la seule chose qui varie, et elle porte de
+     l'information : dore = disponible, vert = deja acquis, neutre = hors de
+     portee. Le prix occupe toujours la meme place, dans la meme graisse. */
+
+  .bt-bourse {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 12px; padding: 14px 16px; margin-bottom: 4px;
+    background: var(--night-up); border: 1px solid var(--night-line);
+    border-top: 2px solid #c9992e;
+  }
+  .bt-bourse-n {
+    font-family: var(--display); font-size: 30px; line-height: 1;
+    color: #f0dda4; font-variant-numeric: tabular-nums;
+  }
+  .bt-bourse-l { font-size: 11.5px; letter-spacing: .04em; color: var(--glass-dim); }
+
+  .bt-grille { display: grid; gap: 8px; margin-bottom: 4px; }
+  .bt-grille.c2 { grid-template-columns: repeat(2, 1fr); }
+  .bt-grille.c3 { grid-template-columns: repeat(3, 1fr); }
+
+  .bt-tuile, .bt-ligne {
+    font: inherit; text-align: left; color: var(--glass);
+    background: var(--night-up);
+    border: 1px solid var(--night-line);
+    border-top: 2px solid #c9992e;
+    transition: transform .12s ease, background .12s ease;
+  }
+  button.bt-tuile, button.bt-ligne { cursor: pointer; }
+  button.bt-tuile:active:not([disabled]),
+  button.bt-ligne:active:not([disabled]) { transform: scale(.985); background: #262c40; }
+  .bt-tuile[disabled], .bt-ligne[disabled] { cursor: default; border-top-color: var(--night-line); }
+  .bt-tuile.acquis, .bt-ligne.acquis { border-top-color: #4f8d72; }
+
+  .bt-tuile {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 14px 8px 12px; text-align: center;
+  }
+  .bt-chiffre {
+    font-family: var(--display); font-size: 29px; line-height: 1;
+    color: var(--ivory); font-variant-numeric: tabular-nums;
+  }
+  .bt-tuile[disabled] .bt-chiffre { color: var(--glass); }
+  .bt-nom { font-size: 12px; color: var(--ivory); }
+  .bt-sous { font-size: 10.5px; color: var(--glass-dim); }
+  .bt-marque {
+    margin-top: 5px; padding: 2px 7px; font-size: 9.5px; letter-spacing: .06em;
+    color: #14161f; background: #c9992e;
+  }
+  .bt-marque:empty { display: none; }
+  .bt-prix {
+    margin-top: auto; padding-top: 10px;
+    font-size: 13px; font-weight: 600; color: #f0dda4;
+    font-variant-numeric: tabular-nums;
+  }
+  .bt-prix.hors { color: #cf7f7f; font-weight: 400; }
+  .bt-prix.pris { color: #7fb99a; }
+  .bt-tuile[disabled] .bt-prix:not(.hors):not(.pris) { color: var(--glass-dim); }
+
+  /* Une offre seule ne doit pas occuper une colonne de grille : elle s'etale
+     sur toute la largeur, intitule a gauche, prix a droite. */
+  .bt-ligne {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; width: 100%; padding: 13px 14px;
+  }
+  /* min-width: 0 est indispensable : sans lui, un nom long refuse de se
+     retrecir et vient chevaucher le prix. */
+  .bt-ligne-txt { flex: 1 1 auto; min-width: 0; }
+  .bt-ligne .bt-nom, .bt-ligne .bt-sous {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .bt-ligne .bt-nom { display: block; font-size: 13.5px; }
+  .bt-ligne .bt-sous { display: block; margin-top: 2px; font-size: 11.5px; }
+  .bt-ligne .bt-prix { margin: 0; padding: 0; flex: none; font-size: 14px; }
+
+  /* Pastille de domaine : la teinte est celle de la pochette qu'on recevra. */
+  .bt-pastille {
+    width: 26px; height: 34px; flex: none; border-radius: 2px;
+    border: 1px solid rgba(255,255,255,.22);
+  }
+  .bt-ligne .bt-pastille { margin-right: 2px; }
+
   /* Deux offres comparables, de hauteur égale, boutons alignés en bas. */
   .prem-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   .prem-carte {
     display: flex; flex-direction: column;
     padding: 13px 12px 12px; background: var(--night-up);
     border: 1px solid var(--night-line);
+    /* Meme liseré que le reste de la boutique : c'est lui qui fait tenir
+       l'ensemble, et le premium n'a pas besoin d'un traitement a part. */
+    border-top: 2px solid var(--night-line);
   }
-  .prem-carte.vedette {
-    border-color: #6d5a2a;
-    box-shadow: inset 0 0 0 1px rgba(201,153,46,.1), 0 0 26px -14px rgba(201,153,46,.5);
-  }
+  .prem-carte.vedette { border-top-color: #c9992e; }
+  .prem-carte.acquise { border-top-color: #4f8d72; }
   .prem-carte.pleine { margin-top: 0; }
   .prem-carte.acquise .prem-tag { color: var(--glass-dim); }
   .prem-tag {
@@ -1530,7 +1586,8 @@
   .prem-pts b { color: var(--ivory); }
   .prem-prix {
     display: block; margin-top: auto; padding-top: 12px;
-    font-size: 16px; color: var(--ivory); font-variant-numeric: tabular-nums;
+    font-size: 15px; font-weight: 600; color: #f0dda4;
+    font-variant-numeric: tabular-nums;
   }
   .prem-carte .btn { margin: 8px 0 0; padding: 11px 8px; font-size: 13.5px; }
 
@@ -1596,49 +1653,6 @@
   }
 
   /* Paquets contre Wikigold : trois colonnes, comparables d'un regard. */
-  .or-grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .or-offre {
-    display: flex; flex-direction: column; align-items: center; gap: 2px;
-    padding: 14px 6px 12px; font: inherit; cursor: pointer;
-    color: var(--glass); background: var(--night-up);
-    border: 1px solid var(--night-line); border-top: 3px solid #c9992e;
-    transition: transform .12s ease, background .12s ease;
-  }
-  .or-offre:active:not([disabled]) { transform: scale(.98); background: #262c40; }
-  .or-offre[disabled] { cursor: default; border-top-color: var(--night-line); opacity: .75; }
-  .or-nb {
-    font-family: var(--display); font-size: 30px; line-height: 1;
-    color: var(--ivory); font-variant-numeric: tabular-nums;
-  }
-  .or-offre[disabled] .or-nb { color: var(--glass); }
-  .or-mot { font-size: 11px; color: var(--glass-dim); }
-  .or-note {
-    margin-top: 4px; font-size: 9.5px; letter-spacing: .06em;
-    padding: 2px 6px; color: #14161f; background: #c9992e;
-  }
-  .or-note:empty { display: none; }
-  /* Poussé en bas de la carte : sans ça, l'offre sans mention remontait son
-     prix et les trois colonnes ne s'alignaient plus. */
-  .or-prix {
-    margin-top: auto; padding-top: 10px; font-size: 13px; font-weight: 600;
-    color: #f0dda4; font-variant-numeric: tabular-nums;
-  }
-  .or-offre[disabled] .or-prix { color: var(--glass-dim); }
-  .or-manque { font-size: 10px; color: #cf7f7f; margin-top: 2px; }
-
-  /* Le paquet offert contre une publicité : la seule ligne gratuite. */
-  .bt-offert {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    padding: 12px 14px; margin-bottom: 4px;
-    background: var(--night-up); border: 1px solid var(--night-line);
-  }
-  .bt-offert-txt { flex: 1 1 auto; min-width: 0; }
-  .bt-offert-nom { display: block; font-size: 13.5px; color: var(--ivory); }
-  .bt-offert-note { display: block; font-size: 11.5px; color: var(--glass-dim); margin-top: 2px; }
-  .bt-offert .btn {
-    margin: 0; width: auto; flex: none; padding: 10px 14px; font-size: 13px;
-  }
-
   /* --- albums (series) --- */
   #albums-count { font-variant-numeric: tabular-nums; }
   .album {
@@ -2251,14 +2265,16 @@
 
   /* --- surfaces : un fond, un trait, un liseré de lumière en haut --- */
   .card, .mission, .chapitre, .album, .boss, .duo, .eq-slot, .fighter,
-  .quiz-rep, .or-offre, .prem-carte, .butin, .cote-bandeau, .echange,
+  .quiz-rep, .prem-carte, .butin, .cote-bandeau, .echange,
+  .bt-tuile, .bt-ligne, .bt-bourse,
   .offline-bandeau, .win, .hist-retour, .duel-auto, .pack-notif,
   .hud-profil, .res, .tri, .tri-btn, .code-champ, .code-zone, .sous-tab,
   .hist-diff-btn, .palier, .pip, .reveal-vite, .actif-chip, .neuve-chip {
     border-radius: var(--r-s);
   }
   .card, .mission, .chapitre, .album, .boss, .duo, .eq-slot, .fighter,
-  .quiz-rep, .or-offre, .prem-carte, .cote-bandeau, .echange, .win {
+  .quiz-rep, .prem-carte, .cote-bandeau, .echange, .win,
+  .bt-tuile, .bt-ligne, .bt-bourse {
     background: linear-gradient(180deg, #1b2030 0%, #181c2b 100%);
     box-shadow: inset 0 1px 0 var(--night-hi), var(--ombre-1);
   }
@@ -2427,13 +2443,27 @@
     box-shadow: inset 0 1px 0 rgba(236,212,143,.22), 0 12px 32px -14px rgba(201,153,46,.35);
   }
   .prem-tag { color: var(--or-clair); font-size: 10px; }
-  .or-offre { border-radius: var(--r-m); border-top-width: 1px; padding-top: 14px; }
-  .or-offre::before {
+  /* Les composants de la boutique adoptent la meme finition : le liseré plein
+     cede la place au petit tiret dore, qui dit l'etat sans alourdir le bord. */
+  .bt-tuile, .bt-ligne, .bt-bourse {
+    border-radius: var(--r-m); border-top-width: 1px;
+  }
+  .bt-tuile, .bt-bourse { padding-top: 14px; }
+  .bt-tuile::before, .bt-bourse::before {
     content: ''; display: block; width: 28px; height: 2px; margin: 0 auto 10px;
     border-radius: 2px; background: linear-gradient(90deg, var(--or), var(--or-clair));
   }
-  .or-offre[disabled]::before { background: var(--night-line); }
-  .or-offre:active:not([disabled]) { background: #212638; }
+  .bt-bourse { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .bt-bourse::before { margin: 0 0 10px; }
+  .bt-tuile[disabled]::before { background: var(--night-line); }
+  .bt-tuile.acquis::before { background: #4f8d72; }
+  /* Sur une ligne, un tiret centre n'aurait aucun sens : l'etat passe par un
+     filet vertical a gauche, dans le meme code couleur. */
+  .bt-ligne { border-left: 3px solid var(--or); }
+  .bt-ligne[disabled] { border-left-color: var(--night-line); }
+  .bt-ligne.acquis { border-left-color: #4f8d72; }
+  .bt-tuile:active:not([disabled]),
+  .bt-ligne:active:not([disabled]) { background: #212638; }
 
   /* --- fiche (feuille ivoire) --- */
   .sheet { background: rgba(6,8,14,.62); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
@@ -9756,25 +9786,27 @@
     var boutiquable = achatsDisponibles();
     var html = '<p class="hist-titre">BOUTIQUE</p>';
 
-    /* --- la boutique de tous les jours, en premier ---
-       C'est ici que le joueur vient neuf fois sur dix : les Wikigold qu'il a
-       gagnés. Les offres payantes attendent plus bas. */
-    html += '<div class="bt-section"><h3>WIKIGOLD</h3>'
-      + '<span class="bt-solde"><b>' + or.toLocaleString('fr-FR') + '</b> en réserve</span></div>'
-      + '<p class="bt-mot">Gagnés en accomplissant missions, succès et albums, '
-      + 'puis échangés contre des paquets.</p>'
-      + '<div class="or-grille">';
+    /* --- la bourse, puis ce qu'on peut en faire ---
+       Le joueur vient ici neuf fois sur dix pour depenser ses Wikigold : son
+       solde ouvre donc l'ecran, et les offres payantes attendent plus bas. */
+    html += '<div class="bt-bourse">'
+      + '<span class="bt-bourse-n">' + or.toLocaleString('fr-FR') + '</span>'
+      + '<span class="bt-bourse-l">Wikigold · gagnés en jouant</span>'
+      + '</div>';
 
+    /* --- paquets --- */
+    html += '<div class="bt-section"><h3>PAQUETS</h3></div>'
+      + '<p class="bt-mot">Cinq cartes tirées au hasard dans tout Wikipédia.</p>'
+      + '<div class="bt-grille c3">';
     OFFRES.forEach(function (o) {
-      var abordable = or >= o.prix;
-      var n = o.paquets;
-      html += '<button class="or-offre" '
-        + (abordable ? 'data-achat="' + o.id + '"' : 'disabled') + '>'
-        + '<span class="or-nb">' + n + '</span>'
-        + '<span class="or-mot">paquet' + (n > 1 ? 's' : '') + '</span>'
-        + '<span class="or-note">' + (o.note ? esc(o.note) : '') + '</span>'
-        + '<span class="or-prix">' + o.prix + ' or</span>'
-        + (abordable ? '' : '<span class="or-manque">−' + (o.prix - or) + '</span>')
+      var ok = or >= o.prix;
+      html += '<button class="bt-tuile" '
+        + (ok ? 'data-achat="' + o.id + '"' : 'disabled') + '>'
+        + '<span class="bt-chiffre">' + o.paquets + '</span>'
+        + '<span class="bt-sous">paquet' + (o.paquets > 1 ? 's' : '') + '</span>'
+        + '<span class="bt-marque">' + (o.note ? esc(o.note) : '') + '</span>'
+        + '<span class="bt-prix' + (ok ? '' : ' hors') + '">'
+        + (ok ? o.prix + ' or' : 'il manque ' + (o.prix - or)) + '</span>'
         + '</button>';
     });
     html += '</div>';
@@ -9782,19 +9814,24 @@
     /* --- paquets a theme --- */
     var fileThemes = (readPacks().themes || []);
     html += '<div class="bt-section"><h3>PAQUETS À THÈME</h3></div>'
-      + '<p class="bt-mot">Cinq cartes du domaine choisi, sans aucune carte '
-      + 'hors sujet. Le paquet s’ouvre immédiatement.</p>'
+      + '<p class="bt-mot">Cinq cartes du domaine choisi, aucune hors sujet. '
+      + 'Le paquet s’ouvre aussitôt.'
       + (fileThemes.length
-          ? '<p class="bt-mot">En attente : '
-            + fileThemes.map(function (d) { return domaineNom(d); }).join(', ') + '.</p>'
+          ? ' En attente : ' + fileThemes.map(function (d) { return domaineNom(d); }).join(', ') + '.'
           : '')
-      + '<div class="theme-grille">';
+      + '</p>'
+      + '<div class="bt-grille">';
     DOMAINES.forEach(function (d) {
       var ok = or >= PRIX_THEME;
-      html += '<button class="theme-offre" '
+      var t = TEINTES_DOMAINE[d.id] || {};
+      html += '<button class="bt-ligne" '
         + (ok ? 'data-theme="' + d.id + '"' : 'disabled') + '>'
-        + '<span class="th-nom">' + esc(d.nom) + '</span>'
-        + '<span class="th-prix">' + PRIX_THEME + ' or</span>'
+        + '<span class="bt-pastille" style="background:linear-gradient(180deg,'
+        + (t.h || '#3a4260') + ',' + (t.b || '#1d2338') + ');border-color:'
+        + (t.bord || 'rgba(255,255,255,.22)') + '"></span>'
+        + '<span class="bt-ligne-txt"><span class="bt-nom">' + esc(d.nom) + '</span></span>'
+        + '<span class="bt-prix' + (ok ? '' : ' hors') + '">'
+        + (ok ? PRIX_THEME + ' or' : '−' + (PRIX_THEME - or)) + '</span>'
         + '</button>';
     });
     html += '</div>';
@@ -9802,58 +9839,69 @@
     /* --- essais de quiz --- */
     var prixQ = prixQuizSuivant();
     var achetes = quizBonus();
-    html += '<div class="bt-section"><h3>ESSAIS DE QUIZ</h3></div>'
-      + '<p class="bt-mot">Un essai de plus pour aujourd’hui, cinq au maximum. '
-      + 'Le prix monte à chaque achat. Il vous reste ' + quizRestants()
-      + ' essai' + (quizRestants() > 1 ? 's' : '') + ' à jouer.</p>';
+    html += '<div class="bt-section"><h3>ESSAIS DE QUIZ</h3></div>';
     if (!prixQ) {
-      html += '<p class="bt-mot">Vos cinq essais du jour sont achetés. À demain.</p>';
+      html += '<div class="bt-ligne acquis"><span class="bt-ligne-txt">'
+        + '<span class="bt-nom">Cinq essais achetés</span>'
+        + '<span class="bt-sous">C’est le maximum pour aujourd’hui.</span>'
+        + '</span><span class="bt-prix pris">complet</span></div>';
     } else {
-      html += '<button class="or-offre" '
-        + (or >= prixQ ? 'data-quiz-achat="1"' : 'disabled') + '>'
-        + '<span class="or-nb">1</span>'
-        + '<span class="or-mot">essai</span>'
-        + '<span class="or-note">' + (achetes ? achetes + ' déjà acheté'
-            + (achetes > 1 ? 's' : '') : '') + '</span>'
-        + '<span class="or-prix">' + prixQ + ' or</span>'
-        + (or >= prixQ ? '' : '<span class="or-manque">−' + (prixQ - or) + '</span>')
+      var okQ = or >= prixQ;
+      html += '<button class="bt-ligne" '
+        + (okQ ? 'data-quiz-achat="1"' : 'disabled') + '>'
+        + '<span class="bt-ligne-txt">'
+        + '<span class="bt-nom">Un essai de plus</span>'
+        + '<span class="bt-sous">' + quizRestants() + ' à jouer'
+        + (achetes ? ' · ' + achetes + ' acheté' + (achetes > 1 ? 's' : '') + ' sur '
+                     + QUIZ_ACHATS_MAX : '')
+        + ' · le prix monte à chaque achat</span>'
+        + '</span>'
+        + '<span class="bt-prix' + (okQ ? '' : ' hors') + '">'
+        + (okQ ? prixQ + ' or' : '−' + (prixQ - or)) + '</span>'
         + '</button>';
     }
 
-    /* --- dos de cartes : le second usage des Wikigold --- */
+    /* --- dos de cartes --- */
     var etatDos = readDos();
     html += '<div class="bt-section"><h3>DOS DE CARTES</h3></div>'
-      + '<p class="bt-mot">Purement décoratif : le dos s\u2019applique à toutes '
-      + 'vos cartes, sans rien changer à leur force.</p>'
-      + '<div class="dos-grille">';
+      + '<p class="bt-mot">Décoratif : le dos habille toutes vos cartes sans '
+      + 'rien changer à leur force.</p>'
+      + '<div class="bt-grille c3">';
     DOS.forEach(function (o) {
       var possede = !o.prix || etatDos.achetes.indexOf(o.id) >= 0;
       var actif = etatDos.actif === o.id;
-      var abordable = possede || or >= o.prix;
-      html += '<button class="dos-offre' + (actif ? ' actif' : '') + '" '
-        + (abordable && !actif ? 'data-dos="' + o.id + '"' : 'disabled') + '>'
-        + '<span class="dos-vig" style="background:' + o.apercu + '"></span>'
-        + '<span class="dos-nom">' + esc(o.nom) + '</span>'
-        + '<span class="dos-prix">'
-        + (actif ? 'en usage' : (possede ? 'appliquer' : o.prix + ' or'))
+      var ok = possede || or >= o.prix;
+      html += '<button class="bt-tuile' + (possede ? ' acquis' : '') + '" '
+        + (ok && !actif ? 'data-dos="' + o.id + '"' : 'disabled') + '>'
+        + '<span class="bt-pastille" style="width:40px;height:54px;background:'
+        + o.apercu + '"></span>'
+        + '<span class="bt-nom">' + esc(o.nom) + '</span>'
+        + '<span class="bt-prix' + (actif ? ' pris' : (ok ? '' : ' hors')) + '">'
+        + (actif ? 'en usage'
+                 : (possede ? 'appliquer'
+                            : (ok ? o.prix + ' or' : '−' + (o.prix - or))))
         + '</span></button>';
     });
     html += '</div>';
 
-    /* La ligne gratuite se range avec le reste des paquets. */
+    /* Le paquet offert contre une publicite : la seule ligne gratuite. */
     if (pubRecompenseDisponible()) {
       var reste = pubRecompenseRestantes();
       var pleine = readPacks().n >= MAX_PAQUETS;
-      html += '<div class="bt-offert"><span class="bt-offert-txt">'
-        + '<b class="bt-offert-nom">Un paquet offert</b>'
-        + '<span class="bt-offert-note">'
+      var dispoPub = reste && !pleine;
+      html += '<div class="bt-section"><h3>GRATUIT</h3></div>'
+        + '<button class="bt-ligne' + (dispoPub ? '' : ' acquis') + '" '
+        + (dispoPub ? 'data-pub="1"' : 'disabled') + '>'
+        + '<span class="bt-ligne-txt">'
+        + '<span class="bt-nom">Un paquet contre une publicité</span>'
+        + '<span class="bt-sous">'
         + (pleine ? 'Votre réserve est pleine.'
-                  : (reste ? 'Contre une publicité · ' + reste + ' sur '
-                             + PUB_RECOMPENSE_MAX + ' aujourd’hui'
+                  : (reste ? reste + ' sur ' + PUB_RECOMPENSE_MAX + ' aujourd’hui'
                            : 'Revenez demain.'))
         + '</span></span>'
-        + '<button class="btn' + ((reste && !pleine) ? ' btn-solid' : '') + '" data-pub="1"'
-        + ((reste && !pleine) ? '' : ' disabled') + '>Regarder</button></div>';
+        + '<span class="bt-prix' + (dispoPub ? '' : ' pris') + '">'
+        + (dispoPub ? 'regarder' : '—') + '</span>'
+        + '</button>';
     }
 
     /* --- les deux achats, côte à côte ---
