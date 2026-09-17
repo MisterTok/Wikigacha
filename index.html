@@ -2100,7 +2100,7 @@
     font-variant-numeric: tabular-nums;
   }
   .pui-sous { display: block; font-size: 10.5px; color: var(--ink-soft); line-height: 1.4; }
-  .pui-cinq { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .pui-cinq { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
   .pui-carte {
     display: block; padding: 0; overflow: hidden; cursor: pointer;
     font: inherit; background: var(--ivory-dim);
@@ -5204,7 +5204,10 @@
     var c = readClassement();
     var part = Math.max(0, Math.min(1, n.dans / n.requis));
     var eq = readEquipe().map(function (t) { return t ? collection[t] : null; });
-    var complete = eq.filter(function (x) { return !!x; }).length === 5;
+    /* Le seuil etait reste a cinq apres le passage a six cases : une equipe
+       complete de six cartes etait donc declaree incomplete, et le profil
+       renvoyait le joueur composer ce qu'il avait deja fait. */
+    var complete = eq.filter(function (x) { return !!x; }).length === EQ_TAILLE;
     var puis = complete
       ? eq.reduce(function (t, x) { return t + puissanceCarte(x); }, 0) : 0;
     var ava = carteAvatar();
@@ -5239,7 +5242,10 @@
       + '<span class="pui-sous">' + c.v + ' V · ' + c.d + ' D</span></div>'
       + '<div><span class="pui-lab">ÉQUIPE</span>'
       + '<b class="pui-chiffre">' + (complete ? puis.toLocaleString('fr-FR') : '—') + '</b>'
-      + '<span class="pui-sous">' + (complete ? 'cinq cartes' : 'incomplète') + '</span></div>'
+      + '<span class="pui-sous">'
+      + (complete ? EQ_TAILLE + ' cartes'
+                  : eq.filter(function (x) { return !!x; }).length + ' sur ' + EQ_TAILLE)
+      + '</span></div>'
       + '<div><span class="pui-lab">CARTES</span>'
       + '<b class="pui-chiffre">' + nbCartes.toLocaleString('fr-FR') + '</b>'
       + '<span class="pui-sous">' + albums + ' album' + (albums > 1 ? 's' : '') + '</span></div>'
@@ -7571,12 +7577,64 @@
     el('duel-body').innerHTML = html;
   }
 
+  /* Chaque classement vit la ou se gagne ce qu'il mesure : la ligue et le
+     classement des joueurs se jouent en duel, le classement des clans reste
+     dans l'onglet Clan. */
+  var duelVue = 'duel';
+
+  function basculeDuel() {
+    return '<div class="clan-vues">'
+      + [['duel', 'Duel'], ['ligue', 'Ligue'], ['joueurs', 'Classement']]
+        .map(function (v) {
+          return '<button class="clan-vue' + (duelVue === v[0] ? ' actif' : '') + '" '
+            + 'data-duel-vue="' + v[0] + '">' + v[1] + '</button>';
+        }).join('')
+      + '</div>';
+  }
+
   function showDuel() {
     if (duelMinuteur) { clearTimeout(duelMinuteur); duelMinuteur = null; }
-    el('duel-body').innerHTML = '<p class="duel-titre">DUEL</p>'
+    var b = el('duel-body');
+
+    if (duelVue === 'ligue') {
+      b.innerHTML = vueLigue(basculeDuel());
+      return;
+    }
+    if (duelVue === 'joueurs') {
+      b.innerHTML = '<p class="duel-titre">CLASSEMENT</p>' + basculeDuel()
+        + listeJoueurs();
+      return;
+    }
+    b.innerHTML = '<p class="duel-titre">DUEL</p>' + basculeDuel()
       + bandeauCote()
       + grilleEquipe()
       + boutonDuel();
+  }
+
+  function listeJoueurs() {
+    if (!nuage.pret || !nuage.uid) {
+      return '<p class="duel-intro">Le classement demande une connexion.</p>';
+    }
+    var top = clanEtat.topJ;
+    if (!top) return '<p class="duel-intro">Chargement…</p>';
+    if (!top.length) return '<p class="duel-intro">Personne pour l’instant.</p>';
+    var maCote = (readClassement() || {}).cote || 0;
+    var t = '<div class="clan-liste">';
+    top.forEach(function (x, i) {
+      var moi = x.uid === nuage.uid;
+      /* Le tableau est un instantane fige pour la session, sinon il sauterait
+         sous les yeux du joueur. Sa propre ligne fait exception : il doit voir
+         ses +28 tout de suite. */
+      var cote = moi ? maCote : (x.cote || 0);
+      t += '<div class="clan-membre' + (moi ? ' clan-moi' : '') + '">'
+        + '<span class="clan-rang">' + (i + 1) + '</span>'
+        + '<span class="clan-m-nom">' + esc(x.nom || 'Sans nom') + '</span>'
+        + '<span class="clan-m-stat">niv. ' + (x.niveau || 1)
+        + ' · cote ' + cote + '</span></div>';
+    });
+    return t + '</div>'
+      + '<p class="clan-note">Les cotes sont calculées sur l’appareil de chaque '
+      + 'joueur : ce classement repose sur la bonne foi.</p>';
   }
 
   /* ---------- mode histoire ----------
@@ -11297,6 +11355,18 @@
   });
   el('duel-body').addEventListener('click', function (e) {
     if (!e.target.closest) return;
+    var dv = e.target.closest('[data-duel-vue]');
+    if (dv) {
+      duelVue = dv.getAttribute('data-duel-vue');
+      showDuel();
+      if (duelVue === 'ligue') ligueCloturer().then(ligueCharger).then(showDuel);
+      if (duelVue === 'joueurs' && !clanEtat.topJ) topJoueurs().then(showDuel);
+      return;
+    }
+    if (e.target.closest('[data-lig-vu]')) {
+      var lvd = readLigue(); lvd.bilan = null; writeLigue(lvd);
+      showDuel(); ouvrirDansLaFoulee(); return;
+    }
     if (e.target.closest('#duel-lancer')) { lancerDuel(); return; }
     if (e.target.closest('[data-duel-passer]')) {
       if (duelCourant && duelCourant.passer) duelCourant.passer();
@@ -11395,54 +11465,38 @@
 
     var alerte = clanEtat.msg ? '<p class="duel-alerte">' + esc(clanEtat.msg) + '</p>' : '';
 
+    /* L'onglet Clan ne garde que ce qui concerne le clan : sa fiche et le
+       classement des clans. La ligue et le classement des joueurs sont partis
+       dans l'onglet Duel, ou se gagne la cote qu'ils mesurent. */
     var bascule = '<div class="clan-vues">'
-      + ['clan', 'ligue', 'clans', 'joueurs'].map(function (v) {
-          var nom = v === 'clan' ? 'Mon clan'
-                  : v === 'ligue' ? 'Ligue'
-                  : v === 'clans' ? 'Top clans' : 'Top joueurs';
-          return '<button class="clan-vue' + (clanEtat.vue === v ? ' actif' : '') + '" '
-            + 'data-clan-vue="' + v + '">' + nom + '</button>';
+      + [['clan', 'Mon clan'], ['clans', 'Top clans']].map(function (v) {
+          return '<button class="clan-vue' + (clanEtat.vue === v[0] ? ' actif' : '') + '" '
+            + 'data-clan-vue="' + v[0] + '">' + v[1] + '</button>';
         }).join('')
       + '</div>';
 
-    if (clanEtat.vue === 'ligue') { b.innerHTML = vueLigue(bascule); return; }
-
-    if (clanEtat.vue !== 'clan') {
-      var top = clanEtat.vue === 'clans' ? clanEtat.topC : clanEtat.topJ;
-      var t = '<p class="duel-titre">CLASSEMENT</p>' + bascule;
+    if (clanEtat.vue === 'clans') {
+      var top = clanEtat.topC;
+      var t = '<p class="duel-titre">CLASSEMENT DES CLANS</p>' + bascule;
       if (!top) t += '<p class="duel-intro">Chargement…</p>';
-      else if (!top.length) t += '<p class="duel-intro">Personne pour l\u2019instant.</p>';
+      else if (!top.length) t += '<p class="duel-intro">Aucun clan pour l’instant.</p>';
       else {
         t += '<div class="clan-liste">';
-        var maCote = (readClassement() || {}).cote || 0;
         top.forEach(function (x, i) {
-          var moi = clanEtat.vue === 'clans'
-            ? (x.id === clanEtat.id)
-            : (x.uid === nuage.uid);
-          /* Le tableau est un instantane, fige pour la session : c'est voulu,
-             sinon il sauterait sous les yeux du joueur. Sa propre ligne fait
-             exception — il doit voir ses +28 tout de suite. */
-          if (moi && clanEtat.vue === 'joueurs') x = { nom: x.nom, niveau: x.niveau, cote: maCote, uid: x.uid };
+          var moi = x.id === clanEtat.id;
           t += '<div class="clan-membre' + (moi ? ' clan-moi' : '') + '">'
             + '<span class="clan-rang">' + (i + 1) + '</span>'
-            + '<span class="clan-m-nom">'
-            + (clanEtat.vue === 'clans'
-                ? '<span class="clan-tag">' + esc(x.tag || '') + '</span> ' + esc(x.nom || '')
-                : esc(x.nom || 'Sans nom'))
-            + '</span>'
-            + '<span class="clan-m-stat">'
-            + (clanEtat.vue === 'clans'
-                ? (x.scoreClan || 0).toLocaleString('fr-FR') + ' · '
-                    + (x.coteTotale || 0) + ' cote + '
-                    + ((x.actSem === semaineISO() ? (x.actPts || 0) : 0)) + ' act.'
-                : 'niv. ' + (x.niveau || 1) + ' · cote ' + (x.cote || 0))
+            + '<span class="clan-m-nom"><span class="clan-tag">' + esc(x.tag || '')
+            + '</span> ' + esc(x.nom || '') + '</span>'
+            + '<span class="clan-m-stat">' + (x.scoreClan || 0).toLocaleString('fr-FR')
+            + ' · ' + (x.coteTotale || 0) + ' cote + '
+            + ((x.actSem === semaineISO() ? (x.actPts || 0) : 0)) + ' act.'
             + '</span></div>';
         });
         t += '</div>';
       }
-      t += '<p class="clan-note">Les cotes sont calculées sur l\u2019appareil de '
-        + 'chaque joueur : ce classement repose sur la bonne foi.</p>';
-      b.innerHTML = t;
+      b.innerHTML = t + '<p class="clan-note">Le score d’un clan additionne les cotes '
+        + 'de ses membres et son activité de la semaine.</p>';
       return;
     }
 
@@ -11707,18 +11761,14 @@
     var rf = e.target.closest('[data-rc-frappe]');
     if (rf) { raidClanFrapper(rf.getAttribute('data-rc-frappe')); return; }
     if (e.target.closest('[data-rc-butin]')) { raidClanButin(); return; }
-    if (e.target.closest('[data-clan-quitter]')) { clanQuitter(); return; }
-    var vv = e.target.closest('[data-clan-vue]');
-    if (vv) {
-      clanEtat.vue = vv.getAttribute('data-clan-vue');
+    var cv = e.target.closest('[data-clan-vue]');
+    if (cv) {
+      clanEtat.vue = cv.getAttribute('data-clan-vue');
       clanEtat.msg = ''; showClan();
-      if (clanEtat.vue === 'ligue' && !clanEtat.division) {
-        ligueCloturer().then(ligueCharger).then(showClan);
-      }
       if (clanEtat.vue === 'clans' && !clanEtat.topC) topClans().then(showClan);
-      if (clanEtat.vue === 'joueurs' && !clanEtat.topJ) topJoueurs().then(showClan);
       return;
     }
+    if (e.target.closest('[data-clan-quitter]')) { clanQuitter(); return; }
     var pa = e.target.closest('[data-clan-passation]');
     if (pa) {
       clanEtat.passation = pa.getAttribute('data-clan-passation') === '1';
