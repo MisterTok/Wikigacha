@@ -3700,16 +3700,49 @@
       var pages = d && d.query && d.query.pages;
       if (!pages) throw new Error('reponse vide');
       var tous = Object.keys(pages).map(function (k) { return pages[k]; })
-        .filter(function (p) {
-          return !(p.pageprops && p.pageprops.hasOwnProperty('disambiguation'))
-            && (p.length || 0) > 1200;
-        });
+        .filter(function (p) { return estUnSujet(p) && (p.length || 0) > 1200; });
       var avec = tous.filter(function (p) { return p.thumbnail && p.thumbnail.source; });
       var sans = tous.filter(function (p) { return !(p.thumbnail && p.thumbnail.source); });
       var choix = avec.concat(sans).slice(0, nb);
       if (!choix.length) throw new Error('aucun article');
       return choix;
     });
+  }
+
+  /* ---------- pages qui ne sont pas des sujets ----------
+     Wikipedia contient beaucoup de pages de service : listes chronologiques
+     regenerees chaque mois, index alphabetiques, pages d'homonymie, articles
+     d'annee. Elles n'ont pas de resume, personne ne les « decouvre », et
+     elles brouillent la collection.
+
+     Pire, elles trichent avec la rarete : « Deces en septembre 2026 » cumule
+     117 references parce qu'une liste cite chaque entree, ce qui gonfle son
+     score de qualite et la fait sortir en Épique avec 3 000 vues et 29 Ko.
+     Ce n'est pas la formule qui se trompe, c'est la page qui n'aurait jamais
+     du entrer dans le paquet. */
+  var MOTIFS_NON_SUJET = [
+    /^(Décès|Naissances|Mariages) en /i,
+    /^(Liste|Listes) /i,
+    /^Chronologie /i,
+    /^Index /i,
+    /^Glossaire /i,
+    /^Portail:/i,
+    /^Projet:/i,
+    /^Catégorie:/i,
+    /^\d{4}$/,                       /* « 1998 », l'article d'une annee */
+    /^\d{1,2}(er)? [a-zéû]+$/i,       /* « 12 mars », l'article d'un jour */
+    /^(Janvier|Février|Mars|Avril|Mai|Juin|Juillet|Août|Septembre|Octobre|Novembre|Décembre) \d{4}$/i,
+    /\(homonymie\)$/i
+  ];
+
+  function estUnSujet(p) {
+    if (!p) return false;
+    if (p.pageprops && p.pageprops.hasOwnProperty('disambiguation')) return false;
+    var titre = p.title || '';
+    for (var i = 0; i < MOTIFS_NON_SUJET.length; i++) {
+      if (MOTIFS_NON_SUJET[i].test(titre)) return false;
+    }
+    return true;
   }
 
   function fetchPack(nb) {
@@ -3728,13 +3761,7 @@
       if (!pages) throw new Error('reponse vide');
       var tous = Object.keys(pages).map(function (k) { return pages[k]; });
 
-      /* On ecarte les pages d'homonymie : ce ne sont pas des articles mais des
-         index ("X peut faire reference a..."), sans references ni contenu, qui
-         tomberaient toujours en Commune avec une fiche vide. */
-      tous = tous.filter(function (p) {
-        return !(p.pageprops && p.pageprops.hasOwnProperty('disambiguation'))
-            && !/\(homonymie\)$/i.test(p.title || '');
-      });
+      tous = tous.filter(estUnSujet);
 
       var avec = tous.filter(function (p) { return p.thumbnail && p.thumbnail.source; });
       var sans = tous.filter(function (p) { return !(p.thumbnail && p.thumbnail.source); });
