@@ -10345,7 +10345,13 @@
   function clanReclamerPalier(i) {
     var pal = CLAN_PALIERS[i];
     var a = readActivite();
-    if (!pal || a.paliers.indexOf(i) >= 0 || clanActuelle() < seuilPalier(i)) return;
+    /* Meme total que celui affiche : sinon un palier annonce « a prendre »
+       pouvait etre refuse au clic, ce qui est incomprehensible pour le joueur. */
+    var partsConnues = clanEtat.membres.reduce(function (n, m) {
+      return n + (m.uid === nuage.uid ? Math.max(m.act || 0, a.pts) : (m.act || 0));
+    }, 0);
+    var total = Math.max(clanActuelle(), partsConnues);
+    if (!pal || a.paliers.indexOf(i) >= 0 || total < seuilPalier(i)) return;
     a.paliers.push(i);
     writeActivite(a);
     if (pal.or) ajouterGold(pal.or);
@@ -11585,15 +11591,25 @@
 
       var act = clanActuelle();
       var moi = readActivite();
+      /* Trois sources decrivaient la meme chose et se contredisaient a l'ecran :
+         le total du clan (ecrit par transaction), la part locale du joueur
+         (a jour a la seconde) et la part publiee dans son profil (envoyee au
+         plus une fois par minute). On affiche donc un total qui ne peut pas
+         etre inferieur a la somme des parts connues, et on prend pour chaque
+         membre la valeur la plus fraiche dont on dispose. */
+      var partsConnues = clanEtat.membres.reduce(function (n, m) {
+        return n + (m.uid === nuage.uid ? Math.max(m.act || 0, moi.pts) : (m.act || 0));
+      }, 0);
+      var actAffiche = Math.max(act, partsConnues);
       html += '<p class="sheet-sub">ACTIVITÉ DE LA SEMAINE</p>'
-        + '<p class="duel-intro">' + act.toLocaleString('fr-FR') + ' points · '
+        + '<p class="duel-intro">' + actAffiche.toLocaleString('fr-FR') + ' points · '
         + 'votre part : ' + moi.pts.toLocaleString('fr-FR')
         + ' · seuils calculés sur ' + Math.max(CLAN_PALIER_PLANCHER, clanEtat.membres.length)
         + ' membres</p>'
         + '<div class="clan-paliers">';
       CLAN_PALIERS.forEach(function (pal, i) {
         var seuil = seuilPalier(i);
-        var atteint = act >= seuil;
+        var atteint = actAffiche >= seuil;
         var pris = moi.paliers.indexOf(i) >= 0;
         html += (atteint && !pris
             ? '<button class="clan-palier pret" data-clan-palier="' + i + '">'
@@ -11614,7 +11630,10 @@
           + '<span class="clan-m-nom">' + esc(m.nom)
           + (m.uid === d.chef ? ' <i class="clan-chef">chef</i>' : '') + '</span>'
           + '<span class="clan-m-stat">'
-          + (passe && autre ? 'nommer' : (m.act || 0) + ' pts · cote ' + m.cote)
+          + (passe && autre ? 'nommer'
+              : (m.uid === nuage.uid ? Math.max(m.act || 0, readActivite().pts)
+                                     : (m.act || 0)).toLocaleString('fr-FR')
+                + ' pts · cote ' + m.cote)
           + '</span>'
           + (passe && autre ? '</button>' : '</div>');
       });
