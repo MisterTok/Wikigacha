@@ -3687,7 +3687,11 @@
 
   /* ---------- données ---------- */
 
-  var MIN_AVEC_IMAGE = 3;   /* on vise au moins 3 cartes illustrees sur 5 */
+  /* Toutes les cartes doivent etre illustrees. Un tirage de douze articles au
+     hasard n'en fournit pas toujours cinq : on relance donc jusqu'a trois fois
+     pour completer, quitte a rallonger un peu l'ouverture. Au-dela, on rend ce
+     qu'on a plutot que de faire attendre indefiniment. */
+  var PACK_ESSAIS = 3;
 
   /* On tire large (12 articles) en UN SEUL appel, puis on selectionne cinq
      articles en privilegiant ceux qui ont deja une vignette. Les statistiques
@@ -3726,10 +3730,9 @@
       if (!pages) throw new Error('reponse vide');
       var tous = Object.keys(pages).map(function (k) { return pages[k]; })
         .filter(function (p) { return estUnSujet(p) && (p.length || 0) > 1200; });
-      var avec = tous.filter(function (p) { return p.thumbnail && p.thumbnail.source; });
-      var sans = tous.filter(function (p) { return !(p.thumbnail && p.thumbnail.source); });
-      var choix = avec.concat(sans).slice(0, nb);
-      if (!choix.length) throw new Error('aucun article');
+      var choix = tous.filter(function (p) { return p.thumbnail && p.thumbnail.source; })
+        .slice(0, nb);
+      if (!choix.length) throw new Error('aucun article illustré');
       return choix;
     });
   }
@@ -3770,6 +3773,30 @@
     return true;
   }
 
+  /* Enveloppe de fetchPack : complete le paquet en relançant tant qu'il manque
+     des articles illustres. Les doublons entre deux tirages sont ecartes. */
+  function fetchPackComplet(nb) {
+    nb = nb || 5;
+    var acquis = [], essais = 0;
+    var vus = {};
+
+    var tour = function () {
+      essais += 1;
+      return fetchPack(nb).then(function (pages) {
+        pages.forEach(function (p) {
+          var cle = p.title || p.pageid;
+          if (!vus[cle] && acquis.length < nb) { vus[cle] = 1; acquis.push(p); }
+        });
+        if (acquis.length >= nb || essais >= PACK_ESSAIS) return acquis;
+        return tour();
+      })['catch'](function (e) {
+        if (acquis.length) return acquis;
+        throw e;
+      });
+    };
+    return tour();
+  }
+
   function fetchPack(nb) {
     nb = nb || 5;
     var url = 'https://' + WIKI + '.org/w/api.php'
@@ -3788,18 +3815,15 @@
 
       tous = tous.filter(estUnSujet);
 
-      var avec = tous.filter(function (p) { return p.thumbnail && p.thumbnail.source; });
-      var sans = tous.filter(function (p) { return !(p.thumbnail && p.thumbnail.source); });
-
-      /* On prend jusqu'a MIN_AVEC_IMAGE illustres, puis on complete au hasard
-         avec le reste pour garder de la variete dans les tirages. */
-      var choix = avec.slice(0, MIN_AVEC_IMAGE);
-      var reste = avec.slice(MIN_AVEC_IMAGE).concat(sans);
-      for (var i = reste.length - 1; i > 0; i--) {
+      /* Toutes illustrees : une carte sans image n'est qu'un titre sur un
+         aplat, et c'est ce qu'on regarde en premier dans un jeu de cartes.
+         On ne garde donc que les articles pourvus d'une vignette. */
+      var choix = tous.filter(function (p) { return p.thumbnail && p.thumbnail.source; });
+      for (var i = choix.length - 1; i > 0; i--) {
         var j = Math.floor(Math.random() * (i + 1));
-        var t = reste[i]; reste[i] = reste[j]; reste[j] = t;
+        var t = choix[i]; choix[i] = choix[j]; choix[j] = t;
       }
-      choix = choix.concat(reste).slice(0, nb);
+      choix = choix.slice(0, nb);
 
       /* On melange l'ordre final pour ne pas montrer les illustrees en premier. */
       for (var k = choix.length - 1; k > 0; k--) {
@@ -4952,7 +4976,7 @@
   }
 
   function chargerCartes(nb, theme) {
-    var source = theme ? fetchPackTheme(theme, nb) : fetchPack(nb);
+    var source = theme ? fetchPackTheme(theme, nb) : fetchPackComplet(nb);
     return source.then(function (pages) {
       return Promise.all(pages.map(function (p) {
         /* Les vues passent par un service lent : on lui laisse 4 s, puis on
