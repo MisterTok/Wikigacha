@@ -8004,7 +8004,8 @@
       + '</span></button>';
   }
 
-  function peindreChapitre(chapId) {
+  function peindreChapitre(chapId, message) {
+    histMessage = message || '';
     if (histButin && histButin.chap !== chapId) histButin = null;
     var ch = CHAPITRES.filter(function (c) { return c.id === chapId; })[0];
     if (!ch) { histChapOuvert = null; showHistoire(); return; }
@@ -8037,7 +8038,9 @@
     calerVisuels(el('histoire-body'));
     chargerAdversaires(ch).then(function () {
       if (histChapOuvert === chapId) {
-        el('histoire-body').innerHTML = entete + corpsNiveaux(ch, fait, cartes);
+        el('histoire-body').innerHTML = entete
+          + (histMessage ? '<p class="duel-alerte">' + esc(histMessage) + '</p>' : '')
+          + corpsNiveaux(ch, fait, cartes);
         calerVisuels(el('histoire-body'));
       }
     });
@@ -8074,14 +8077,23 @@
            : (!actuel ? '<span class="niv-etat">🔒</span>' : ''))
         + '</button>'
         + (actuel
-            ? '<div class="niv-jauge' + (gagne ? ' ok' : ' ko') + '">'
-              + '<i style="width:' + Math.round(part * 100) + '%"></i></div>'
-              + '<span class="niv-def">Votre force <b>' + Math.round(force)
-              + '</b> · défense <b>' + dfn + '</b></span>'
-              + '<button class="btn' + (gagne ? ' btn-solid' : '') + '" '
-              + (gagne ? 'data-hist-go="' + ch.id + '"' : 'disabled') + '>'
-              + (gagne ? 'Combattre' : 'Il manque ' + (dfn - Math.round(force)) + ' de force')
-              + '</button>'
+            ? (function () {
+                /* Le seuil de force a laisse place a un vrai combat : ce qu'il
+                   faut desormais, c'est six cartes du domaine. La jauge reste,
+                   elle annonce honnetement si l'equipe a de quoi tenir. */
+                var dispo = cartesDomaine(ch.domaine).length;
+                var pret = dispo >= EQ_TAILLE;
+                return '<div class="niv-jauge' + (gagne ? ' ok' : ' ko') + '">'
+                  + '<i style="width:' + Math.round(part * 100) + '%"></i></div>'
+                  + '<span class="niv-def">Votre force <b>' + Math.round(force)
+                  + '</b> · défense <b>' + dfn + '</b> · ' + dispo + ' carte'
+                  + (dispo > 1 ? 's' : '') + ' du domaine</span>'
+                  + '<button class="btn' + (pret ? ' btn-solid' : '') + '" '
+                  + (pret ? 'data-hist-go="' + ch.id + '"' : 'disabled') + '>'
+                  + (pret ? 'Combattre'
+                          : 'Il faut ' + EQ_TAILLE + ' cartes de ce domaine')
+                  + '</button>';
+              })()
             : '<span class="niv-def">Défense ' + dfn + '</span>')
         + '</div></div>';
     });
@@ -8116,6 +8128,173 @@
     el('sheet-close').addEventListener('click', closeSheet);
   }
 
+  /* ================= combat d'histoire =================
+     Le mode histoire comparait une force totale a un seuil : on cochait un
+     niveau, on encaissait, on passait. Aucun combat, donc rien a animer et
+     aucune place pour le placement, la vitesse ou les capacites.
+
+     Il reprend desormais le moteur d'assaut du raid, avec deux differences
+     qui lui sont propres :
+     — l'equipe doit etre faite de cartes DU DOMAINE du chapitre, ce qui est
+       toute l'idee du mode ;
+     — l'echec ne consomme rien : on rejoue le niveau autant qu'on veut. Le
+       raid mesure la profondeur d'une collection, l'histoire sa specialisation.
+
+     La difficulte se regle sur l'equipe presentee, comme pour le raid : sans
+     cela un joueur de 900 cartes balaierait tout et un debutant serait bloque
+     au deuxieme chapitre. */
+  function equipeHist(ch, dfn) {
+    return cartesDomaine(ch.domaine)
+      .slice()
+      .sort(function (a, b) { return defEff(b) - defEff(a); })
+      .slice(0, 3)                                   /* les trois plus solides devant */
+      .concat(cartesDomaine(ch.domaine)
+        .filter(function (c, i) { return i >= 0; })
+        .sort(function (a, b) { return atkEff(b) - atkEff(a); }))
+      .filter(function (c, i, tab) { return tab.indexOf(c) === i; })
+      .slice(0, EQ_TAILLE);
+  }
+
+  function bossChapitre(ch, niv, dfn, equipe) {
+    var atk = Math.round(dfn * 1.25);
+    /* Des points de vie proportionnes a l'equipe qui se presente, avec un
+       plancher issu du niveau : un combat doit durer, jamais s'eterniser. */
+    var parTour = equipe.reduce(function (n, c, i) {
+      var m = MULT[rankIndex(c.rank)] || 1;
+      var d = atkEff(c) * m * (900 / (900 + dfn));
+      return n + (i >= 3 ? d * MALUS_ARRIERE : d);
+    }, 0);
+    return {
+      title: niv.art, rank: niv.boss ? 'Légendaire' : 'Épique',
+      atk: atk, def: dfn, thumb: '',
+      pvMax: Math.max(Math.round(dfn * 14), Math.round(parTour * (niv.boss ? 8 : 6)))
+    };
+  }
+
+  var histCombat = null;
+  var histMessage = '';
+
+  function lancerCombatHist(chapId) {
+    var ch = CHAPITRES.filter(function (c) { return c.id === chapId; })[0];
+    if (!ch) return;
+    var prog = readProg();
+    var fait = prog[ch.id] || 0;
+    if (fait >= ch.niveaux.length) return;
+    var niv = ch.niveaux[fait];
+    var dfn = defNiv(niv);
+    var equipe = equipeHist(ch, dfn);
+    if (equipe.length < EQ_TAILLE) return;
+
+    var boss = bossChapitre(ch, niv, dfn, equipe);
+    var faux = { boss: boss, pv: boss.pvMax, pvMax: boss.pvMax };
+    var r = simulerAssaut(equipe, faux);
+    /* Le moteur s'arrete a RAID_TOURS_MAX ; l'histoire est plus courte. */
+    histCombat = { ch: ch, niv: niv, equipe: equipe, boss: boss, resultat: r };
+    animerCombatHist();
+  }
+
+  function animerCombatHist() {
+    var hc = histCombat;
+    if (!hc) return;
+    var r = hc.resultat, b = hc.boss;
+    var A = hc.equipe.map(function (c, i) { return enCombattant(c, 'moi', i); });
+    var pvBoss = b.pvMax, i = 0, tour = 0, minuteur = null, vite = false, secoue = false;
+
+    var dessiner = function (journal, classe) {
+      var pct = Math.max(0, pvBoss / b.pvMax * 100);
+      var ligne = function (de, fin) {
+        return '<div class="db-ligne">' + A.slice(de, fin).map(function (x) {
+          var tr = tierOf(x.c.rank);
+          var p = Math.max(0, x.pv / x.pvMax * 100);
+          return '<div class="db-carte' + (x.pv <= 0 ? ' morte' : '')
+            + (x.eclair ? ' frappe' : '') + (x.touchee ? ' touchee' : '')
+            + '" style="--tier:' + tr.color + '">'
+            + (x.degats ? '<span class="db-degats">−' + x.degats + '</span>' : '')
+            + (x.capFlash ? '<span class="db-cap-tag">' + esc(x.capFlash) + '</span>' : '')
+            + '<span class="db-vue">'
+            + (x.c.thumb ? '<img src="' + esc(x.c.thumb) + '" alt="" loading="lazy">'
+                         : artSVG(x.c.title, tr.color))
+            + '</span><span class="db-nom">' + esc(x.c.title) + '</span>'
+            + '<span class="db-jauge"><i style="width:' + p + '%"></i></span>'
+            + '<span class="db-pv">' + (x.pv > 0 ? x.pv : '✕') + '</span></div>';
+        }).join('') + '</div>';
+      };
+      el('histoire-body').innerHTML = '<p class="hist-titre">' + esc(hc.ch.nom).toUpperCase() + '</p>'
+        + '<div class="db-entete"><span class="db-tour">Tour ' + tour + '</span>'
+        + '<span class="db-col">' + (hc.niv.boss ? 'Gardien du chapitre' : 'Étape') + '</span></div>'
+        + '<div class="as-boss' + (secoue ? ' touchee' : '') + '">'
+        + '<div class="as-boss-vue">' + artSVG(b.title, tierOf(b.rank).color) + '</div>'
+        + '<span class="as-boss-nom">' + esc(b.title) + '</span>'
+        + '<div class="bar"><span style="width:' + pct.toFixed(1) + '%"></span>'
+        + '<b>' + pvBoss.toLocaleString('fr-FR') + ' / '
+        + b.pvMax.toLocaleString('fr-FR') + ' PV</b></div></div>'
+        + ligne(0, 3) + ligne(3, 6)
+        + '<p class="db-journal' + (classe ? ' ' + classe : '') + '">'
+        + (journal || '&nbsp;') + '</p>'
+        + '<div class="db-boutons">'
+        + '<button class="btn" data-hi-vite="1">' + (vite ? 'Vitesse normale' : 'Accélérer') + '</button>'
+        + '<button class="btn" data-hi-passer="1">Passer</button></div>';
+    };
+
+    var effacer = function () {
+      secoue = false;
+      A.forEach(function (x) {
+        x.eclair = false; x.touchee = false; x.degats = 0; x.capFlash = null;
+      });
+    };
+
+    var pas = function () {
+      effacer();
+      while (i < r.actions.length && r.actions[i].type === 'tour') { tour = r.actions[i].n; i += 1; }
+      if (i >= r.actions.length) { fin(); return; }
+      var ac = r.actions[i]; i += 1;
+
+      if (ac.type === 'capacite') {
+        var sc = A[ac.srcPos];
+        if (sc) { sc.eclair = true; sc.capFlash = ac.cap; }
+        dessiner('<b>' + esc(ac.src) + '</b> — <i>' + esc(ac.cap) + '</i> : ' + ac.detail, 'cap');
+      } else if (ac.vers === 'boss') {
+        var s2 = A[ac.srcPos];
+        if (s2) s2.eclair = true;
+        pvBoss = ac.pvBoss; secoue = true;
+        dessiner('<b>' + esc(ac.src) + '</b> inflige ' + ac.degats.toLocaleString('fr-FR')
+          + ' dégâts' + (ac.mort ? ' · <i class="db-mort">vaincu</i>' : ''), ac.mort ? 'mort' : '');
+        if (ac.mort) vib(16);
+      } else {
+        var cb = A[ac.ciblePos];
+        if (cb) { cb.touchee = true; cb.pv = ac.pv; cb.degats = ac.degats; }
+        dessiner('<b>' + esc(b.title) + '</b> riposte sur <b>' + esc(ac.cible) + '</b> — '
+          + ac.degats.toLocaleString('fr-FR') + ' dégâts'
+          + (ac.mort ? ' · <i class="db-mort">hors de combat</i>' : ''), ac.mort ? 'mort' : '');
+        if (ac.mort) vib(12);
+      }
+      minuteur = setTimeout(pas, vite ? 200 : 440);
+    };
+
+    var fin = function () {
+      clearTimeout(minuteur); minuteur = null;
+      conclureCombatHist();
+    };
+    histCombat.passer = fin;
+    histCombat.basculerVitesse = function () { vite = !vite; };
+
+    dessiner('');
+    minuteur = setTimeout(pas, 440);
+  }
+
+  function conclureCombatHist() {
+    var hc = histCombat;
+    if (!hc) return;
+    var gagne = hc.resultat.vaincu;
+    histCombat = null;
+    if (gagne) combattreHist(hc.ch.id);
+    else {
+      /* Un echec ne coute rien : on peut retenter aussitot. */
+      peindreChapitre(hc.ch.id, 'Votre équipe a été repoussée. Renforcez-la et '
+        + 'retentez : l’échec ne coûte rien ici.');
+    }
+  }
+
   function combattreHist(chapId) {
     var ch = CHAPITRES.filter(function (c) { return c.id === chapId; })[0];
     if (!ch) return;
@@ -8124,9 +8303,8 @@
     if (fait >= ch.niveaux.length) return;
     var niv = ch.niveaux[fait];
     var dfn = defNiv(niv);
-    var cartes = cartesDomaine(ch.domaine);
-    if (forceEquipe(cartes, dfn) < dfn) return;
-
+    /* Le controle de force a disparu : c'est le combat qui tranche desormais,
+       et cette fonction n'est appelee qu'apres une victoire. */
     prog[ch.id] = fait + 1;
     writeProg(prog);
 
@@ -11966,7 +12144,15 @@
     var dif = e.target.closest('[data-diff]');
     if (dif) { histDiff = dif.getAttribute('data-diff'); histChapOuvert = null; showHistoire(); return; }
     var go = e.target.closest('[data-hist-go]');
-    if (go) { combattreHist(go.getAttribute('data-hist-go')); return; }
+    if (go) { lancerCombatHist(go.getAttribute('data-hist-go')); return; }
+    if (e.target.closest('[data-hi-passer]')) {
+      if (histCombat && histCombat.passer) histCombat.passer();
+      return;
+    }
+    if (e.target.closest('[data-hi-vite]')) {
+      if (histCombat && histCombat.basculerVitesse) histCombat.basculerVitesse();
+      return;
+    }
     var bt = e.target.closest('[data-butin]');
     if (bt) { openSheet(bt.getAttribute('data-butin')); return; }
     var adv = e.target.closest('[data-adv]');
