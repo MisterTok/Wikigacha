@@ -1549,17 +1549,6 @@
      l'information : dore = disponible, vert = deja acquis, neutre = hors de
      portee. Le prix occupe toujours la meme place, dans la meme graisse. */
 
-  .bt-bourse {
-    display: flex; align-items: baseline; justify-content: space-between;
-    gap: 12px; padding: 14px 16px; margin-bottom: 4px;
-    background: var(--night-up); border: 1px solid var(--night-line);
-    border-top: 2px solid #c9992e;
-  }
-  .bt-bourse-n {
-    font-family: var(--display); font-size: 30px; line-height: 1;
-    color: #f0dda4; font-variant-numeric: tabular-nums;
-  }
-  .bt-bourse-l { font-size: 11.5px; letter-spacing: .04em; color: var(--glass-dim); }
 
   .bt-grille { display: grid; gap: 8px; margin-bottom: 4px; }
   .bt-grille.c2 { grid-template-columns: repeat(2, 1fr); }
@@ -1600,6 +1589,29 @@
     font-variant-numeric: tabular-nums;
   }
   .bt-prix.hors { color: #cf7f7f; font-weight: 400; }
+  .bt-unite {
+    margin-top: 2px; font-size: 10px; color: var(--glass-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .bt-tuile.vedette { border-color: #6d5a2a; }
+  .bt-hors { color: #cf7f7f; margin-top: -6px; }
+
+  /* Tuile de theme : une bande coloree a gauche, du meme ton que la pochette
+     qu'on recevra, et rien d'autre. Le prix est commun aux six, il est dit une
+     fois au-dessus. */
+  .bt-theme {
+    display: flex; align-items: center; gap: 0;
+    padding: 0; overflow: hidden; font: inherit; text-align: left;
+    color: var(--glass); cursor: pointer;
+    background: var(--night-up);
+    border: 1px solid var(--night-line);
+    border-radius: var(--r-m);
+    transition: transform .12s ease, background .12s ease;
+  }
+  .bt-theme:active:not([disabled]) { transform: scale(.985); background: #212638; }
+  .bt-theme[disabled] { cursor: default; opacity: .55; }
+  .bt-bande { flex: none; width: 8px; align-self: stretch; min-height: 46px; }
+  .bt-theme .bt-nom { padding: 13px 12px; font-size: 13.5px; }
   .bt-prix.pris { color: #7fb99a; }
   .bt-tuile[disabled] .bt-prix:not(.hors):not(.pris) { color: var(--glass-dim); }
 
@@ -1612,9 +1624,13 @@
   /* min-width: 0 est indispensable : sans lui, un nom long refuse de se
      retrecir et vient chevaucher le prix. */
   .bt-ligne-txt { flex: 1 1 auto; min-width: 0; }
-  .bt-ligne .bt-nom, .bt-ligne .bt-sous {
+  /* Seul l'intitule reste sur une ligne : c'est lui qui chevauchait le prix.
+     Le sous-titre, lui, doit pouvoir se replier — tronque, il perdait
+     justement l'information utile (« le prix monte à chaque achat »). */
+  .bt-ligne .bt-nom {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
+  .bt-ligne .bt-sous { white-space: normal; line-height: 1.45; }
   .bt-ligne .bt-nom { display: block; font-size: 13.5px; }
   .bt-ligne .bt-sous { display: block; margin-top: 2px; font-size: 11.5px; }
   .bt-ligne .bt-prix { margin: 0; padding: 0; flex: none; font-size: 14px; }
@@ -2333,7 +2349,7 @@
   /* --- surfaces : un fond, un trait, un liseré de lumière en haut --- */
   .card, .mission, .chapitre, .album, .boss, .duo, .eq-slot, .fighter,
   .quiz-rep, .prem-carte, .butin, .cote-bandeau, .echange,
-  .bt-tuile, .bt-ligne, .bt-bourse,
+  .bt-tuile, .bt-ligne, .bt-theme,
   .offline-bandeau, .win, .hist-retour, .duel-auto, .pack-notif,
   .hud-profil, .res, .tri, .tri-btn, .code-champ, .code-zone, .sous-tab,
   .hist-diff-btn, .palier, .pip, .reveal-vite, .actif-chip, .neuve-chip {
@@ -2341,7 +2357,7 @@
   }
   .card, .mission, .chapitre, .album, .boss, .duo, .eq-slot, .fighter,
   .quiz-rep, .prem-carte, .cote-bandeau, .echange, .win,
-  .bt-tuile, .bt-ligne, .bt-bourse {
+  .bt-tuile, .bt-ligne, .bt-theme {
     background: linear-gradient(180deg, #1b2030 0%, #181c2b 100%);
     box-shadow: inset 0 1px 0 var(--night-hi), var(--ombre-1);
   }
@@ -2512,16 +2528,14 @@
   .prem-tag { color: var(--or-clair); font-size: 10px; }
   /* Les composants de la boutique adoptent la meme finition : le liseré plein
      cede la place au petit tiret dore, qui dit l'etat sans alourdir le bord. */
-  .bt-tuile, .bt-ligne, .bt-bourse {
+  .bt-tuile, .bt-ligne {
     border-radius: var(--r-m); border-top-width: 1px;
   }
-  .bt-tuile, .bt-bourse { padding-top: 14px; }
-  .bt-tuile::before, .bt-bourse::before {
+  .bt-tuile { padding-top: 14px; }
+  .bt-tuile::before {
     content: ''; display: block; width: 28px; height: 2px; margin: 0 auto 10px;
     border-radius: 2px; background: linear-gradient(90deg, var(--or), var(--or-clair));
   }
-  .bt-bourse { flex-direction: column; align-items: flex-start; gap: 2px; }
-  .bt-bourse::before { margin: 0 0 10px; }
   .bt-tuile[disabled]::before { background: var(--night-line); }
   .bt-tuile.acquis::before { background: #4f8d72; }
   /* Sur une ligne, un tiret centre n'aurait aucun sens : l'etat passe par un
@@ -10597,13 +10611,9 @@
     var boutiquable = achatsDisponibles();
     var html = '<p class="hist-titre">BOUTIQUE</p>';
 
-    /* --- la bourse, puis ce qu'on peut en faire ---
-       Le joueur vient ici neuf fois sur dix pour depenser ses Wikigold : son
-       solde ouvre donc l'ecran, et les offres payantes attendent plus bas. */
-    html += '<div class="bt-bourse">'
-      + '<span class="bt-bourse-n">' + or.toLocaleString('fr-FR') + '</span>'
-      + '<span class="bt-bourse-l">Wikigold · gagnés en jouant</span>'
-      + '</div>';
+    /* Le solde ne s'affiche plus ici : il est deja en permanence dans le
+       bandeau du haut, et le repeter en gros volait la place aux offres, qui
+       sont la vraie raison de venir. */
 
     /* --- paquets --- */
     html += '<div class="bt-section"><h3>PAQUETS</h3></div>'
@@ -10611,13 +10621,18 @@
       + '<div class="bt-grille c3">';
     OFFRES.forEach(function (o) {
       var ok = or >= o.prix;
-      html += '<button class="bt-tuile" '
+      /* Le prix a l'unite evite au joueur de calculer lui-meme ce que vaut
+         une remise : c'est la seule information qui permet de comparer les
+         trois offres d'un coup d'oeil. */
+      var unite = Math.round(o.prix / o.paquets);
+      html += '<button class="bt-tuile' + (o.note ? ' vedette' : '') + '" '
         + (ok ? 'data-achat="' + o.id + '"' : 'disabled') + '>'
         + '<span class="bt-chiffre">' + o.paquets + '</span>'
         + '<span class="bt-sous">paquet' + (o.paquets > 1 ? 's' : '') + '</span>'
         + '<span class="bt-marque">' + (o.note ? esc(o.note) : '') + '</span>'
         + '<span class="bt-prix' + (ok ? '' : ' hors') + '">'
         + (ok ? o.prix + ' or' : 'il manque ' + (o.prix - or)) + '</span>'
+        + '<span class="bt-unite">' + unite + ' or l’unité</span>'
         + '</button>';
     });
     html += '</div>';
@@ -10626,26 +10641,29 @@
     var fileThemes = (readPacks().themes || []);
     html += '<div class="bt-section"><h3>PAQUETS À THÈME</h3></div>'
       + '<p class="bt-mot">Cinq cartes du domaine choisi, aucune hors sujet. '
-      + 'Le paquet s’ouvre aussitôt.'
+      + 'Le paquet s’ouvre aussitôt. <b>' + PRIX_THEME + ' or</b> chacun.'
       + (fileThemes.length
           ? ' En attente : ' + fileThemes.map(function (d) { return domaineNom(d); }).join(', ') + '.'
           : '')
       + '</p>'
-      + '<div class="bt-grille">';
+      + '<div class="bt-grille c2">';
     DOMAINES.forEach(function (d) {
       var ok = or >= PRIX_THEME;
       var t = TEINTES_DOMAINE[d.id] || {};
-      html += '<button class="bt-ligne" '
+      /* Le prix a quitte chaque ligne pour le chapeau : il est identique pour
+         les six, le repeter six fois n'apprenait rien et encombrait. Reste la
+         teinte de la pochette, qui elle porte une information. */
+      html += '<button class="bt-theme" '
         + (ok ? 'data-theme="' + d.id + '"' : 'disabled') + '>'
-        + '<span class="bt-pastille" style="background:linear-gradient(180deg,'
-        + (t.h || '#3a4260') + ',' + (t.b || '#1d2338') + ');border-color:'
-        + (t.bord || 'rgba(255,255,255,.22)') + '"></span>'
-        + '<span class="bt-ligne-txt"><span class="bt-nom">' + esc(d.nom) + '</span></span>'
-        + '<span class="bt-prix' + (ok ? '' : ' hors') + '">'
-        + (ok ? PRIX_THEME + ' or' : '−' + (PRIX_THEME - or)) + '</span>'
+        + '<span class="bt-bande" style="background:linear-gradient(180deg,'
+        + (t.h || '#3a4260') + ',' + (t.b || '#1d2338') + ')"></span>'
+        + '<span class="bt-nom">' + esc(d.nom) + '</span>'
         + '</button>';
     });
-    html += '</div>';
+    html += '</div>'
+      + (or >= PRIX_THEME ? ''
+          : '<p class="bt-mot bt-hors">Il vous manque '
+            + (PRIX_THEME - or) + ' or pour un paquet à thème.</p>');
 
     /* --- essais de quiz --- */
     var prixQ = prixQuizSuivant();
