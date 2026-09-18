@@ -6376,24 +6376,6 @@
     minuteur = setTimeout(pas, 460);
   }
 
-  function attaquer(titre) {
-    var etat = readRaid();
-    var c = collection[titre];
-    if (!etat || !c || etat.vaincu) return;
-    if (etat.utilisees.indexOf(titre) !== -1) return;
-    if (etat.utilisees.length >= MAX_COMBATTANTS) return;
-
-    var d = degats(c, etat.boss);
-    etat.pv = Math.max(0, etat.pv - d);
-    noterJour('degats', d);
-    etat.utilisees.push(titre);
-    noterCoup(d);
-    etat.journal.push('<b>' + esc(titre) + '</b> inflige ' + d + ' dégâts.');
-
-    verifierPaliers(etat);
-    writeRaid(etat);
-    paintRaid(etat);
-  }
 
   /* ---------- compteurs du jour ----------
      Remis a zero chaque matin ; ils alimentent les missions quotidiennes. */
@@ -8152,10 +8134,13 @@
       /* Mode difficile : recompense en Wikigold, plus genereuse au boss. */
       ajouterGold(niv.boss ? 120 : 40);
     } else {
-      /* Mode normal : paquets, plafonnes a la reserve. */
+      /* Les paquets gagnes depassent le plafond, comme toutes les autres
+         recompenses du jeu. Avant, ils y etaient ecretes : une reserve pleine
+         faisait disparaitre le gain sans un mot, alors que la serie de
+         connexion, la ligue, les paliers de clan et la boutique le
+         conservent. */
       var gain = niv.boss ? 2 : 1;
       var pk = readPacks();
-      gain = Math.min(gain, MAX_PAQUETS - pk.n);
       pk.n += gain;
       writePacks(pk);
       refreshPacks();
@@ -8170,6 +8155,7 @@
     refreshSucces();
     refreshAlbums();
     peindreChapitre(chapId);
+    if (histDiff !== 'difficile') ouvrirDansLaFoulee();
   }
 
   /* Butin de boss : la carte de l'article-boss lui-meme, jamais en dessous
