@@ -1100,6 +1100,7 @@
   }
   .as-boss.touchee { animation: db-choc .28s ease; border-top-color: #cf7f7f; }
   .as-boss-vue {
+    position: relative;
     width: 96px; height: 72px; margin: 0 auto 8px; overflow: hidden;
     border: 1px solid var(--night-line); border-radius: var(--r-s);
   }
@@ -1137,8 +1138,11 @@
 
   /* --- raid de clan --- */
   .rc-boss { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+  /* position: relative sert de garde-fou : les visuels du jeu comportent un
+     fond en position absolue, qui sans ancetre positionne se cale sur la page
+     entiere et recouvre l'ecran. */
   .rc-vue, .rc-art {
-    flex: none; width: 72px; height: 96px; overflow: hidden;
+    position: relative; flex: none; width: 72px; height: 96px; overflow: hidden;
     border: 1px solid var(--night-line); border-radius: var(--r-s);
   }
   .rc-vue img, .rc-art .art { width: 100%; height: 100%; display: block; object-fit: cover; }
@@ -11713,8 +11717,12 @@
 
     var h = '<p class="sheet-sub">RAID DE CLAN</p>'
       + '<div class="rc-boss">'
-      + (r.thumb ? '<div class="rc-vue">' + visuelHTML(r.thumb) + '</div>'
-                 : '<div class="rc-art">' + artSVG(r.titre, t.color) + '</div>')
+      /* Une simple image, et non visuelHTML : cette fonction est faite pour le
+         plein ecran de revelation, avec un fond floute en position absolue qui
+         deborde de toute vignette et recouvre l'ecran. */
+      + (r.thumb
+          ? '<div class="rc-vue"><img src="' + esc(r.thumb) + '" alt="" loading="lazy"></div>'
+          : '<div class="rc-art">' + artSVG(r.titre, t.color) + '</div>')
       + '<div class="rc-info">'
       + '<span class="rc-tag" style="color:' + t.color + '">' + esc(r.rank) + '</span>'
       + '<span class="rc-nom">' + esc(r.titre) + '</span>'
