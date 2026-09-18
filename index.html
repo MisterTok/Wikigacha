@@ -5884,7 +5884,18 @@
 
   var RAID_ASSAUTS = 3;
   var RAID_TOURS_MAX = 12;
-  var RAID_RIPOSTE = 0.55;   /* le boss frappe moins fort qu'il n'encaisse */
+  /* Combien de coups pour abattre la carte MOYENNE de la ligne avant. C'est
+     l'attaque du boss qui se cale la-dessus a sa creation, et non ses degats
+     qui sont forces a l'arrivee.
+
+     La difference n'est pas cosmetique. Un plancher exprime en part des points
+     de vie de la cible — « un quart, quoi qu'il arrive » — mettait une carte a
+     900 de defense et une a 120 a terre en autant de coups : la defense ne
+     servait plus a rien, alors que c'est precisement la statistique qu'on
+     optimise pour tenir en raid. En calibrant l'attaque une fois pour toutes,
+     la formule habituelle reprend ses droits : la carte resistante encaisse
+     toujours mieux que la fragile, seule l'echelle s'adapte au joueur. */
+  var RAID_COUPS_CIBLE = 4;
 
   function equipeAssaut(etat) {
     var pris = etat.utilisees || [];
@@ -5903,8 +5914,22 @@
 
   /* Riposte volontairement plus douce que nos coups : un assaut doit tenir
      plusieurs tours, sinon le placement ne sert a rien. */
+  /* Attaque calibree sur l'equipe : on vise RAID_COUPS_CIBLE coups pour
+     abattre la carte mediane de la ligne avant. Le resultat est range dans le
+     boss a sa creation, donc constant pour la journee. */
+  function calibrerBoss(boss, equipe) {
+    var devant = equipe.slice(0, 3).map(function (c) { return defEff(c); })
+      .sort(function (a, b) { return a - b; });
+    var med = devant[Math.floor(devant.length / 2)] || 300;
+    var pvMed = med * PV_PAR_DEF;
+    var voulu = pvMed / RAID_COUPS_CIBLE;               /* degats par coup vises */
+    /* On inverse la formule de degats pour en deduire l'attaque necessaire. */
+    return Math.max(1, Math.round(voulu / (900 / (900 + med))));
+  }
+
   function degatsBoss(boss, cible) {
-    var base = boss.atk * (900 / (900 + defEff(cible.c))) * RAID_RIPOSTE;
+    var atk = boss.atkCal || boss.atk;
+    var base = atk * (900 / (900 + defEff(cible.c)));
     if (cible.cap && cible.cap.id === 'ancrage') base *= 0.9;
     return Math.max(1, Math.round(base));
   }
@@ -6042,6 +6067,7 @@
             return n + (i >= 3 ? Math.round(d * MALUS_ARRIERE) : d);
           }, 0);
           var pv = Math.max(Math.round(boss.def * 40), Math.round(parTour * 22));
+          boss.atkCal = calibrerBoss(boss, eqRef);
           var etat2 = {
             date: jour(), boss: boss, pv: pv, pvMax: pv,
             utilisees: [], vaincu: false, journal: []
