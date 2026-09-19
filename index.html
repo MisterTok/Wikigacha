@@ -3049,7 +3049,14 @@
     }
   }
 
-  function puissanceCarte(c) { return atkEff(c) + defEff(c); }
+  /* La rarete decide du combat : elle multiplie les degats et, depuis la
+     refonte, les points de vie. Une puissance qui l'ignorerait donnerait a une
+     Commune tres defensive la meme note qu'a une Mythique, et fausserait aussi
+     bien le tri d'equipe que l'appariement en duel. */
+  function puissanceCarte(c) {
+    var i = rankIndex(c.rank);
+    return Math.round(atkEff(c) * (MULT[i] || 1) + defEff(c) * (MULT_PV[i] || 1));
+  }
 
   /* Les cartes que le jeu placerait pour vous. La coupe suivait encore les
      cinq cases d'avant la refonte : la composition automatique ne remplissait
@@ -5760,6 +5767,14 @@
 
   var RKEY = 'wikigacha:raid';
   var MULT = [1, 1.35, 1.85, 2.5, 3.4, 4.6];    /* multiplicateur par rarete (6 paliers) */
+  /* Multiplicateur applique aux points de vie : racine carree de celui des
+     degats. A multiplicateurs egaux, l'ecart entre une Mythique et une Commune
+     passerait de 4,6 a 21 et une seule Mythique nettoierait six Communes sans
+     une egratignure. Avec la racine il monte a 10 : la rarete se sent
+     nettement, sans rendre les cartes basses inutiles. Effet secondaire
+     voulu : un duel entre Mythiques tenait 2,3 coups, il en tient 5, assez
+     pour que les capacites declenchees au premier coup existent. */
+  var MULT_PV = [1, 1.15, 1.35, 1.6, 1.85, 2.15];
   var MAX_COMBATTANTS = 10;   /* dix cartes par jour : la qualite prime sur le nombre */
   /* Paliers de degats : meme sans le vaincre, on progresse. */
   /* Les paliers intermédiaires paient en Wikigold : ils tombaient sur une
@@ -5918,10 +5933,14 @@
      abattre la carte mediane de la ligne avant. Le resultat est range dans le
      boss a sa creation, donc constant pour la journee. */
   function calibrerBoss(boss, equipe) {
-    var devant = equipe.slice(0, 3).map(function (c) { return defEff(c); })
-      .sort(function (a, b) { return a - b; });
-    var med = devant[Math.floor(devant.length / 2)] || 300;
-    var pvMed = med * PV_PAR_DEF;
+    var devant = equipe.slice(0, 3).slice()
+      .sort(function (a, b) { return defEff(a) - defEff(b); });
+    var carteMed = devant[Math.floor(devant.length / 2)] || null;
+    var med = carteMed ? defEff(carteMed) : 300;
+    /* La calibration passe par pvDe, la meme fonction que le combat. Sans
+       cela, le boss viserait des points de vie sans multiplicateur et perdrait
+       jusqu'a la moitie de son efficacite face a une equipe de haute rarete. */
+    var pvMed = carteMed ? pvDe(carteMed) : med * PV_PAR_DEF;
     var voulu = pvMed / RAID_COUPS_CIBLE;               /* degats par coup vises */
     /* On inverse la formule de degats pour en deduire l'attaque necessaire. */
     return Math.max(1, Math.round(voulu / (900 / (900 + med))));
@@ -6947,9 +6966,17 @@
   var PV_PAR_DEF = 8;
   var MALUS_ARRIERE = 0.85;
 
+  /* Points de vie d'une carte, multiplicateur de rarete compris. Tout ce qui
+     a besoin de cette valeur passe par ici — le combat comme la calibration
+     du boss — sinon les deux divergent en silence. */
+  function pvDe(c) {
+    var m = MULT_PV[rankIndex(c.rank)] || 1;
+    return Math.max(1, Math.round(defEff(c) * PV_PAR_DEF * m));
+  }
+
   function enCombattant(c, camp, pos) {
     var cap = capaciteDe(c);
-    var pv = Math.max(1, defEff(c) * PV_PAR_DEF);
+    var pv = pvDe(c);
     /* Ancrage agit sur les points de vie et non sur la defense : augmenter la
        defense ferait gagner deux fois, puisqu'elle sert aussi a reduire les
        degats recus. L'effet reel aurait valu le double de l'affiche. */
@@ -7191,7 +7218,7 @@
     return ECURIES.map(function (e) {
       return {
         nom: e.nom, note: e.note, cartes: e.cartes,
-        puissance: e.cartes.reduce(function (s, c) { return s + atkEff(c) + defEff(c); }, 0)
+        puissance: e.cartes.reduce(function (s, c) { return s + puissanceCarte(c); }, 0)
       };
     });
   }
@@ -7260,7 +7287,7 @@
             cote: v.cote || 0,
             note: 'joueur · cote ' + (v.cote || 0),
             cartes: cartes,
-            puissance: cartes.reduce(function (s, c) { return s + atkEff(c) + defEff(c); }, 0)
+            puissance: cartes.reduce(function (s, c) { return s + puissanceCarte(c); }, 0)
           });
         });
         /* Appariement par la cote : on garde les joueurs les plus proches de
@@ -7289,7 +7316,7 @@
   function peindreChoixAdversaire() {
     var ma = readEquipe().map(function (t) { return collection[t]; })
       .filter(function (c) { return !!c; });
-    var maPuissance = ma.reduce(function (s, c) { return s + atkEff(c) + defEff(c); }, 0);
+    var maPuissance = ma.reduce(function (s, c) { return s + puissanceCarte(c); }, 0);
     var h = '<p class="duel-titre">CHOISISSEZ VOTRE ADVERSAIRE</p>'
       + '<p class="duel-intro">Votre puissance : <b>' + maPuissance.toLocaleString('fr-FR')
       + '</b>. Touchez un adversaire pour examiner son équipe.</p>'
