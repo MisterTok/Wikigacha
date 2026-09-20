@@ -5795,8 +5795,24 @@
       + String(d.getDate()).padStart(2, '0');
   }
 
-  function fetchBoss() {
-    var j = jour().split('-');
+  /* Le flux « featured » de Wikipedia est publie en heure UTC, alors que
+     jour() suit l'heure du telephone. Entre minuit et deux heures du matin en
+     France, la date locale est deja demain pour Wikipedia : le flux renvoyait
+     une reponse vide et le raid affichait « pas d'article du jour » pendant
+     deux heures chaque nuit. On demande donc la date UTC, et si elle ne donne
+     rien on recule d'un jour — un adversaire de la veille vaut mieux que pas
+     de raid du tout. */
+  function jourUTC(recul) {
+    var d = new Date();
+    d.setUTCDate(d.getUTCDate() - (recul || 0));
+    return [String(d.getUTCFullYear()),
+            String(d.getUTCMonth() + 1).padStart(2, '0'),
+            String(d.getUTCDate()).padStart(2, '0')];
+  }
+
+  function fetchBoss(recul) {
+    var n = recul || 0;
+    var j = jourUTC(n);
     var url = 'https://' + WIKI + '.org/api/rest_v1/feed/featured/'
       + j[0] + '/' + j[1] + '/' + j[2];
     return fetchWiki(url)
@@ -5814,6 +5830,12 @@
         for (var i = 0; i < mr.length && liste.length < 10; i++) liste.push(mr[i]);
         if (!liste.length) throw new Error('pas d’article du jour');
         return liste;
+      })
+      ['catch'](function (err) {
+        /* Un seul recul : au-dela, c'est une vraie panne et il vaut mieux le
+           dire que servir un adversaire vieux de trois jours. */
+        if (n < 1) return fetchBoss(n + 1);
+        throw err;
       });
   }
 
