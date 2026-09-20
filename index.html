@@ -10598,7 +10598,19 @@
     clanEtat.msg = d.toLocaleString('fr-FR') + ' dégâts infligés.';
     showClan(); vib(8);
 
-    raidClanRef().update(maj).catch(function () {});
+    /* L'echec d'ecriture etait avale en silence : les degats s'affichaient,
+       puis disparaissaient au rechargement suivant, ce qui donne exactement
+       la sensation de ne pas pouvoir frapper. On annule la frappe et on dit
+       pourquoi — une regle Firestore trop stricte se voit ainsi tout de
+       suite. */
+    raidClanRef().update(maj)['catch'](function (e) {
+      loc.coups = Math.max(0, loc.coups - 1); writeRaidClan(loc);
+      r.degats = Math.max(0, (r.degats || 0) - d);
+      r.parMembre[nuage.uid] = Math.max(0, (r.parMembre[nuage.uid] || 0) - d);
+      clanEtat.msg = 'Frappe refusée : '
+        + ((e && (e.code || e.message)) || 'cause inconnue');
+      showClan();
+    });
   }
 
   /* Butin : verse une seule fois, quand l'adversaire tombe. La part depend de
@@ -11906,6 +11918,29 @@
         + (estChef ? ' · vous êtes le chef' : '') + '</p>'
         + alerte
         + '<p class="sheet-sub">MEMBRES</p><div class="clan-liste">';
+
+      /* Les membres se construisaient APRES le raid, les paliers et
+         l'activite, alors que le conteneur, lui, s'ouvrait ici : le titre
+         MEMBRES etait donc suivi de l'adversaire du jour et la liste
+         atterrissait tout en bas de l'onglet, invisible sans defiler. */
+      var passe = clanEtat.passation;
+      clanEtat.membres.forEach(function (m) {
+        var autre = m.uid !== d.chef;
+        html += (passe && autre
+            ? '<button class="clan-membre clan-dispo" data-clan-transmettre="' + esc(m.uid) + '">'
+            : '<div class="clan-membre">')
+          + '<span class="clan-m-nom">' + esc(m.nom)
+          + (m.uid === d.chef ? ' <i class="clan-chef">chef</i>' : '') + '</span>'
+          + '<span class="clan-m-stat">'
+          + (passe && autre ? 'nommer'
+              : (m.uid === nuage.uid ? Math.max(m.act || 0, readActivite().pts)
+                                     : (m.act || 0)).toLocaleString('fr-FR')
+                + ' pts · cote ' + m.cote)
+          + '</span>'
+          + (passe && autre ? '</button>' : '</div>');
+      });
+      html += '</div>';
+
       html += blocRaidClan();
 
       var act = clanActuelle();
@@ -11937,24 +11972,6 @@
           + '<span class="cp-lot">' + pal.paquets + ' pq · ' + pal.or + ' or</span>'
           + '<span class="cp-etat">' + (pris ? 'reçu' : (atteint ? 'à prendre' : '—')) + '</span>'
           + (atteint && !pris ? '</button>' : '</div>');
-      });
-      html += '</div>';
-
-      var passe = clanEtat.passation;
-      clanEtat.membres.forEach(function (m) {
-        var autre = m.uid !== d.chef;
-        html += (passe && autre
-            ? '<button class="clan-membre clan-dispo" data-clan-transmettre="' + esc(m.uid) + '">'
-            : '<div class="clan-membre">')
-          + '<span class="clan-m-nom">' + esc(m.nom)
-          + (m.uid === d.chef ? ' <i class="clan-chef">chef</i>' : '') + '</span>'
-          + '<span class="clan-m-stat">'
-          + (passe && autre ? 'nommer'
-              : (m.uid === nuage.uid ? Math.max(m.act || 0, readActivite().pts)
-                                     : (m.act || 0)).toLocaleString('fr-FR')
-                + ' pts · cote ' + m.cote)
-          + '</span>'
-          + (passe && autre ? '</button>' : '</div>');
       });
       html += '</div>';
 
