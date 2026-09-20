@@ -5827,7 +5827,15 @@
         var liste = [];
         if (d.tfa) liste.push(d.tfa);
         var mr = (d.mostread && d.mostread.articles) || [];
-        for (var i = 0; i < mr.length && liste.length < 10; i++) liste.push(mr[i]);
+        for (var i = 0; i < mr.length && liste.length < 20; i++) {
+          /* Les pages de service trustent le haut du classement des plus lus
+             et ne feront jamais un adversaire : elles mangeaient la moitie des
+             candidats, ce qui ramenait sans cesse les memes boss. Le tirage de
+             paquets les ecartait deja, pas le raid. */
+          var tm = (mr[i].titles && mr[i].titles.normalized) || mr[i].title || '';
+          if (/^(Wikip[eé]dia|Sp[eé]cial|Portail|Cat[eé]gorie|Aide|Mod[eè]le|Discussion|Accueil)[: ]/.test(tm)) continue;
+          liste.push(mr[i]);
+        }
         if (!liste.length) throw new Error('pas d’article du jour');
         return liste;
       })
@@ -5865,29 +5873,37 @@
     try { localStorage.setItem(BOSSKEY, JSON.stringify(l.slice(0, BOSS_MEMOIRE))); } catch (e) {}
   }
 
-  function resoudreBoss(liste, i, secondPassage) {
+  function resoudreBoss(liste, i, secondPassage, exclus) {
     i = i || 0;
+    exclus = exclus || [];
     if (i >= liste.length) {
       /* Premier passage epuise : on recommence en acceptant les deja-vus. */
-      return secondPassage ? Promise.resolve(null) : resoudreBoss(liste, 0, true);
+      return secondPassage ? Promise.resolve(null)
+                           : resoudreBoss(liste, 0, true, exclus);
     }
     var a = liste[i];
     var titre = (a.titles && a.titles.normalized) || a.title || '';
+    /* Les exclusions passees par l'appelant tiennent AUX DEUX passages : elles
+       servent a ce que le raid de clan et le raid solo ne proposent pas le
+       meme adversaire le meme jour, ce qui n'aurait aucun interet. */
+    if (titre && exclus.indexOf(titre) >= 0) {
+      return resoudreBoss(liste, i + 1, secondPassage, exclus);
+    }
     if (!secondPassage && titre && bossRecents().indexOf(titre) >= 0) {
-      return resoudreBoss(liste, i + 1, secondPassage);
+      return resoudreBoss(liste, i + 1, secondPassage, exclus);
     }
     return fetchInfo(a.pageid)
       .then(function (page) {
         var t = (page && page.thumbnail && page.thumbnail.source)
              || (a.thumbnail && a.thumbnail.source) || '';
         if (t) return { a: a, page: page, thumb: t };
-        if (!titre) return resoudreBoss(liste, i + 1, secondPassage);
+        if (!titre) return resoudreBoss(liste, i + 1, secondPassage, exclus);
         return fetchImageCorps(titre).then(function (u) {
           return u ? { a: a, page: page, thumb: u }
-                   : resoudreBoss(liste, i + 1, secondPassage);
+                   : resoudreBoss(liste, i + 1, secondPassage, exclus);
         });
       })
-      .catch(function () { return resoudreBoss(liste, i + 1, secondPassage); });
+      .catch(function () { return resoudreBoss(liste, i + 1, secondPassage, exclus); });
   }
 
   function fetchInfo(pageid) {
@@ -6051,9 +6067,9 @@
 
   /* Fabrication de l'adversaire du jour, isolee pour servir deux fois :
      au raid solo, et au raid de clan qui le reprend tel quel. */
-  function construireBoss() {
+  function construireBoss(exclus) {
     return fetchBoss()
-      .then(resoudreBoss)
+      .then(function (liste) { return resoudreBoss(liste, 0, false, exclus || []); })
       .then(function (choix) {
         if (!choix) throw new Error('aucun adversaire illustre aujourd’hui');
         var a = choix.a;
@@ -6089,7 +6105,9 @@
     if (etat) { paintRaid(etat); return; }
 
     body.innerHTML = '<p class="status">Recherche de l’adversaire du jour…</p>';
-    construireBoss()
+    var dejaClan = (clanEtat.raid && typeof clanEtat.raid !== 'string'
+                    && clanEtat.raid.titre) ? [clanEtat.raid.titre] : [];
+    construireBoss(dejaClan)
       .then(function (boss) {
           /* Dix fois la defense suffisait quand on envoyait les cartes une par
              une. Une equipe de six qui frappe a chaque tour le descendait en
@@ -10485,17 +10503,27 @@
 
   var RCKEY = 'wikigacha:raidclan';
   var RC_COUPS = 5;        /* frappes par membre et par jour */
-  var RC_PV_PAR_MEMBRE = 15;
+  /* Quinze points par membre visaient une semaine de frappes. En quotidien,
+     chaque membre ne dispose plus que de ses cinq coups du jour : au meme
+     barème, l'adversaire ne tomberait jamais et le butin ne tomberait jamais
+     non plus. Sept points visent une mise a mort dans la journee avec environ
+     deux membres sur trois qui participent. */
+  var RC_PV_PAR_MEMBRE = 7;
 
+  /* Un adversaire par JOUR et non par semaine : le meme boss pendant sept
+     jours, c'est six jours ou l'onglet n'a plus rien a montrer. Les documents
+     des semaines passees restent en base sans gener, ils ne sont simplement
+     plus relus. */
   function raidClanRef() {
-    return clanRef(clanEtat.id).collection('raid').doc(semaineISO());
+    return clanRef(clanEtat.id).collection('raid').doc(jour());
   }
 
   function readRaidClan() {
     var d;
     try { d = JSON.parse(localStorage.getItem(RCKEY)); } catch (e) { d = null; }
-    if (!d || d.sem !== semaineISO()) d = { sem: semaineISO(), jour: '', coups: 0, butin: false };
-    if (d.jour !== jour()) { d.jour = jour(); d.coups = 0; }
+    /* Tout est quotidien desormais, butin compris : un adversaire par jour
+       vaut un butin par jour. */
+    if (!d || d.jour !== jour()) d = { jour: jour(), coups: 0, butin: false };
     return d;
   }
   function writeRaidClan(d) {
@@ -10518,7 +10546,13 @@
     var ref = raidClanRef();
     return ref.get().then(function (d) {
       if (d.exists) { clanEtat.raid = d.data(); return; }
-      return construireBoss().then(function (boss) {
+      /* Le raid solo du jour est deja choisi : on l'ecarte pour que le clan
+         affronte autre chose. Et on note l'adversaire retenu, sans quoi la
+         memoire des dix derniers ne voyait passer que ceux du solo. */
+      var solo = readRaid();
+      var dejaSolo = (solo && solo.boss && solo.boss.title) ? [solo.boss.title] : [];
+      return construireBoss(dejaSolo).then(function (boss) {
+        noterBoss(boss.title);
         var membres = (clanEtat.doc.membres || []).length || 1;
         var pvMax = Math.round(boss.def * RC_PV_PAR_MEMBRE * Math.max(3, membres));
         var doc = {
