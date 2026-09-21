@@ -762,8 +762,10 @@
     display: -webkit-box; font-size: 12px; color: var(--glass-dim);
     -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
+  /* Les statistiques reelles depassent souvent 1 000 : sur les cartes les
+     plus etroites, la ligne passe a la suivante plutot que de deborder. */
   .card-foot {
-    display: flex; align-items: baseline; gap: 14px; margin-top: 9px;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-top: 9px;
     padding-top: 8px; border-top: 1px solid var(--night-line);
     font-size: 12px; color: var(--glass-dim);
   }
@@ -3053,6 +3055,18 @@
      refonte, les points de vie. Une puissance qui l'ignorerait donnerait a une
      Commune tres defensive la meme note qu'a une Mythique, et fausserait aussi
      bien le tri d'equipe que l'appariement en duel. */
+  /* Valeurs AFFICHEES : celles qui servent vraiment en combat. La carte
+     montrait l'attaque et la defense brutes, sans multiplicateur de rarete :
+     une Mythique affichait 320 et frappait a 1 472, une Commune affichait 300
+     et frappait a 300. A l'ecran les deux se valaient, d'ou la sensation
+     d'ecarts minimes. La defense brute n'est pas multipliee en combat — elle
+     reduit les degats recus — c'est la ligne de points de vie qui porte la
+     rarete ; on affiche donc l'attaque reelle et les points de vie reels. */
+  function atkReelle(c) {
+    return Math.round(atkEff(c) * (MULT[rankIndex(c.rank)] || 1));
+  }
+  function nbFr(n) { return Math.round(n).toLocaleString('fr-FR'); }
+
   function puissanceCarte(c) {
     var i = rankIndex(c.rank);
     return Math.round(atkEff(c) * (MULT[i] || 1) + defEff(c) * (MULT_PV[i] || 1));
@@ -3419,11 +3433,11 @@
 
   /* Export tableur de la collection, réservé au premium. */
   function exporterCSV() {
-    var lignes = [['Titre', 'Rareté', 'ATQ', 'DÉF', 'VIT', 'Exemplaires',
+    var lignes = [['Titre', 'Rareté', 'ATQ réelle', 'PV', 'ATQ brute', 'DÉF', 'VIT', 'Exemplaires',
                    'Domaine', 'Vues', 'Octets', 'Lien']];
     Object.keys(collection).forEach(function (k) {
       var c = collection[k];
-      lignes.push([c.title, c.rank, atkEff(c), defEff(c), vitEff(c), c.count,
+      lignes.push([c.title, c.rank, atkReelle(c), pvDe(c), atkEff(c), defEff(c), vitEff(c), c.count,
                    domaineNom(c.domaine || 'divers'), c.views || 0,
                    c.bytes || 0, c.url || '']);
     });
@@ -4645,8 +4659,8 @@
       + '<span><span class="card-title">' + esc(c.title) + '</span>'
       + '<span class="card-desc">' + esc(blurb(c, 120)) + '</span></span></span>'
       + '<span class="card-foot">'
-      + '<span>ATQ <b>' + atkEff(c) + '</b></span>'
-      + '<span>DÉF <b>' + defEff(c) + '</b></span>'
+      + '<span>ATQ <b>' + nbFr(atkReelle(c)) + '</b></span>'
+      + '<span>PV <b>' + nbFr(pvDe(c)) + '</b></span>'
       + '<span>VIT <b>' + vitEff(c) + '</b></span>'
       + (niveau(c) > 1 ? '<span class="stars">' + etoiles(niveau(c)) + '</span>' : '')
       + (dupes > 1 ? '<span class="dupe">\u00d7' + dupes + '</span>' : '')
@@ -4669,8 +4683,8 @@
       + '<div class="fig">' + fig + '</div>'
       + '<h2>' + esc(c.title) + '</h2>'
       + '<p>' + esc(blurb(c, 150)) + '</p>'
-      + '<div class="face-foot"><span>ATQ <b>' + atkEff(c) + '</b></span>'
-      + '<span>DÉF <b>' + defEff(c) + '</b></span>'
+      + '<div class="face-foot"><span>ATQ <b>' + nbFr(atkReelle(c)) + '</b></span>'
+      + '<span>PV <b>' + nbFr(pvDe(c)) + '</b></span>'
       + '<span>VIT <b>' + vitEff(c) + '</b></span>'
       + '<button class="more" data-title="' + esc(c.title) + '">Fiche complète</button>'
       + '</div>';
@@ -5460,7 +5474,7 @@
 
         x.fillStyle = '#b9c0d4';
         x.font = '400 32px ' + SANS;
-        x.fillText('ATQ ' + atkEff(c) + '   ·   DÉF ' + defEff(c), IX, yStats);
+        x.fillText('ATQ ' + nbFr(atkReelle(c)) + '   ·   PV ' + nbFr(pvDe(c)), IX, yStats);
 
         /* cadre doré */
         x.strokeStyle = 'rgba(201,153,46,.75)'; x.lineWidth = 4;
@@ -5585,11 +5599,14 @@
       + '<p class="sheet-text" id="sheet-text">'
       + esc(c.extract || 'Chargement du résumé…') + '</p>'
       + (ambiance(c) ? '<p class="ambiance">« ' + esc(ambiance(c)) + ' »</p>' : '')
-      + '<div class="sheet-meta">ATQ <b>' + atkEff(c) + '</b>'
-      + (niveau(c) > 1 ? ' (base ' + c.atk + ')' : '') + ' — '
+      + '<div class="sheet-meta">ATQ <b>' + nbFr(atkReelle(c)) + '</b> — '
+      + atkEff(c) + (niveau(c) > 1 ? ' (base ' + c.atk + ')' : '')
+      + ' × ' + String(MULT[rankIndex(c.rank)] || 1).replace('.', ',') + ' de rareté · '
       + c.views.toLocaleString('fr-FR') + ' vues sur deux mois<br>'
+      + 'PV <b>' + nbFr(pvDe(c)) + '</b> — défense × ' + PV_PAR_DEF + ' × '
+      + String(MULT_PV[rankIndex(c.rank)] || 1).replace('.', ',') + ' de rareté<br>'
       + 'DÉF <b>' + defEff(c) + '</b>'
-      + (niveau(c) > 1 ? ' (base ' + c.def + ')' : '') + ' — '
+      + (niveau(c) > 1 ? ' (base ' + c.def + ')' : '') + ' — réduit les dégâts reçus · '
       + (Math.round(c.bytes / 102.4) / 10) + ' Ko d’article<br>'
       + 'VIT <b>' + vitEff(c) + '</b> — décide de l’ordre des coups en duel'
       + (typeof c.score === 'number'
@@ -7392,7 +7409,7 @@
           + (c.thumb ? '<img src="' + esc(c.thumb) + '" alt="" loading="lazy">'
                      : artSVG(c.title, tr.color))
           + '</span><span class="eq-nom">' + esc(c.title) + '</span>'
-          + '<span class="eq-pui">' + atkEff(c) + '/' + defEff(c)
+          + '<span class="eq-pui">' + nbFr(atkReelle(c)) + '/' + nbFr(pvDe(c))
           + ' · <i class="eq-vit">' + vitEff(c) + '</i></span>'
           + (function () {
               var cp = capaciteDe(c);
@@ -7506,7 +7523,7 @@
                     : artSVG(c.title, tr.color))
                 + '</span>'
                 + '<span class="eq-nom">' + esc(c.title) + '</span>'
-                + '<span class="eq-pui">' + atkEff(c) + '/' + defEff(c)
+                + '<span class="eq-pui">' + nbFr(atkReelle(c)) + '/' + nbFr(pvDe(c))
                 + ' · <i class="eq-vit">' + vitEff(c) + '</i></span>'
                 + (function () {
                     var cp = capaciteDe(c);
@@ -7532,7 +7549,8 @@
     var eq = readEquipe();
     var toutes = Object.keys(collection).map(function (k) { return collection[k]; })
       .sort(function (a, b) {
-        return (atkEff(b) + defEff(b)) - (atkEff(a) + defEff(a));
+        /* « De la plus forte a la plus faible » : la rarete compte. */
+        return puissanceCarte(b) - puissanceCarte(a);
       });
     var inner = el('sheet-inner');
     inner.style.setProperty('--tier', '#c9992e');
@@ -7544,7 +7562,7 @@
       + toutes.map(function (c) {
           var ailleurs = eq.indexOf(c.title) !== -1 && eq[slot] !== c.title;
           var t = tierOf(c.rank);
-          var pc = atkEff(c) + defEff(c);
+          var pc = nbFr(puissanceCarte(c));
           return '<button style="--tier:' + t.color + '" class="sel-carte '
             + (ailleurs ? 'sel-pris ' : '') + (eq[slot] === c.title ? 'sel-actif' : '') + '" '
             + 'data-eq-slot="' + slot + '" data-eq-titre="' + esc(c.title) + '"'
@@ -7557,7 +7575,7 @@
             + '<span class="sel-corps">'
             + '<span class="sel-ecart">' + pc + '</span>'
             + '<span class="sel-nom">' + esc(c.title) + '</span>'
-            + '<span class="sel-st">' + atkEff(c) + ' ATQ · ' + defEff(c) + ' DÉF · '
+            + '<span class="sel-st">' + nbFr(atkReelle(c)) + ' ATQ · ' + nbFr(pvDe(c)) + ' PV · '
             + vitEff(c) + ' VIT · '
             + t.short + (ailleurs ? ' · déjà dans l’équipe' : '') + '</span>'
             + '</span></button>';
@@ -8090,7 +8108,7 @@
       + '<span class="butin-corps">'
       + '<span class="butin-rang">' + esc(c.rank.toUpperCase()) + '</span>'
       + '<span class="butin-nom">' + esc(c.title) + '</span>'
-      + '<span class="butin-st">ATQ ' + atkEff(c) + ' · DÉF ' + defEff(c)
+      + '<span class="butin-st">ATQ ' + nbFr(atkReelle(c)) + ' · PV ' + nbFr(pvDe(c))
       + ' · VIT ' + vitEff(c) + ' · '
       + (histButin.nouvelle ? 'nouvelle carte' : c.count + ' exemplaires')
       + ' · touchez pour la fiche</span>'
