@@ -6014,10 +6014,15 @@
     var pvBoss = etat.pv;
     var actions = [], tour = 0, inflige = 0;
     var vivant = function () { return A.some(function (x) { return x.pv > 0; }); };
+    /* Le boss a une vitesse, calculee comme celle d'une carte : Precedent,
+       Calcul, Frontiere et Reseau ont besoin de s'y comparer. */
+    var vitBoss = vitEff(b);
+    var bossRonge = 0;
 
     while (tour < RAID_TOURS_MAX && vivant() && pvBoss > 0) {
       tour += 1;
       actions.push({ type: 'tour', n: tour });
+      soinsEndurance(A, actions);
 
       for (var i = 0; i < A.length && pvBoss > 0; i++) {
         var src = A[i];
@@ -6034,38 +6039,61 @@
             detail: 'sa ligne gagne ' + Math.round(src.cap.val * 100) + ' % d\u2019attaque' });
         }
 
-        var def = b.def;
+        var ignore = 0;
+        if (src.cap && src.cap.id === 'precedent' && !src.capUtilisee && src.vit > vitBoss) {
+          src.capUtilisee = true;
+          ignore = src.cap.val;
+          actions.push({ type: 'capacite', src: src.c.title, srcPos: src.pos,
+            cap: src.cap.nom,
+            detail: 'son premier coup ignore ' + Math.round(ignore * 100) + ' % de la défense' });
+        }
+
+        var def = b.def * (1 - bossRonge);
         if (src.cap && src.cap.id === 'methode') def *= (1 - src.cap.val);
+        if (ignore) def *= (1 - ignore);
         var m = MULT[rankIndex(src.c.rank)] || 1;
         var atk = (atkEff(src.c) + src.atkBonus) * src.atkMult;
+        /* Percee ne vaut ici que contre un boss intact : son premier coup de la
+           journee. Les degats se reportent d'un assaut a l'autre. */
         var d = Math.max(1, Math.round(atk * m * (900 / (900 + def))
-                * (src.pos >= 3 ? MALUS_ARRIERE : 1)));
+                * (src.pos >= 3 ? MALUS_ARRIERE : 1)
+                * bonusOffensif(src, vitBoss, pvBoss >= etat.pvMax)));
         pvBoss = Math.max(0, pvBoss - d);
         inflige += d;
         actions.push({ type: 'coup', vers: 'boss', src: src.c.title, srcPos: src.pos,
           degats: d, pvBoss: pvBoss, mort: pvBoss === 0 });
+
+        if (src.cap && src.cap.id === 'erosion' && pvBoss > 0 && bossRonge < EROSION_MAX) {
+          var avant = bossRonge;
+          bossRonge = Math.min(EROSION_MAX, avant + src.cap.val);
+          if (avant === 0) {
+            actions.push({ type: 'capacite', src: src.c.title, srcPos: src.pos,
+              cap: src.cap.nom, detail: 'commence à ronger la défense de l’adversaire' });
+          }
+        }
       }
       if (pvBoss <= 0) break;
 
       var cible = A.filter(function (x) { return x.pv > 0 && x.pos < 3; })[0]
                || A.filter(function (x) { return x.pv > 0; })[0];
       if (!cible) break;
-      var db = degatsBoss(b, cible);
+      var enc = encaisser(degatsBoss(b, cible), cible, A, vitBoss);
+      var db = enc.d;
       cible.pv = Math.max(0, cible.pv - db);
       actions.push({ type: 'coup', vers: 'carte', src: b.title,
         ciblePos: cible.pos, cible: cible.c.title,
         degats: db, pv: cible.pv, pvMax: cible.pvMax, mort: cible.pv === 0 });
 
-      if (cible.pv === 0 && cible.cap && cible.cap.id === 'heritage') {
-        var col = cible.pos < 3 ? cible.pos + 3 : cible.pos - 3;
-        if (A[col] && A[col].pv > 0) {
-          var leg = Math.round(atkEff(cible.c) * cible.cap.val);
-          A[col].atkBonus += leg;
-          actions.push({ type: 'capacite', src: cible.c.title, srcPos: cible.pos,
-            cap: cible.cap.nom,
-            detail: esc(A[col].c.title) + ' h\u00e9rite de ' + leg + ' d\u2019attaque' });
-        }
+      if (enc.mecene) {
+        var mc = enc.mecene;
+        mc.pv = Math.max(0, mc.pv - enc.absorbe);
+        actions.push({ type: 'capacite', src: mc.c.title, srcPos: mc.pos,
+          cap: mc.cap.nom, ciblePos: mc.pos, pv: mc.pv,
+          detail: 'encaisse ' + nbFr(enc.absorbe) + ' dégâts à la place de '
+            + esc(cible.c.title) });
+        if (mc.pv === 0) surMort(mc, A, null, actions);
       }
+      if (cible.pv === 0) surMort(cible, A, null, actions);
     }
 
     return { actions: actions, tours: tour, A: A, pvBoss: pvBoss,
@@ -6447,6 +6475,7 @@
       if (ac.type === 'capacite') {
         var sc = A[ac.srcPos];
         if (sc) { sc.eclair = true; sc.capFlash = ac.cap; }
+        if (ac.ciblePos != null && ac.pv != null && A[ac.ciblePos]) A[ac.ciblePos].pv = ac.pv;
         dessiner('<b>' + esc(ac.src) + '</b> — <i>' + esc(ac.cap) + '</i> : '
           + ac.detail, 'cap');
       } else if (ac.vers === 'boss') {
@@ -6962,7 +6991,45 @@
     souffle:    { nom: 'Second souffle', dom: 'sport',
                   txt: 'Frappe deux fois si elle est plus rapide que sa vis-à-vis' },
     influence:  { nom: 'Influence',      dom: 'soc',
-                  txt: 'Affaiblit l’attaque de la carte d’en face' }
+                  txt: 'Affaiblit l’attaque de la carte d’en face' },
+
+    /* Les douze suivantes completent chaque domaine selon la statistique
+       dominante de la carte : offensive, resistante ou vive. */
+    erosion:    { nom: 'Érosion',        dom: 'geo',
+                  txt: 'Chaque coup ronge durablement la défense de sa cible' },
+    frontiere:  { nom: 'Frontière',      dom: 'geo',
+                  txt: 'Subit moins de dégâts des assaillants plus lents qu’elle' },
+    conquete:   { nom: 'Conquête',       dom: 'hist',
+                  txt: 'Gagne de l’attaque à chaque carte adverse tombée' },
+    precedent:  { nom: 'Précédent',      dom: 'hist',
+                  txt: 'Plus vive que sa cible, son premier coup ignore une part de la défense' },
+    rigueur:    { nom: 'Rigueur',        dom: 'sci',
+                  txt: 'Réduit tous les dégâts reçus' },
+    calcul:     { nom: 'Calcul',         dom: 'sci',
+                  txt: 'Frappe plus fort une cible plus lente qu’elle' },
+    eclat:      { nom: 'Éclat',          dom: 'art',
+                  txt: 'Attaque renforcée tant qu’elle garde plus de la moitié de ses PV' },
+    mecenat:    { nom: 'Mécénat',        dom: 'art',
+                  txt: 'Encaisse une part des dégâts subis par l’alliée de sa colonne' },
+    percee:     { nom: 'Percée',         dom: 'sport',
+                  txt: 'Frappe plus fort une cible encore intacte' },
+    endurance:  { nom: 'Endurance',      dom: 'sport',
+                  txt: 'Regagne des points de vie à chaque tour' },
+    rumeur:     { nom: 'Rumeur',         dom: 'soc',
+                  txt: 'Au premier coup, affaiblit l’attaque de toute la ligne d’en face' },
+    reseau:     { nom: 'Réseau',         dom: 'soc',
+                  txt: 'Protège l’alliée de sa colonne des assaillants plus lents qu’elle' }
+  };
+
+  /* Domaine x statistique dominante -> capacite. Les six historiques gardent
+     leur place ; chacune correspond a la dominante qui lui ressemble le plus. */
+  var CAP_PAR_DOMAINE = {
+    geo:   { a: 'erosion',  df: 'ancrage',   v: 'frontiere'   },
+    hist:  { a: 'conquete', df: 'heritage',  v: 'precedent'   },
+    sci:   { a: 'methode',  df: 'rigueur',   v: 'calcul'      },
+    art:   { a: 'eclat',    df: 'mecenat',   v: 'inspiration' },
+    sport: { a: 'percee',   df: 'endurance', v: 'souffle'     },
+    soc:   { a: 'rumeur',   df: 'influence', v: 'reseau'      }
   };
 
   /* Valeur de base par rarete : [Épique, Légendaire, Mythique]. */
@@ -6972,7 +7039,23 @@
     methode:     [0.30, 0.45, 0.60],
     inspiration: [0.15, 0.22, 0.30],
     souffle:     [0.50, 0.65, 0.80],
-    influence:   [0.20, 0.28, 0.35]
+    influence:   [0.20, 0.28, 0.35],
+    /* Celles qui CUMULENT restent basses : leur force vient de la repetition
+       (Erosion a chaque coup, Conquete a chaque mort, Rumeur sur trois
+       cartes). Celle qui ne sert qu'UNE fois monte haut, sinon elle passerait
+       inapercue (Precedent). Endurance se lit en part des PV PAR TOUR. */
+    erosion:     [0.08, 0.11, 0.15],
+    frontiere:   [0.15, 0.22, 0.30],
+    conquete:    [0.08, 0.12, 0.16],
+    precedent:   [0.40, 0.55, 0.70],
+    rigueur:     [0.12, 0.18, 0.25],
+    calcul:      [0.20, 0.30, 0.40],
+    eclat:       [0.20, 0.30, 0.40],
+    mecenat:     [0.25, 0.40, 0.55],
+    percee:      [0.30, 0.45, 0.60],
+    endurance:   [0.03, 0.045, 0.06],
+    rumeur:      [0.08, 0.12, 0.16],
+    reseau:      [0.15, 0.22, 0.30]
   };
 
   /* Plafonds. Sans eux, le bonus d'etoiles poussait « Second souffle » a
@@ -6981,24 +7064,52 @@
      de laquelle la fusion n'apporte plus rien. */
   var CAP_PLAFONDS = {
     ancrage: 0.65, heritage: 0.95, methode: 0.72,
-    inspiration: 0.40, souffle: 0.90, influence: 0.45
+    inspiration: 0.40, souffle: 0.90, influence: 0.45,
+    erosion: 0.20, frontiere: 0.40, conquete: 0.22, precedent: 0.85,
+    /* Rigueur est la plus serree : une reduction plate s'ajoute a celle que
+       la defense opere deja, et c'est elle qui peut rendre une carte
+       increvable. Mecenat peut monter haut sans danger — elle ne reduit rien,
+       elle DEPLACE les degats sur elle-meme. */
+    rigueur: 0.32, calcul: 0.50, eclat: 0.50, mecenat: 0.70,
+    percee: 0.75, endurance: 0.08, rumeur: 0.22, reseau: 0.40
   };
+
+  /* Erosion ne peut ronger plus de la moitie d'une defense, quel que soit le
+     nombre de coups. */
+  var EROSION_MAX = 0.5;
 
   var CAP_RANG_MIN = 3;        /* index dans TIERS : Épique */
   var CAP_PAR_ETOILE = 0.08;
 
-  /* Sans domaine, on retombe sur la statistique dominante : une carte
-     offensive perce, une resistante encaisse, une vive frappe deux fois. */
+  /* Statistique dominante : celle ou la carte s'ecarte le plus de la norme.
+     Comparer les valeurs elles-memes ne marchait pas : la vitesse (60 a 110)
+     ne battait presque jamais une attaque autour de 360, et six capacites sur
+     dix-huit — dont Inspiration et Second souffle, jusque-la portees par tout
+     un domaine — ne tombaient plus que sur 1 % des cartes. On mesure donc
+     l'ecart de chaque statistique a sa mediane, divise par une echelle.
+     Les echelles sont calees par simulation pour que chaque forme revienne
+     souvent : environ 37 % offensives, 39 % resistantes, 24 % vives. La vive
+     ne peut guere depasser le quart, car une carte rapide est aussi une carte
+     tres lue, donc offensive.
+     Toujours sans multiplicateur de rarete, et sur les valeurs de BASE, sans
+     etoiles : la fusion ne change jamais la capacite d'une carte. */
+  var DOM_REF = { a: [360, 100], df: [374, 60], v: [83, 80] };   /* mediane, echelle */
+  function dominante(c) {
+    var vb = 60 + Math.log10((c.views || 0) + 1) * 14 - Math.log10((c.bytes || 1000) + 1) * 8;
+    var za = ((c.atk || 0) - DOM_REF.a[0]) / DOM_REF.a[1];
+    var zd = ((c.def || 0) - DOM_REF.df[0]) / DOM_REF.df[1];
+    var zv = (vb - DOM_REF.v[0]) / DOM_REF.v[1];
+    if (zv >= za && zv >= zd) return 'v';
+    return (za >= zd) ? 'a' : 'df';
+  }
+
+  /* Sans domaine, on retombe sur la regle d'origine : une carte offensive
+     perce, une resistante encaisse, une vive frappe deux fois. */
   function capaciteId(c) {
-    var d = c.domaine;
-    if (d) {
-      for (var k in CAPACITES) {
-        if (CAPACITES.hasOwnProperty(k) && CAPACITES[k].dom === d) return k;
-      }
-    }
-    var a = atkEff(c), df = defEff(c), v = vitEff(c) * 4;   /* remis a l'echelle */
-    if (v >= a && v >= df) return 'souffle';
-    return (a >= df) ? 'methode' : 'ancrage';
+    var dom = dominante(c);
+    var parDom = c.domaine && CAP_PAR_DOMAINE[c.domaine];
+    if (parDom) return parDom[dom];
+    return { v: 'souffle', a: 'methode', df: 'ancrage' }[dom];
   }
 
   function capaciteDe(c) {
@@ -7042,18 +7153,102 @@
       c: c, camp: camp, pos: pos, pv: pv, pvMax: pv, vit: vitEff(c),
       cap: cap,
       atkBonus: 0,      /* attaque leguee par Heritage */
-      atkMult: 1,       /* Inspiration (hausse) et Influence (baisse) */
+      atkMult: 1,       /* Inspiration (hausse), Influence et Rumeur (baisse) */
+      defRonge: 0,      /* part de defense rongee par Erosion */
       capUtilisee: false
     };
   }
 
-  function degatsDuel(src, cible, part) {
+  /* ---- Regles de capacite communes au duel et au raid ----
+     Tout ce qui modifie un coup passe par ces quatre fonctions, pour que les
+     deux modes ne divergent jamais. */
+
+  function partenaireColonne(equipe, x) {
+    var col = x.pos < 3 ? x.pos + 3 : x.pos - 3;
+    var p = equipe[col];
+    return (p && p.pv > 0) ? p : null;
+  }
+
+  /* Ce que la source ajoute a son propre coup. */
+  function bonusOffensif(src, vitCible, cibleIntacte) {
+    if (!src.cap) return 1;
+    var id = src.cap.id, v = src.cap.val;
+    if (id === 'calcul' && src.vit > vitCible) return 1 + v;
+    if (id === 'eclat' && src.pv * 2 > src.pvMax) return 1 + v;
+    if (id === 'percee' && cibleIntacte) return 1 + v;
+    return 1;
+  }
+
+  /* Ce que la cible et sa colonne retranchent d'un coup recu. Renvoie les
+     degats que la cible encaisse, et la part prise par une eventuelle alliee
+     Mecenat, que l'appelant retire a celle-ci. */
+  function encaisser(d, cible, allies, vitSrc) {
+    if (cible.cap) {
+      if (cible.cap.id === 'rigueur') d *= 1 - cible.cap.val;
+      else if (cible.cap.id === 'frontiere' && cible.vit > vitSrc) d *= 1 - cible.cap.val;
+    }
+    var res = { absorbe: 0, mecene: null };
+    var p = partenaireColonne(allies, cible);
+    if (p && p.cap) {
+      if (p.cap.id === 'reseau' && p.vit > vitSrc) d *= 1 - p.cap.val;
+      else if (p.cap.id === 'mecenat') {
+        res.absorbe = Math.min(p.pv, Math.round(d * p.cap.val));
+        res.mecene = res.absorbe > 0 ? p : null;
+        d -= res.absorbe;
+      }
+    }
+    res.d = Math.max(1, Math.round(d));
+    return res;
+  }
+
+  /* Ce qui se declenche quand une carte tombe : Heritage chez les siens,
+     Conquete chez l'adversaire. */
+  function surMort(mort, allies, adverses, actions) {
+    if (mort.cap && mort.cap.id === 'heritage') {
+      var hg = partenaireColonne(allies, mort);
+      if (hg) {
+        var leg = Math.round(atkEff(mort.c) * mort.cap.val);
+        hg.atkBonus += leg;
+        actions.push({ type: 'capacite', camp: mort.camp, srcPos: mort.pos,
+          src: mort.c.title, cap: mort.cap.nom,
+          ciblePos: hg.pos, ciblecamp: hg.camp,
+          detail: esc(hg.c.title) + ' hérite de ' + leg + ' d’attaque' });
+      }
+    }
+    (adverses || []).forEach(function (x) {
+      if (x.pv > 0 && x.cap && x.cap.id === 'conquete') {
+        var gain = Math.round(atkEff(x.c) * x.cap.val);
+        x.atkBonus += gain;
+        actions.push({ type: 'capacite', camp: x.camp, srcPos: x.pos,
+          src: x.c.title, cap: x.cap.nom,
+          detail: 'gagne ' + gain + ' d’attaque' });
+      }
+    });
+  }
+
+  /* Endurance, en debut de tour. */
+  function soinsEndurance(equipe, actions) {
+    equipe.forEach(function (x) {
+      if (x.pv <= 0 || x.pv >= x.pvMax || !x.cap || x.cap.id !== 'endurance') return;
+      var soin = Math.min(x.pvMax - x.pv, Math.round(x.pvMax * x.cap.val));
+      if (soin <= 0) return;
+      x.pv += soin;
+      actions.push({ type: 'capacite', camp: x.camp, srcPos: x.pos,
+        src: x.c.title, cap: x.cap.nom,
+        ciblePos: x.pos, ciblecamp: x.camp, pv: x.pv,
+        detail: 'regagne ' + nbFr(soin) + ' PV' });
+    });
+  }
+
+  function degatsDuel(src, cible, part, ignore) {
     var m = MULT[rankIndex(src.c.rank)] || 1;
-    var def = defEff(cible.c);
+    var def = defEff(cible.c) * (1 - (cible.defRonge || 0));
     if (src.cap && src.cap.id === 'methode') def *= (1 - src.cap.val);
+    if (ignore) def *= (1 - ignore);
     var reduction = 900 / (900 + def);
     var atk = (atkEff(src.c) + src.atkBonus) * src.atkMult;
-    var base = atk * m * reduction;
+    var base = atk * m * reduction
+             * bonusOffensif(src, cible.vit, cible.pv >= cible.pvMax);
     if (src.pos >= 3) base *= MALUS_ARRIERE;
     if (part) base *= part;
     return Math.max(1, Math.round(base));
@@ -7109,6 +7304,8 @@
         ordre = ordre.concat(duo);
       }
       actions.push({ type: 'tour', n: tour });
+      soinsEndurance(A, actions);
+      soinsEndurance(B, actions);
 
       for (var i = 0; i < ordre.length; i++) {
         var src = ordre[i];
@@ -7136,6 +7333,15 @@
               src: src.c.title, cap: src.cap.nom,
               cible: cible.c.title, ciblePos: cible.pos, ciblecamp: cible.camp,
               detail: esc(cible.c.title) + ' perd ' + Math.round(src.cap.val * 100) + ' % d’attaque' });
+          } else if (src.cap.id === 'rumeur') {
+            src.capUtilisee = true;
+            var ligneE = cible.pos < 3 ? [0, 1, 2] : [3, 4, 5];
+            ligneE.forEach(function (q) {
+              if (ennemis[q] && ennemis[q].pv > 0) ennemis[q].atkMult *= (1 - src.cap.val);
+            });
+            actions.push({ type: 'capacite', camp: src.camp, srcPos: src.pos,
+              src: src.c.title, cap: src.cap.nom,
+              detail: 'la ligne d’en face perd ' + Math.round(src.cap.val * 100) + ' % d’attaque' });
           }
         }
 
@@ -7151,7 +7357,23 @@
         for (var k = 0; k < coups.length; k++) {
           if (cible.pv <= 0) cible = choisirCible(ennemis, src);
           if (!cible) break;
-          var d = degatsDuel(src, cible, coups[k].part || 0);
+
+          /* Precedent : premier coup du combat, si la carte est plus vive. */
+          var ignore = 0;
+          if (k === 0 && src.cap && src.cap.id === 'precedent' && !src.capUtilisee
+              && src.vit > cible.vit) {
+            src.capUtilisee = true;
+            ignore = src.cap.val;
+            actions.push({ type: 'capacite', camp: src.camp, srcPos: src.pos,
+              src: src.c.title, cap: src.cap.nom,
+              cible: cible.c.title, ciblePos: cible.pos, ciblecamp: cible.camp,
+              detail: 'son premier coup ignore ' + Math.round(ignore * 100) + ' % de la défense' });
+          }
+
+          var alliesCible = cible.camp === 'moi' ? A : B;
+          var enc = encaisser(degatsDuel(src, cible, coups[k].part || 0, ignore),
+                              cible, alliesCible, src.vit);
+          var d = enc.d;
           cible.pv = Math.max(0, cible.pv - d);
           actions.push({
             type: 'coup', camp: src.camp, src: src.c.title, srcPos: src.pos,
@@ -7161,22 +7383,34 @@
             cap: coups[k].second ? src.cap.nom : null
           });
 
-          /* Heritage : la carte qui tombe legue une part de son attaque a
-             l'alliee de sa colonne. C'est la seule capacite qui recompense un
-             placement reflechi plutot qu'une statistique. */
-          if (cible.pv === 0 && cible.cap && cible.cap.id === 'heritage') {
-            var allies = cible.camp === 'moi' ? A : B;
-            var col = cible.pos < 3 ? cible.pos + 3 : cible.pos - 3;
-            var hg = allies[col];
-            if (hg && hg.pv > 0) {
-              var leg = Math.round(atkEff(cible.c) * cible.cap.val);
-              hg.atkBonus += leg;
-              actions.push({ type: 'capacite', camp: cible.camp, srcPos: cible.pos,
-                src: cible.c.title, cap: cible.cap.nom,
-                ciblePos: hg.pos, ciblecamp: hg.camp,
-                detail: esc(hg.c.title) + ' hérite de ' + leg + ' d’attaque' });
+          /* Mecenat : l'alliee de colonne a pris sa part du coup. */
+          if (enc.mecene) {
+            var mc = enc.mecene;
+            mc.pv = Math.max(0, mc.pv - enc.absorbe);
+            actions.push({ type: 'capacite', camp: mc.camp, srcPos: mc.pos,
+              src: mc.c.title, cap: mc.cap.nom,
+              ciblePos: mc.pos, ciblecamp: mc.camp, pv: mc.pv,
+              detail: 'encaisse ' + nbFr(enc.absorbe) + ' dégâts à la place de '
+                + esc(cible.c.title) });
+            if (mc.pv === 0) surMort(mc, alliesCible, siens, actions);
+          }
+
+          /* Erosion : la defense de la cible s'use, coup apres coup. Le
+             message ne s'affiche qu'au premier, sinon il noierait le combat. */
+          if (src.cap && src.cap.id === 'erosion' && cible.pv > 0
+              && cible.defRonge < EROSION_MAX) {
+            var avant = cible.defRonge;
+            cible.defRonge = Math.min(EROSION_MAX, avant + src.cap.val);
+            if (avant === 0) {
+              actions.push({ type: 'capacite', camp: src.camp, srcPos: src.pos,
+                src: src.c.title, cap: src.cap.nom,
+                cible: cible.c.title, ciblePos: cible.pos, ciblecamp: cible.camp,
+                detail: 'commence à ronger la défense de ' + esc(cible.c.title) });
             }
           }
+
+          /* Heritage et Conquete, communs au raid. */
+          if (cible.pv === 0) surMort(cible, alliesCible, siens, actions);
         }
         if (!vivant(ennemis)) break;
       }
@@ -7694,6 +7928,8 @@
         if (a.ciblePos != null) {
           var t = (a.ciblecamp === 'moi' ? etat.A : etat.B)[a.ciblePos];
           if (t) t.touchee = true;
+          /* Endurance et Mecenat changent des PV hors d'un coup. */
+          if (t && a.pv != null) t.pv = a.pv;
         }
         dessiner('<b>' + esc(a.src) + '</b> — <i>' + esc(a.cap) + '</i> : '
           + a.detail, 'cap');
@@ -8363,6 +8599,7 @@
       if (ac.type === 'capacite') {
         var sc = A[ac.srcPos];
         if (sc) { sc.eclair = true; sc.capFlash = ac.cap; }
+        if (ac.ciblePos != null && ac.pv != null && A[ac.ciblePos]) A[ac.ciblePos].pv = ac.pv;
         dessiner('<b>' + esc(ac.src) + '</b> — <i>' + esc(ac.cap) + '</i> : ' + ac.detail, 'cap');
       } else if (ac.vers === 'boss') {
         var s2 = A[ac.srcPos];
