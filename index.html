@@ -1118,6 +1118,165 @@
     padding: 1px 5px; font-size: 9px; letter-spacing: .04em;
     color: #14161f; background: #c9992e;
   }
+
+  /* ---------- Scene d'assaut du raid ----------
+     Le combat se lit a l'image : l'adversaire en grand au-dessus, les six
+     cartes en formation dessous, la ligne arriere un pas en retrait. Plus de
+     journal ecrit : les coups, les degats et les capacites se voient la ou ils
+     tombent. Le texte ne subsiste que pour les lecteurs d'ecran.
+     Classes propres (rs-) : le duel garde son affichage. */
+  .rs { --rs-d: .42s; }
+  .rs.rs-vite { --rs-d: .18s; }
+
+  .rs-boss {
+    position: relative; overflow: hidden; margin-bottom: 10px;
+    border-radius: var(--r-m); background: #0d101a;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.06), 0 12px 30px rgba(0,0,0,.45);
+  }
+  .rs-boss-img { height: 210px; transform-origin: 50% 30%; }
+  /* Les vignettes Wikipedia sont souvent des portraits : on cadre sur le
+     tiers haut, la ou se trouve le visage, plutot qu'au centre. */
+  .rs-boss-img img, .rs-boss-img .art {
+    width: 100%; height: 100%; display: block; object-fit: cover; object-position: 50% 25%;
+  }
+  /* Voile : l'image reste nette en haut, le pied porte le nom et la vie. */
+  .rs-boss::before {
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(180deg, rgba(13,16,26,0) 35%,
+                rgba(13,16,26,.55) 62%, rgba(13,16,26,.96) 100%);
+  }
+  .rs-boss-pied {
+    position: absolute; inset: auto 0 0 0; z-index: 2;
+    padding: 0 16px 12px; text-align: center;
+  }
+  .rs-boss-nom {
+    margin: 0 0 8px; font-family: var(--display); font-weight: 600;
+    font-size: 23px; line-height: 1.1; color: var(--ivory);
+    text-shadow: 0 2px 10px rgba(0,0,0,.7);
+  }
+  .rs-boss-vie {
+    height: 7px; border-radius: 999px; overflow: hidden;
+    background: rgba(255,255,255,.1);
+  }
+  .rs-boss-vie i {
+    display: block; height: 100%; border-radius: inherit; background: var(--t6);
+    transition: width var(--rs-d) ease;
+  }
+  .rs-boss-pv {
+    display: block; margin-top: 5px; font-size: 11px; color: var(--glass);
+    font-variant-numeric: tabular-nums;
+  }
+  .rs-boss.rs-touche .rs-boss-img { animation: rs-choc var(--rs-d) ease; }
+  .rs-boss.rs-touche::after {
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: #fff; opacity: 0; animation: rs-eclair var(--rs-d) ease-out;
+  }
+  .rs-boss.rs-riposte .rs-boss-img { animation: rs-elan var(--rs-d) ease; }
+  .rs-boss.rs-vaincu .rs-boss-img { filter: grayscale(1) brightness(.55); }
+  .rs-boss-degats, .rs-boss-verdict {
+    position: absolute; left: 0; right: 0; top: 32%; z-index: 3;
+    text-align: center; font-family: var(--display); line-height: 1;
+  }
+  .rs-boss-degats {
+    font-weight: 600; font-size: 40px; color: var(--ivory);
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 2px 0 rgba(0,0,0,.35), 0 4px 18px rgba(0,0,0,.8);
+    animation: rs-monte var(--rs-d) ease-out both;
+  }
+  .rs-boss-verdict {
+    font-style: italic; font-size: 46px; color: #f0dda4;
+    text-shadow: 0 4px 18px rgba(0,0,0,.85);
+  }
+
+  /* Les douze tours de l'assaut : c'est une vraie sequence. */
+  .rs-tours { display: flex; gap: 3px; margin: 0 2px 14px; }
+  .rs-tours i {
+    flex: 1 1 0; height: 3px; border-radius: 2px; background: rgba(255,255,255,.08);
+  }
+  .rs-tours i.fait { background: rgba(246,241,228,.35); }
+  .rs-tours i.encours { background: #c9992e; }
+
+  .rs-ligne { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .rs-avant { margin-bottom: 8px; }
+  .rs-arriere { padding: 0 14px; opacity: .88; }
+  .rs-carte {
+    position: relative; overflow: hidden; border-radius: var(--r-s);
+    background: var(--night-up);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.05);
+    transition: transform var(--rs-d) ease, box-shadow var(--rs-d) ease, opacity .4s ease;
+  }
+  .rs-carte::before {
+    content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; z-index: 3;
+    background: var(--tier);
+  }
+  .rs-img { height: 92px; }
+  .rs-arriere .rs-img { height: 70px; }
+  .rs-img img, .rs-img .art {
+    width: 100%; height: 100%; display: block; object-fit: cover; object-position: 50% 25%;
+  }
+  .rs-nom {
+    position: absolute; left: 0; right: 0; bottom: 4px; z-index: 2;
+    padding: 14px 6px 2px; font-size: 10.5px; line-height: 1.2;
+    color: var(--ivory); text-align: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    background: linear-gradient(180deg, transparent, rgba(13,16,26,.88) 60%);
+  }
+  .rs-vie {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 4px; z-index: 2;
+    background: rgba(0,0,0,.55);
+  }
+  .rs-vie i { display: block; height: 100%; background: #6fb08f; transition: width var(--rs-d) ease; }
+
+  .rs-carte.rs-frappe {
+    transform: translateY(-7px); z-index: 2;
+    box-shadow: 0 0 0 1px #c9992e, 0 8px 18px rgba(201,153,46,.25);
+  }
+  .rs-carte.rs-cap { box-shadow: 0 0 0 1px #c9992e, 0 0 16px rgba(201,153,46,.35); }
+  .rs-carte.rs-touchee { animation: rs-choc var(--rs-d) ease; }
+  .rs-carte.rs-touchee::after {
+    content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+    background: var(--t6); opacity: 0; animation: rs-rouge var(--rs-d) ease-out;
+  }
+  .rs-carte.rs-morte { opacity: .32; }
+  .rs-carte.rs-morte .rs-img { filter: grayscale(1); }
+  .rs-cap-nom {
+    position: absolute; left: 0; right: 0; top: 2px; z-index: 4;
+    padding: 3px 4px; text-align: center; font-size: 10px; font-weight: 600;
+    color: #14161f; background: #c9992e;
+    animation: rs-ruban var(--rs-d) ease-out both;
+  }
+  .rs-degats {
+    position: absolute; left: 0; right: 0; top: 24%; z-index: 4; text-align: center;
+    font-family: var(--display); font-weight: 600; font-size: 22px; color: #ffc2b8;
+    font-variant-numeric: tabular-nums; text-shadow: 0 2px 8px rgba(0,0,0,.9);
+    animation: rs-monte var(--rs-d) ease-out both;
+  }
+  .rs .db-boutons { margin-top: 16px; }
+  .rs-sr {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  @keyframes rs-choc {
+    0% { transform: translateX(0); } 25% { transform: translateX(-4px); }
+    60% { transform: translateX(4px); } 100% { transform: translateX(0); }
+  }
+  @keyframes rs-eclair { 0% { opacity: .35; } 100% { opacity: 0; } }
+  @keyframes rs-rouge  { 0% { opacity: .5; }  100% { opacity: 0; } }
+  @keyframes rs-elan {
+    0% { transform: scale(1); } 40% { transform: scale(1.06) translateY(6px); }
+    100% { transform: scale(1); }
+  }
+  @keyframes rs-monte {
+    0% { opacity: 0; transform: translateY(8px) scale(.9); }
+    30% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 1; transform: translateY(-10px); }
+  }
+  @keyframes rs-ruban { 0% { transform: translateY(-100%); } 100% { transform: translateY(0); } }
+  @media (prefers-reduced-motion: reduce) {
+    .rs *, .rs *::before, .rs *::after { animation: none !important; transition: none !important; }
+    .rs-carte.rs-frappe { transform: none; }
+    .rs-carte.rs-touchee { box-shadow: 0 0 0 2px var(--t6); }
+  }
   .eq-ligne-t {
     font-size: 10px; letter-spacing: .08em; color: var(--glass-dim); margin: 0 0 6px;
   }
@@ -6418,51 +6577,56 @@
     var r = a.resultat, etat = readRaid(), b = etat.boss;
     var A = a.cartes.map(function (c, i) { return enCombattant(c, 'moi', i); });
     var pvBoss = etat.pv, i = 0, tour = 0, minuteur = null, vite = false, secoue = false;
+    var riposte = false, coupBoss = 0;
 
-    var dessiner = function (journal, classe) {
+    var dessiner = function (journal) {
       var pct = Math.max(0, pvBoss / etat.pvMax * 100);
-      var ligne = function (de, fin) {
-        return '<div class="db-ligne">' + A.slice(de, fin).map(function (x) {
-          var tr = tierOf(x.c.rank);
-          var p = Math.max(0, x.pv / x.pvMax * 100);
-          return '<div class="db-carte' + (x.pv <= 0 ? ' morte' : '')
-            + (x.eclair ? ' frappe' : '') + (x.touchee ? ' touchee' : '')
-            + '" style="--tier:' + tr.color + '">'
-            + (x.degats ? '<span class="db-degats">−' + x.degats + '</span>' : '')
-            + (x.capFlash ? '<span class="db-cap-tag">' + esc(x.capFlash) + '</span>' : '')
-            + '<span class="db-vue">'
-            + (x.c.thumb ? '<img src="' + esc(x.c.thumb) + '" alt="" loading="lazy">'
-                         : artSVG(x.c.title, tr.color))
-            + '</span><span class="db-nom">' + esc(x.c.title) + '</span>'
-            + '<span class="db-jauge"><i style="width:' + p + '%"></i></span>'
-            + '<span class="db-pv">' + (x.pv > 0 ? x.pv : '✕') + '</span></div>';
-        }).join('') + '</div>';
+      var bt = tierOf(b.rank);
+      var carte = function (x) {
+        var tr = tierOf(x.c.rank);
+        var p = Math.max(0, x.pv / x.pvMax * 100);
+        return '<div class="rs-carte' + (x.pv <= 0 ? ' rs-morte' : '')
+          + (x.eclair ? ' rs-frappe' : '') + (x.touchee ? ' rs-touchee' : '')
+          + (x.capFlash ? ' rs-cap' : '') + '" style="--tier:' + tr.color + '">'
+          + '<div class="rs-img">'
+          + (x.c.thumb ? '<img src="' + esc(x.c.thumb) + '" alt="">'
+                       : artSVG(x.c.title, tr.color))
+          + '</div>'
+          + (x.capFlash ? '<span class="rs-cap-nom">' + esc(x.capFlash) + '</span>' : '')
+          + (x.degats ? '<span class="rs-degats">−' + nbFr(x.degats) + '</span>' : '')
+          + '<span class="rs-nom">' + esc(x.c.title) + '</span>'
+          + '<span class="rs-vie"><i style="width:' + p.toFixed(1) + '%"></i></span>'
+          + '</div>';
       };
-      el('raid-body').innerHTML = '<p class="raid-title">ASSAUT</p>'
-        + '<div class="db-entete"><span class="db-tour">Tour ' + tour
-        + ' / ' + RAID_TOURS_MAX + '</span>'
-        + '<span class="db-col">' + r.inflige.toLocaleString('fr-FR')
-        + ' dégâts sur l’assaut</span></div>'
-        + '<div class="as-boss' + (secoue ? ' touchee' : '') + '">'
-        + '<div class="as-boss-vue">'
-        + (b.thumb ? '<img src="' + esc(b.thumb) + '" alt="" loading="lazy">'
-                   : artSVG(b.title, tierOf(b.rank).color))
+      var ticks = '';
+      for (var k = 1; k <= RAID_TOURS_MAX; k++) {
+        ticks += '<i class="' + (k < tour ? 'fait' : (k === tour ? 'encours' : '')) + '"></i>';
+      }
+      el('raid-body').innerHTML = '<div class="rs' + (vite ? ' rs-vite' : '') + '">'
+        + '<div class="rs-boss' + (secoue ? ' rs-touche' : '')
+        + (riposte ? ' rs-riposte' : '') + (pvBoss <= 0 ? ' rs-vaincu' : '')
+        + '" style="--tier:' + bt.color + '">'
+        + '<div class="rs-boss-img">'
+        + (b.thumb ? '<img src="' + esc(b.thumb) + '" alt="">' : artSVG(b.title, bt.color))
         + '</div>'
-        + '<span class="as-boss-nom">' + esc(b.title) + '</span>'
-        + '<div class="bar"><span style="width:' + pct.toFixed(1) + '%"></span>'
-        + '<b>' + pvBoss.toLocaleString('fr-FR') + ' / '
-        + etat.pvMax.toLocaleString('fr-FR') + ' PV</b></div></div>'
-        + ligne(0, 3) + ligne(3, 6)
-        + '<p class="db-journal' + (classe ? ' ' + classe : '') + '">'
-        + (journal || '&nbsp;') + '</p>'
+        + (coupBoss ? '<span class="rs-boss-degats">' + nbFr(coupBoss) + '</span>' : '')
+        + (pvBoss <= 0 ? '<span class="rs-boss-verdict">Vaincu</span>' : '')
+        + '<div class="rs-boss-pied"><h3 class="rs-boss-nom">' + esc(b.title) + '</h3>'
+        + '<div class="rs-boss-vie"><i style="width:' + pct.toFixed(2) + '%"></i></div>'
+        + '<span class="rs-boss-pv">' + nbFr(pvBoss) + ' PV</span></div></div>'
+        + '<div class="rs-tours" aria-hidden="true">' + ticks + '</div>'
+        + '<div class="rs-ligne rs-avant">' + A.slice(0, 3).map(carte).join('') + '</div>'
+        + '<div class="rs-ligne rs-arriere">' + A.slice(3, 6).map(carte).join('') + '</div>'
+        + '<p class="rs-sr" aria-live="polite">' + (journal || '') + '</p>'
         + '<div class="db-boutons">'
         + '<button class="btn" data-as-vite="1">'
         + (vite ? 'Vitesse normale' : 'Accélérer') + '</button>'
-        + '<button class="btn" data-as-passer="1">Passer</button></div>';
+        + '<button class="btn" data-as-passer="1">Passer</button></div>'
+        + '</div>';
     };
 
     var effacer = function () {
-      secoue = false;
+      secoue = false; riposte = false; coupBoss = 0;
       A.forEach(function (x) {
         x.eclair = false; x.touchee = false; x.degats = 0; x.capFlash = null;
       });
@@ -6485,7 +6649,7 @@
       } else if (ac.vers === 'boss') {
         var s2 = A[ac.srcPos];
         if (s2) s2.eclair = true;
-        pvBoss = ac.pvBoss; secoue = true;
+        pvBoss = ac.pvBoss; secoue = true; coupBoss = ac.degats;
         dessiner('<b>' + esc(ac.src) + '</b> inflige '
           + ac.degats.toLocaleString('fr-FR') + ' dégâts'
           + (ac.mort ? ' · <i class="db-mort">adversaire vaincu</i>' : ''),
@@ -6494,6 +6658,7 @@
       } else {
         var cb = A[ac.ciblePos];
         if (cb) { cb.touchee = true; cb.pv = ac.pv; cb.degats = ac.degats; }
+        riposte = true;
         dessiner('<b>' + esc(b.title) + '</b> riposte sur <b>' + esc(ac.cible)
           + '</b> — ' + ac.degats.toLocaleString('fr-FR') + ' dégâts'
           + (ac.mort ? ' · <i class="db-mort">hors de combat</i>' : ''),
