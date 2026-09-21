@@ -6074,8 +6074,12 @@
       }
       if (pvBoss <= 0) break;
 
-      var cible = A.filter(function (x) { return x.pv > 0 && x.pos < 3; })[0]
-               || A.filter(function (x) { return x.pv > 0; })[0];
+      /* Le boss se tient au milieu : il frappe d'abord la carte qui lui fait
+         face, au centre de la ligne avant. Ensuite, meme regle qu'en duel —
+         ligne avant d'abord, colonne centrale puis de gauche a droite. Il
+         commencait a gauche, ce qui laissait la carte centrale intacte et
+         rendait inutile d'y placer sa plus resistante. */
+      var cible = choisirCible(A, { pos: 1 });
       if (!cible) break;
       var enc = encaisser(degatsBoss(b, cible), cible, A, vitBoss);
       var db = enc.d;
