@@ -857,10 +857,19 @@
     line-height: 1.15; margin: 0 0 8px; color: var(--ivory);
   }
   .boss-vue {
-    position: relative; height: 230px; overflow: hidden;
+    position: relative; height: 170px; overflow: hidden;
     background: #0b0e16; border: 1px solid var(--night-line); margin-bottom: 12px;
   }
-  .boss-art { height: 210px; overflow: hidden; border: 1px solid var(--night-line); margin-bottom: 12px; }
+  .boss-art { height: 170px; overflow: hidden; border: 1px solid var(--night-line); margin-bottom: 12px; }
+  /* Le resume de l'article tient en deux lignes ; un toucher le deplie. */
+  .boss p.boss-resume {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden; cursor: pointer;
+  }
+  .boss p.boss-resume.ouvert { display: block; }
+  .raid-equipe { margin-top: 4px; }
+  .raid-equipe .rs-avant .rs-img { height: 70px; }
+  .raid-equipe .rs-arriere .rs-img { height: 54px; }
   .boss-art .art { width: 100%; height: 100%; display: block; }
   .boss p { margin: 0 0 12px; font-size: 13px; line-height: 1.6; color: var(--glass-dim); }
   .bar {
@@ -1891,14 +1900,14 @@
 
   /* --- duel classé --- */
   .cote-bandeau {
-    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
-    margin-bottom: 18px; padding: 12px 14px;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-bottom: 16px; padding: 10px 14px;
     background: var(--night-up); border: 1px solid var(--night-line);
     border-left: 3px solid #c9992e;
   }
-  .cote-tag { display: block; font-size: 9.5px; letter-spacing: .14em; color: var(--glass-dim); }
+  .cote-tag { font-size: 9.5px; letter-spacing: .14em; color: var(--glass-dim); }
   .cote-pts {
-    display: block; margin-top: 2px; font-size: 26px; line-height: 1;
+    margin-left: 8px; font-size: 22px; line-height: 1;
     color: var(--ivory); font-variant-numeric: tabular-nums;
   }
   .cote-bilan {
@@ -2679,12 +2688,30 @@
     transition: transform .12s ease, background .12s ease, box-shadow .12s ease;
   }
   .btn:active { background: #232939; transform: scale(.985); box-shadow: none; }
+  /* L'action principale prend l'or du jeu — celui du Wikigold et de l'onglet
+     actif — plutot qu'un grand aplat ivoire qui ecrasait tout l'ecran. */
   .btn-solid {
-    background: linear-gradient(180deg, #fbf7ec, #efe8d6); color: var(--ink);
-    border-color: transparent; font-weight: 600;
-    box-shadow: 0 1px 0 rgba(255,255,255,.35) inset, 0 6px 18px -8px rgba(246,241,228,.35);
+    background: linear-gradient(180deg, #d9aa3d, #b8861f); color: #1b1406;
+    border-color: transparent; font-weight: 650; letter-spacing: .01em;
+    box-shadow: inset 0 1px 0 rgba(255,236,190,.5), inset 0 -1px 0 rgba(0,0,0,.18),
+                0 10px 24px -12px rgba(201,153,46,.7);
   }
-  .btn-solid:active { background: #e8e0cc; }
+  .btn-solid:active { background: linear-gradient(180deg, #c89a30, #a97a1a); }
+
+  /* Barre d'action : l'action principale de l'ecran reste collee au-dessus
+     de la navigation, visible sans avoir a descendre. Elle reprend sa place
+     naturelle en fin de page quand on y arrive. */
+  .action-fixe {
+    position: sticky; bottom: calc(var(--bar-h) + var(--safe-b)); z-index: 6;
+    margin: 18px -16px 0; padding: 22px 16px 12px;
+    background: linear-gradient(180deg, rgba(20,24,38,0), var(--night) 42%);
+  }
+  .action-fixe .btn { margin-top: 8px; }
+  .action-fixe .btn:first-child { margin-top: 0; }
+  .btn-action { min-height: 56px; padding: 9px 13px; border-radius: 14px; }
+  .btn-sous {
+    display: block; margin-top: 2px; font-size: 11.5px; font-weight: 500; opacity: .72;
+  }
   .sheet-actions .btn {
     border-radius: 10px; background: #fff; border-color: #e3dac6;
     box-shadow: 0 1px 2px rgba(38,33,25,.08);
@@ -5484,6 +5511,8 @@
     });
   }
   document.addEventListener('click', function (e) {
+    var rs = e.target.closest && e.target.closest('[data-resume]');
+    if (rs) { rs.classList.toggle('ouvert'); return; }
     var r = e.target.closest && e.target.closest('[data-regles]');
     if (r) { e.preventDefault(); ouvrirRegles(r.getAttribute('data-regles')); }
   });
@@ -6542,7 +6571,7 @@
       + '<p class="boss-tag">ARTICLE DU JOUR · ' + esc(b.rank.toUpperCase()) + '</p>'
       + '<h2>' + esc(b.title) + '</h2>'
       + visuel
-      + '<p>' + esc(b.extract || 'Aucun résumé disponible.') + '</p>'
+      + '<p class="boss-resume" data-resume="1">' + esc(b.extract || 'Aucun résumé disponible.') + '</p>'
       + '<div class="bar"><span style="width:' + pct.toFixed(1) + '%"></span>'
       + '<b>' + etat.pv.toLocaleString('fr-FR') + ' / '
       + etat.pvMax.toLocaleString('fr-FR') + ' PV</b></div>'
@@ -6591,27 +6620,30 @@
               : 'Ouvrez des paquets pour étoffer votre collection.') + '</p>';
       } else {
         var parTour = eq.reduce(function (n, c) { return n + degats(c, b); }, 0);
-        var vignette = function (c) {
-          var ct = tierOf(c.rank);
-          return '<div class="db-carte" style="--tier:' + ct.color + '">'
-            + '<span class="db-vue">'
-            + (c.thumb ? '<img src="' + esc(c.thumb) + '" alt="" loading="lazy">'
-                       : artSVG(c.title, ct.color))
-            + '</span><span class="db-nom">' + esc(c.title) + '</span></div>';
+        /* L'equipe d'assaut reprend l'allure des cartes de la scene de combat :
+           on reconnait sa formation d'un ecran a l'autre. */
+        var fausse = function (c, k) { return { c: c, pos: k, pv: 1, pvMax: 1 }; };
+        var ligneAssaut = function (de, a, cls) {
+          return '<div class="rs-ligne ' + cls + '">' + eq.slice(de, a).map(function (c, k) {
+            return scCarteHTML(fausse(c, de + k), 'p');
+          }).join('') + '</div>';
         };
         html += '<p class="puissance">Cette équipe vaut environ <b>'
           + parTour.toLocaleString('fr-FR') + '</b> dégâts par tour, sur '
           + etat.pv.toLocaleString('fr-FR') + ' PV restants.</p>'
-          + '<p class="duel-intro">Si l’assaut échoue, ces six cartes sont hors de '
-          + 'combat pour la journée.</p>'
-          + '<div class="db-ligne">' + eq.slice(0, 3).map(vignette).join('') + '</div>'
-          + '<div class="db-ligne">' + eq.slice(3, 6).map(vignette).join('') + '</div>'
-          + '<button class="btn btn-solid" data-assaut="1">Lancer l’assaut</button>';
+          + '<div class="rs raid-equipe">' + ligneAssaut(0, 3, 'rs-avant')
+          + ligneAssaut(3, 6, 'rs-arriere') + '</div>';
+        var actionAssaut = '<div class="action-fixe">'
+          + '<button class="btn btn-solid btn-action" data-assaut="1">Lancer l’assaut'
+          + '<span class="btn-sous">Si ça échoue, ces cartes sont hors jeu aujourd’hui</span>'
+          + '</button></div>';
       }
       if (etat.utilisees.length) {
         html += '<p class="duel-intro">' + etat.utilisees.length + ' carte'
           + (etat.utilisees.length > 1 ? 's' : '') + ' hors de combat aujourd’hui.</p>';
       }
+      /* La barre d'action ferme l'ecran, apres tout le reste. */
+      if (actionAssaut) html += actionAssaut;
     }
 
     el('raid-body').innerHTML = html;
@@ -8088,8 +8120,9 @@
       + '<p class="duel-intro">Puissance ' + adv.puissance.toLocaleString('fr-FR') + '</p>'
       + '<p class="eq-ligne-t">LIGNE AVANT</p>' + ligne(0, 3)
       + '<p class="eq-ligne-t">LIGNE ARRIÈRE</p>' + ligne(3, 6)
-      + '<button class="btn btn-solid" data-duel-go="' + i + '">Engager le combat</button>'
-      + '<button class="btn" data-duel-choix="1">Voir les autres</button>';
+      + '<div class="action-fixe">'
+      + '<button class="btn btn-solid btn-action" data-duel-go="' + i + '">Engager le combat</button>'
+      + '<button class="btn" data-duel-choix="1">Voir les autres</button></div>';
   }
 
   function engagerDuel(i) {
@@ -8155,8 +8188,10 @@
       return '<p class="status">Vos ' + DUELS_PAR_JOUR
         + ' duels du jour sont joués. Retour demain.</p>';
     }
-    return '<button class="btn btn-solid" id="duel-lancer">Chercher des adversaires ('
-      + reste + ' duel' + (reste > 1 ? 's' : '') + ')</button>';
+    return '<div class="action-fixe">'
+      + '<button class="btn btn-solid btn-action" id="duel-lancer">Chercher un adversaire'
+      + '<span class="btn-sous">' + reste + ' duel' + (reste > 1 ? 's' : '')
+      + ' restant' + (reste > 1 ? 's' : '') + ' aujourd’hui</span></button></div>';
   }
 
   /* Bandeau de classement, en tête de l'écran de duel. */
@@ -8164,11 +8199,13 @@
     var c = readClassement();
     var serie = c.serie > 1 ? ' · ' + c.serie + ' victoires d’affilée'
               : (c.serie < -1 ? ' · ' + (-c.serie) + ' défaites d’affilée' : '');
+    /* Une seule ligne : le record n'apparait que s'il differe de la cote. */
     return '<div class="cote-bandeau">'
       + '<div><span class="cote-tag">CLASSEMENT</span>'
       + '<b class="cote-pts">' + c.cote.toLocaleString('fr-FR') + '</b></div>'
       + '<span class="cote-bilan">' + c.v + ' V · ' + c.d + ' D'
-      + '<br>record ' + c.meilleure.toLocaleString('fr-FR') + serie + '</span></div>';
+      + (c.meilleure > c.cote ? ' · record ' + c.meilleure.toLocaleString('fr-FR') : '')
+      + serie + '</span></div>';
   }
 
   /* Contenu d'une case d'equipe, commun a votre equipe et a celle d'un
