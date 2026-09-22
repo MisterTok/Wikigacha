@@ -7993,52 +7993,145 @@
              count: 1, star: 0, thumb: '' };
   }
 
-  var ECURIES = [
-    { nom: 'Les Ébauches', note: 'la plus accessible',
-      cartes: [
-        carteFictive('Sentier de randonnée', 'Commune', 150, 300, 800, 90000),
-        carteFictive('Moulin à eau', 'Commune', 165, 320, 1200, 110000),
-        carteFictive('Gare de campagne', 'Commune', 140, 340, 900, 120000),
-        carteFictive('Fougère', 'Peu commune', 260, 130, 9000, 30000),
-        carteFictive('Colibri', 'Peu commune', 280, 120, 14000, 22000),
-        carteFictive('Éclair', 'Commune', 240, 110, 11000, 26000)
-      ] },
-    { nom: 'Le Scriptorium', note: 'équilibrée',
-      cartes: [
-        carteFictive('Cathédrale gothique', 'Peu commune', 210, 400, 60000, 260000),
-        carteFictive('Muraille de Chine', 'Peu commune', 220, 390, 80000, 240000),
-        carteFictive('Aqueduc romain', 'Commune', 195, 380, 40000, 210000),
-        carteFictive('Faucon pèlerin', 'Rare', 360, 150, 300000, 35000),
-        carteFictive('Sprint', 'Peu commune', 330, 145, 180000, 28000),
-        carteFictive('Télégraphe', 'Peu commune', 310, 160, 120000, 40000)
-      ] },
-    { nom: 'La Bibliothèque', note: 'exigeante',
-      cartes: [
-        carteFictive('Forteresse de Carcassonne', 'Rare', 260, 480, 150000, 380000),
-        carteFictive('Blindage', 'Rare', 250, 490, 120000, 400000),
-        carteFictive('Bouclier thermique', 'Peu commune', 235, 470, 90000, 350000),
-        carteFictive('Vitesse de la lumière', 'Épique', 430, 175, 1200000, 45000),
-        carteFictive('Guépard', 'Rare', 410, 180, 900000, 38000),
-        carteFictive('Foudre', 'Rare', 380, 185, 600000, 42000)
-      ] },
-    { nom: 'Le Codex', note: 'la plus dure',
-      cartes: [
-        carteFictive('Empire romain', 'Épique', 300, 580, 2000000, 700000),
-        carteFictive('Himalaya', 'Rare', 290, 570, 1500000, 650000),
-        carteFictive('Océan Pacifique', 'Rare', 280, 560, 1100000, 600000),
-        carteFictive('Big Bang', 'Légendaire', 520, 200, 4000000, 90000),
-        carteFictive('Soleil', 'Épique', 500, 210, 3500000, 110000),
-        carteFictive('Internet', 'Épique', 470, 220, 2800000, 130000)
-      ] }
-  ];
+  /* ---------- Equipes generees ----------
+     Les vrais joueurs passent toujours en premier ; ces equipes completent la
+     liste jusqu'a trois adversaires. Elles sont taillees sur votre puissance —
+     une accessible, une a votre mesure, une exigeante — et leurs raretes
+     suivent votre ligue et votre equipe. De vrais articles, donc de vraies
+     capacites et de vraies images, et une etiquette claire : on doit savoir
+     qu'on n'affronte pas une personne. Elles comptent pour la cote, comme un
+     duel ordinaire (choix a revoir au lancement public).
+     Remplacent les quatre ecuries fixes, qui n'apparaissaient qu'en l'absence
+     de tout vrai joueur et ne faisaient plus le poids apres la refonte. */
+  var POOL_GENERE = {
+    geo: ['Mont Blanc', 'Loire', 'Sahara', 'Islande', 'Venise', 'Kyoto', 'Grand Canyon',
+          'Mer Méditerranée', 'Everest', 'Amazone (fleuve)', 'Mont-Saint-Michel', 'Himalaya'],
+    hist: ['Napoléon Ier', 'Jeanne d\u2019Arc', 'Révolution française', 'Empire romain',
+           'Cléopâtre VII', 'Charlemagne', 'Louis XIV', 'Guerre de Cent Ans', 'Vikings',
+           'Égypte antique', 'Aliénor d\u2019Aquitaine', 'Renaissance'],
+    sci: ['Photosynthèse', 'Trou noir', 'Acide désoxyribonucléique', 'Tyrannosaurus',
+          'Albert Einstein', 'Marie Curie', 'Système solaire', 'Volcan', 'Pénicilline',
+          'Lune', 'Évolution (biologie)', 'Isaac Newton'],
+    art: ['La Joconde', 'Victor Hugo', 'Molière', 'Claude Monet', 'Wolfgang Amadeus Mozart',
+          'Les Misérables', 'Tour Eiffel', 'Château de Versailles', 'Vincent van Gogh',
+          'Édith Piaf', 'Notre-Dame de Paris', 'Frida Kahlo'],
+    sport: ['Tour de France', 'Zinédine Zidane', 'Jeux olympiques', 'Rugby à XV', 'Football',
+            'Usain Bolt', 'Serena Williams', 'Marathon (sport)', 'Formule 1', 'Judo',
+            'Teddy Riner', 'Tennis'],
+    soc: ['Organisation des Nations unies', 'Union européenne', 'Démocratie', 'Internet',
+          'Euro', 'Laïcité', 'Suffrage universel', 'Wikipédia', 'Grève',
+          'Droits de l\u2019homme', 'Syndicalisme', 'Monnaie']
+  };
+  var NOMS_GENERES = ['Les Encyclopédistes', 'Le Cabinet de curiosités', 'Les Cartographes',
+    'La Société savante', 'Les Chroniqueurs', 'Le Salon littéraire', 'Les Archivistes',
+    'Le Scriptorium', 'La Bibliothèque', 'Le Codex', 'Les Copistes', 'L\u2019Atelier'];
+  /* Part de votre puissance donnee a chaque equipe. Le combat est tres
+     tranche : a puissance egale on perd deja deux fois sur trois, a 90 % on
+     gagne presque toujours. Calibre par simulation sur de vraies equipes :
+     environ 80 % de victoires contre l'accessible, une sur deux a votre
+     mesure, une sur quatre contre l'exigeante. */
+  var DOSAGES = {
+    1: [[0.97, 'à votre mesure']],
+    2: [[0.95, 'accessible'], [0.99, 'exigeante']],
+    3: [[0.94, 'accessible'], [0.97, 'à votre mesure'], [1, 'exigeante']]
+  };
+  var VIGNETTES_GENEREES = {};
 
-  function ecuriesDeSecours() {
-    return ECURIES.map(function (e) {
+  function auHasard(t) { return t[Math.floor(Math.random() * t.length)]; }
+
+  function equipesGenerees(n) {
+    if (n <= 0) return [];
+    var mien = readEquipe().map(function (t) { return collection[t]; })
+      .filter(function (c) { return !!c; });
+    var maPuissance = mien.reduce(function (s2, c) { return s2 + puissanceCarte(c); }, 0) || 3000;
+    var rangMoyen = mien.length
+      ? mien.reduce(function (s2, c) { return s2 + Math.max(0, rankIndex(c.rank)); }, 0) / mien.length
+      : 2;
+    /* La rarete des cartes suit a la fois votre ligue et votre equipe : une
+       ligue haute appelle des Mythiques, mais une equipe de Mythiques en
+       Bronze ne doit pas tomber sur des Communes aux statistiques gonflees. */
+    var ligue = (readLigue() || {}).ligue || 0;
+    var centre = (rangMoyen + (1.8 + ligue * 0.5)) / 2;
+    var noms = NOMS_GENERES.slice().sort(function () { return Math.random() - 0.5; });
+    var pris = {};
+    var domaines = Object.keys(POOL_GENERE);
+
+    return DOSAGES[Math.min(3, n)].map(function (dos, e) {
+      var cible = maPuissance * dos[0];
+      var poids = [0, 0, 0, 0, 0, 0].map(function () { return 0.8 + Math.random() * 0.4; });
+      var somme = poids.reduce(function (a, b) { return a + b; }, 0);
+      var cartes = poids.map(function (w) {
+        var rk = Math.max(0, Math.min(TIERS.length - 1,
+                   Math.round(centre + (Math.random() - 0.5) * 1.4)));
+        var dom, titre, essais = 0;
+        do { dom = auHasard(domaines); titre = auHasard(POOL_GENERE[dom]); }
+        while (pris[titre] && ++essais < 60);
+        pris[titre] = true;
+        /* Profil offensif, equilibre ou resistant, puis attaque et defense
+           resolues pour que la carte vaille sa part de la puissance visee. */
+        var forme = auHasard([1.35, 1, 0.75]);
+        var part = cible * w / somme;
+        var M = MULT[rk] || 1, Mpv = MULT_PV[rk] || 1;
+        var def = Math.max(120, Math.min(4000, Math.round(part / (forme * M + Mpv))));
+        var atk = Math.max(120, Math.min(4000, Math.round(def * forme)));
+        return {
+          title: titre, rank: TIERS[rk].name, domaine: dom, atk: atk, def: def,
+          views: Math.min(5e7, Math.pow(10, atk / 90)),
+          bytes: Math.min(2e7, Math.pow(10, def / 90)),
+          count: 1, star: 1, thumb: VIGNETTES_GENEREES[titre] || ''
+        };
+      });
       return {
-        nom: e.nom, note: e.note, cartes: e.cartes,
-        puissance: e.cartes.reduce(function (s, c) { return s + puissanceCarte(c); }, 0)
+        nom: noms[e % noms.length], note: 'équipe générée · ' + dos[1], genere: true,
+        cartes: cartes,
+        puissance: cartes.reduce(function (s2, c) { return s2 + puissanceCarte(c); }, 0)
       };
     });
+  }
+
+  /* Images des cartes generees : une seule requete pour toutes, gardee en
+     memoire pour la suite. On n'attend jamais plus d'une seconde et demie —
+     sans image, la carte garde son illustration de secours. */
+  function vignettesGenerees(equipes) {
+    var poser = function () {
+      equipes.forEach(function (e) {
+        e.cartes.forEach(function (c) {
+          if (!c.thumb && VIGNETTES_GENEREES[c.title]) c.thumb = VIGNETTES_GENEREES[c.title];
+        });
+      });
+    };
+    var manquent = [];
+    equipes.forEach(function (e) {
+      e.cartes.forEach(function (c) {
+        if (VIGNETTES_GENEREES[c.title] === undefined && manquent.indexOf(c.title) < 0) {
+          manquent.push(c.title);
+        }
+      });
+    });
+    if (!manquent.length) { poser(); return Promise.resolve(); }
+    var url = 'https://' + WIKI + '.org/w/api.php'
+      + '?action=query&format=json&origin=*&redirects=1'
+      + '&prop=pageimages&piprop=thumbnail&pithumbsize=320&pilicense=any'
+      + '&titles=' + encodeURIComponent(manquent.join('|'));
+    var req = fetchWiki(url)
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var q = (d && d.query) || {}, vers = {}, parTitre = {};
+        (q.normalized || []).forEach(function (x) { vers[x.from] = x.to; });
+        (q.redirects || []).forEach(function (x) { vers[x.from] = x.to; });
+        Object.keys(q.pages || {}).forEach(function (k) {
+          var pg = q.pages[k];
+          if (pg && pg.thumbnail && pg.thumbnail.source) parTitre[pg.title] = pg.thumbnail.source;
+        });
+        manquent.forEach(function (t) {
+          var fin = t;
+          for (var k = 0; k < 3 && vers[fin]; k++) fin = vers[fin];
+          VIGNETTES_GENEREES[t] = parTitre[fin] || '';
+        });
+      })
+      ['catch'](function () {});
+    return Promise.race([req, new Promise(function (ok) { setTimeout(ok, 1500); })])
+      .then(poser);
   }
 
   var duelDerniereErreur = '';
@@ -8052,17 +8145,16 @@
       + '<p class="status">Recherche d’adversaires…</p>';
 
     /* On affronte de vrais joueurs : leur equipe, dans leur ordre, telle
-       qu'ils l'ont composee. Les ecuries fictives ne servent que si le jeu
-       n'en trouve aucun — au demarrage, ou hors ligne. */
+       qu'ils l'ont composee. Des equipes generees a votre niveau completent
+       la liste jusqu'a trois adversaires. */
     adversairesReels()
       .then(function (reels) {
-        if (reels.length) {
-          duelCourant = { choix: reels };
-        } else {
-          duelCourant = { choix: ecuriesDeSecours(), secours: true,
-                          erreur: duelDerniereErreur };
-        }
-        peindreChoixAdversaire();
+        var generees = equipesGenerees(NB_ADVERSAIRES - reels.length);
+        return vignettesGenerees(generees).then(function () {
+          duelCourant = { choix: reels.concat(generees), secours: !reels.length,
+                          erreur: reels.length ? '' : duelDerniereErreur };
+          peindreChoixAdversaire();
+        });
       });
 
   }
@@ -8140,7 +8232,7 @@
       + '</b>. Touchez un adversaire pour examiner son équipe.</p>'
       + (duelCourant.secours
           ? '<p class="duel-alerte">Aucun autre joueur trouvé pour l’instant : '
-            + 'voici des adversaires d’entraînement.</p>'
+            + 'voici des équipes générées à votre niveau.</p>'
           : '')
       + '<div class="clan-liste">';
     duelCourant.choix.forEach(function (adv, i) {
