@@ -1125,8 +1125,8 @@
      journal ecrit : les coups, les degats et les capacites se voient la ou ils
      tombent. Le texte ne subsiste que pour les lecteurs d'ecran.
      Classes propres (rs-) : le duel garde son affichage. */
-  .rs { --rs-d: .42s; }
-  .rs.rs-vite { --rs-d: .18s; }
+  .rs { --rs-d: .6s; }
+  .rs.rs-vite { --rs-d: .26s; }
 
   .rs-boss {
     position: relative; overflow: hidden; margin-bottom: 10px;
@@ -1272,6 +1272,27 @@
     100% { opacity: 1; transform: translateY(-10px); }
   }
   @keyframes rs-ruban { 0% { transform: translateY(-100%); } 100% { transform: translateY(0); } }
+  /* Duel en face a face : l'adversaire en haut, ligne arriere tout en haut,
+     les deux lignes avant se regardent de part et d'autre du milieu. */
+  .sc-camp {
+    margin: 0 0 8px; text-align: center; font-size: 11.5px; color: var(--glass-dim);
+  }
+  .sc-camp.sc-mien { margin: 8px 0 0; }
+  .sc-milieu {
+    display: flex; align-items: center; gap: 12px; margin: 12px 4px;
+    font-size: 11px; color: var(--glass-dim); font-variant-numeric: tabular-nums;
+  }
+  .sc-milieu::before, .sc-milieu::after {
+    content: ''; flex: 1 1 0; height: 1px; background: rgba(255,255,255,.1);
+  }
+  .sc-duel .rs-avant .rs-img { height: 72px; }
+  .sc-duel .rs-arriere .rs-img { height: 54px; }
+  .sc-duel .sc-adv.rs-avant { margin-bottom: 0; }
+  .sc-duel .sc-adv.rs-arriere { margin-bottom: 8px; }
+  .sc-adv .rs-vie i { background: #cf6f62; }
+  .sc .rs-carte { transition: box-shadow var(--rs-d) ease, opacity .5s ease; }
+  .sc .rs-carte.rs-cap { box-shadow: 0 0 0 1px #c9992e, 0 0 18px rgba(201,153,46,.45); }
+
   @media (prefers-reduced-motion: reduce) {
     .rs *, .rs *::before, .rs *::after { animation: none !important; transition: none !important; }
     .rs-carte.rs-frappe { transform: none; }
@@ -6721,109 +6742,211 @@
     paintRaid(etat);
   }
 
+  /* ================= Scene de combat =================
+     Construite UNE fois, puis animee : seuls les elements qui changent
+     bougent. Redessiner tout l'ecran a chaque coup rechargeait les images,
+     faisait sauter les barres de vie et coupait les animations en plein vol —
+     c'est ce qui donnait au combat son air bricole. Commune au duel et au
+     raid. */
+
+  /* 0,8 s par coup : a 0,46 s, on ne voyait plus qui frappait qui. Une carte
+     qui tombe ou une capacite qui se declenche merite un temps de plus. */
+  var SC_RYTHME = 820, SC_RYTHME_VITE = 320;
+
+  function scDuree(vite, a) {
+    var d = vite ? SC_RYTHME_VITE : SC_RYTHME;
+    if (a.mort) d += vite ? 120 : 380;
+    if (a.type === 'capacite') d += vite ? 60 : 200;
+    return d;
+  }
+
+  function scCarteHTML(x, camp) {
+    var tr = tierOf(x.c.rank);
+    var p = Math.max(0, x.pv / x.pvMax * 100);
+    return '<div class="rs-carte' + (x.pv <= 0 ? ' rs-morte' : '') + '" data-sc="' + camp + x.pos
+      + '" style="--tier:' + tr.color + '">'
+      + '<div class="rs-img">'
+      + (x.c.thumb ? '<img src="' + esc(x.c.thumb) + '" alt="">' : artSVG(x.c.title, tr.color))
+      + '</div>'
+      + '<span class="rs-nom">' + esc(x.c.title) + '</span>'
+      + '<span class="rs-vie"><i style="width:' + p.toFixed(1) + '%"></i></span></div>';
+  }
+
+  /* o : { A, et B + nomAdv (duel) ou boss + pvBoss + pvBossMax (raid),
+           toursMax, boutons: { vite, passer } — facultatif } */
+  function sceneHTML(o) {
+    var ligne = function (L, camp, de, a, cls) {
+      return '<div class="rs-ligne ' + cls + '">'
+        + L.slice(de, a).map(function (x) { return scCarteHTML(x, camp); }).join('') + '</div>';
+    };
+    var h = '<div class="rs sc ' + (o.boss ? 'sc-raid' : 'sc-duel') + '">';
+    if (o.boss) {
+      var bt = tierOf(o.boss.rank);
+      var pct = Math.max(0, o.pvBoss / o.pvBossMax * 100);
+      h += '<div class="rs-boss' + (o.pvBoss <= 0 ? ' rs-vaincu' : '') + '" data-sc="boss" style="--tier:' + bt.color + '">'
+        + '<div class="rs-boss-img">'
+        + (o.boss.thumb ? '<img src="' + esc(o.boss.thumb) + '" alt="">' : artSVG(o.boss.title, bt.color))
+        + '</div>'
+        + '<div class="rs-boss-pied"><h3 class="rs-boss-nom">' + esc(o.boss.title) + '</h3>'
+        + '<div class="rs-boss-vie"><i style="width:' + pct.toFixed(2) + '%"></i></div>'
+        + '<span class="rs-boss-pv">' + nbFr(Math.max(0, o.pvBoss)) + ' PV</span></div></div>';
+      var ticks = '';
+      for (var k = 1; k <= o.toursMax; k++) ticks += '<i></i>';
+      h += '<div class="rs-tours sc-tours" aria-hidden="true">' + ticks + '</div>';
+    } else {
+      h += '<p class="sc-camp">' + esc(o.nomAdv) + '</p>'
+        + ligne(o.B, 'b', 3, 6, 'rs-arriere sc-adv')
+        + ligne(o.B, 'b', 0, 3, 'rs-avant sc-adv')
+        + '<div class="sc-milieu"><span>' + (o.legende || 'Tour 1') + '</span></div>';
+    }
+    h += ligne(o.A, 'a', 0, 3, 'rs-avant') + ligne(o.A, 'a', 3, 6, 'rs-arriere');
+    if (!o.boss) h += '<p class="sc-camp sc-mien">Votre équipe</p>';
+    h += '<p class="rs-sr" aria-live="polite"></p>';
+    if (o.boutons) {
+      h += '<div class="db-boutons">'
+        + '<button class="btn" ' + o.boutons.vite + '="1">Accélérer</button>'
+        + '<button class="btn" ' + o.boutons.passer + '="1">Passer</button></div>';
+    }
+    return h + '</div>';
+  }
+
+  function animateurScene(racine) {
+    var reduit = !!(window.matchMedia
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    var q = function (ref) { return ref ? racine.querySelector('[data-sc="' + ref + '"]') : null; };
+    var sr = racine.querySelector('.rs-sr');
+
+    /* Relance une animation CSS deja jouee sur le meme element. */
+    var rejouer = function (e, cls) { e.classList.remove(cls); void e.offsetWidth; e.classList.add(cls); };
+    var flotter = function (e, texte, cls, duree) {
+      /* Un seul chiffre a la fois par element : au rythme des coups, le
+         precedent n'a pas fini de monter quand le suivant arrive, et les
+         deux se superposaient. */
+      var vieux = e.querySelectorAll(':scope > .' + cls);
+      for (var v = 0; v < vieux.length; v++) vieux[v].parentNode.removeChild(vieux[v]);
+      var f = document.createElement('span');
+      f.className = cls; f.textContent = texte;
+      e.appendChild(f);
+      setTimeout(function () { if (f.parentNode) f.parentNode.removeChild(f); }, duree || 1100);
+    };
+    var vie = function (e, pv, pvMax) {
+      var boss = e.getAttribute('data-sc') === 'boss';
+      var i = e.querySelector(boss ? '.rs-boss-vie i' : '.rs-vie i');
+      if (i) i.style.width = Math.max(0, pv / pvMax * 100).toFixed(2) + '%';
+      if (boss) {
+        var t = e.querySelector('.rs-boss-pv');
+        if (t) t.textContent = nbFr(Math.max(0, pv)) + ' PV';
+      }
+    };
+    /* L'attaquant prend un court recul, s'elance vers sa cible, puis revient.
+       Le boss, lui, ne fait qu'un bref elan : il ne quitte pas sa place. */
+    var elan = function (src, cible, duree) {
+      if (reduit || !src || !cible || !src.animate) return;
+      var a = src.getBoundingClientRect(), b = cible.getBoundingClientRect();
+      var dx = (b.left + b.width / 2) - (a.left + a.width / 2);
+      var dy = (b.top + b.height / 2) - (a.top + a.height / 2);
+      var k = src.getAttribute('data-sc') === 'boss' ? 0.07 : 0.42;
+      src.style.zIndex = 5;
+      var anim = src.animate([
+        { transform: 'translate(0,0) scale(1)' },
+        { transform: 'translate(' + (-dx * k * 0.1) + 'px,' + (-dy * k * 0.1) + 'px) scale(.97)', offset: 0.22 },
+        { transform: 'translate(' + (dx * k) + 'px,' + (dy * k) + 'px) scale(1.06)', offset: 0.5 },
+        { transform: 'translate(0,0) scale(1)' }
+      ], { duration: duree, easing: 'cubic-bezier(.3,.6,.35,1)' });
+      anim.onfinish = function () { src.style.zIndex = ''; };
+    };
+
+    return {
+      tour: function (n) {
+        var ticks = racine.querySelectorAll('.sc-tours i');
+        for (var k = 0; k < ticks.length; k++) {
+          ticks[k].className = (k + 1 < n) ? 'fait' : (k + 1 === n ? 'encours' : '');
+        }
+        var m = racine.querySelector('.sc-milieu span');
+        if (m) m.textContent = 'Tour ' + n;
+      },
+      annonce: function (html) { if (sr) sr.innerHTML = html; },
+      coup: function (srcRef, cibleRef, degats, pv, pvMax, mort, duree, capNom) {
+        var s = q(srcRef), c = q(cibleRef);
+        if (s && capNom) { rejouer(s, 'rs-cap'); flotter(s, capNom, 'rs-cap-nom', duree); }
+        elan(s, c, duree * 0.8);
+        setTimeout(function () {
+          if (s && capNom) s.classList.remove('rs-cap');
+          if (!c) return;
+          var boss = cibleRef === 'boss';
+          rejouer(c, boss ? 'rs-touche' : 'rs-touchee');
+          vie(c, pv, pvMax);
+          flotter(c, (boss ? '' : '−') + nbFr(degats), boss ? 'rs-boss-degats' : 'rs-degats');
+          if (mort) {
+            c.classList.add(boss ? 'rs-vaincu' : 'rs-morte');
+            if (boss) flotter(c, 'Vaincu', 'rs-boss-verdict', 60000);
+          }
+        }, reduit ? 0 : duree * 0.4);
+      },
+      capacite: function (ref, nom, cibleRef, pv, pvMax, duree) {
+        var e = q(ref);
+        if (e) {
+          rejouer(e, 'rs-cap');
+          flotter(e, nom, 'rs-cap-nom', duree);
+          setTimeout(function () { e.classList.remove('rs-cap'); }, duree);
+        }
+        var c = q(cibleRef);
+        if (c && pv != null) vie(c, pv, pvMax);
+      },
+      vite: function (v) {
+        racine.classList.toggle('rs-vite', v);
+        var b = racine.querySelector('[data-duel-vite],[data-as-vite]');
+        if (b) b.textContent = v ? 'Vitesse normale' : 'Accélérer';
+      }
+    };
+  }
+
   function animerAssaut() {
     var a = assautCourant;
     if (!a) return;
     var r = a.resultat, etat = readRaid(), b = etat.boss;
     var A = a.cartes.map(function (c, i) { return enCombattant(c, 'moi', i); });
-    var pvBoss = etat.pv, i = 0, tour = 0, minuteur = null, vite = false, secoue = false;
-    var riposte = false, coupBoss = 0;
+    var i = 0, minuteur = null, vite = false;
 
-    var dessiner = function (journal) {
-      var pct = Math.max(0, pvBoss / etat.pvMax * 100);
-      var bt = tierOf(b.rank);
-      var carte = function (x) {
-        var tr = tierOf(x.c.rank);
-        var p = Math.max(0, x.pv / x.pvMax * 100);
-        return '<div class="rs-carte' + (x.pv <= 0 ? ' rs-morte' : '')
-          + (x.eclair ? ' rs-frappe' : '') + (x.touchee ? ' rs-touchee' : '')
-          + (x.capFlash ? ' rs-cap' : '') + '" style="--tier:' + tr.color + '">'
-          + '<div class="rs-img">'
-          + (x.c.thumb ? '<img src="' + esc(x.c.thumb) + '" alt="">'
-                       : artSVG(x.c.title, tr.color))
-          + '</div>'
-          + (x.capFlash ? '<span class="rs-cap-nom">' + esc(x.capFlash) + '</span>' : '')
-          + (x.degats ? '<span class="rs-degats">−' + nbFr(x.degats) + '</span>' : '')
-          + '<span class="rs-nom">' + esc(x.c.title) + '</span>'
-          + '<span class="rs-vie"><i style="width:' + p.toFixed(1) + '%"></i></span>'
-          + '</div>';
-      };
-      var ticks = '';
-      for (var k = 1; k <= RAID_TOURS_MAX; k++) {
-        ticks += '<i class="' + (k < tour ? 'fait' : (k === tour ? 'encours' : '')) + '"></i>';
-      }
-      el('raid-body').innerHTML = '<div class="rs' + (vite ? ' rs-vite' : '') + '">'
-        + '<div class="rs-boss' + (secoue ? ' rs-touche' : '')
-        + (riposte ? ' rs-riposte' : '') + (pvBoss <= 0 ? ' rs-vaincu' : '')
-        + '" style="--tier:' + bt.color + '">'
-        + '<div class="rs-boss-img">'
-        + (b.thumb ? '<img src="' + esc(b.thumb) + '" alt="">' : artSVG(b.title, bt.color))
-        + '</div>'
-        + (coupBoss ? '<span class="rs-boss-degats">' + nbFr(coupBoss) + '</span>' : '')
-        + (pvBoss <= 0 ? '<span class="rs-boss-verdict">Vaincu</span>' : '')
-        + '<div class="rs-boss-pied"><h3 class="rs-boss-nom">' + esc(b.title) + '</h3>'
-        + '<div class="rs-boss-vie"><i style="width:' + pct.toFixed(2) + '%"></i></div>'
-        + '<span class="rs-boss-pv">' + nbFr(pvBoss) + ' PV</span></div></div>'
-        + '<div class="rs-tours" aria-hidden="true">' + ticks + '</div>'
-        + '<div class="rs-ligne rs-avant">' + A.slice(0, 3).map(carte).join('') + '</div>'
-        + '<div class="rs-ligne rs-arriere">' + A.slice(3, 6).map(carte).join('') + '</div>'
-        + '<p class="rs-sr" aria-live="polite">' + (journal || '') + '</p>'
-        + '<div class="db-boutons">'
-        + '<button class="btn" data-as-vite="1">'
-        + (vite ? 'Vitesse normale' : 'Accélérer') + '</button>'
-        + '<button class="btn" data-as-passer="1">Passer</button></div>'
-        + '</div>';
-    };
-
-    var effacer = function () {
-      secoue = false; riposte = false; coupBoss = 0;
-      A.forEach(function (x) {
-        x.eclair = false; x.touchee = false; x.degats = 0; x.capFlash = null;
-      });
-    };
+    el('raid-body').innerHTML = sceneHTML({
+      A: A, boss: b, pvBoss: etat.pv, pvBossMax: etat.pvMax, toursMax: RAID_TOURS_MAX,
+      boutons: { vite: 'data-as-vite', passer: 'data-as-passer' }
+    });
+    var sc = animateurScene(el('raid-body').querySelector('.sc'));
 
     var pas = function () {
-      effacer();
       while (i < r.actions.length && r.actions[i].type === 'tour') {
-        tour = r.actions[i].n; i += 1;
+        sc.tour(r.actions[i].n); i += 1;
       }
-      if (i >= r.actions.length) { fin(); return; }
+      if (i >= r.actions.length) { minuteur = setTimeout(fin, vite ? 300 : 1000); return; }
       var ac = r.actions[i]; i += 1;
+      var duree = scDuree(vite, ac);
 
       if (ac.type === 'capacite') {
-        var sc = A[ac.srcPos];
-        if (sc) { sc.eclair = true; sc.capFlash = ac.cap; }
-        if (ac.ciblePos != null && ac.pv != null && A[ac.ciblePos]) A[ac.ciblePos].pv = ac.pv;
-        dessiner('<b>' + esc(ac.src) + '</b> — <i>' + esc(ac.cap) + '</i> : '
-          + ac.detail, 'cap');
+        var t = (ac.ciblePos != null && ac.pv != null) ? A[ac.ciblePos] : null;
+        if (t) t.pv = ac.pv;
+        sc.capacite('a' + ac.srcPos, ac.cap, t ? 'a' + ac.ciblePos : null,
+                    t ? t.pv : null, t ? t.pvMax : null, duree);
+        sc.annonce('<b>' + esc(ac.src) + '</b> — ' + esc(ac.cap) + ' : ' + ac.detail);
       } else if (ac.vers === 'boss') {
-        var s2 = A[ac.srcPos];
-        if (s2) s2.eclair = true;
-        pvBoss = ac.pvBoss; secoue = true; coupBoss = ac.degats;
-        dessiner('<b>' + esc(ac.src) + '</b> inflige '
-          + ac.degats.toLocaleString('fr-FR') + ' dégâts'
-          + (ac.mort ? ' · <i class="db-mort">adversaire vaincu</i>' : ''),
-          ac.mort ? 'mort' : '');
+        sc.coup('a' + ac.srcPos, 'boss', ac.degats, ac.pvBoss, etat.pvMax, ac.mort, duree);
+        sc.annonce(esc(ac.src) + ' inflige ' + nbFr(ac.degats) + ' dégâts');
         if (ac.mort) vib(16);
       } else {
         var cb = A[ac.ciblePos];
-        if (cb) { cb.touchee = true; cb.pv = ac.pv; cb.degats = ac.degats; }
-        riposte = true;
-        dessiner('<b>' + esc(b.title) + '</b> riposte sur <b>' + esc(ac.cible)
-          + '</b> — ' + ac.degats.toLocaleString('fr-FR') + ' dégâts'
-          + (ac.mort ? ' · <i class="db-mort">hors de combat</i>' : ''),
-          ac.mort ? 'mort' : '');
+        if (cb) cb.pv = ac.pv;
+        sc.coup('boss', 'a' + ac.ciblePos, ac.degats, ac.pv, cb ? cb.pvMax : (ac.pvMax || 1),
+                ac.mort, duree);
+        sc.annonce(esc(b.title) + ' frappe ' + esc(ac.cible) + ' : ' + nbFr(ac.degats) + ' dégâts');
         if (ac.mort) vib(12);
       }
-      minuteur = setTimeout(pas, vite ? 200 : 460);
+      minuteur = setTimeout(pas, duree);
     };
 
     var fin = function () { clearTimeout(minuteur); minuteur = null; conclureAssaut(); };
     assautCourant.passer = fin;
-    assautCourant.basculerVitesse = function () { vite = !vite; };
-
-    dessiner('');
-    minuteur = setTimeout(pas, 460);
+    assautCourant.basculerVitesse = function () { vite = !vite; sc.vite(vite); };
+    minuteur = setTimeout(pas, 700);
   }
 
 
@@ -8188,87 +8311,47 @@
     var r = d.resultat;
     duelAccelere = false;
     /* On rejoue sur des copies : le resultat calcule reste intact. */
-    var etat = {
-      nomAdv: d.adv.nom,
-      A: d.mien.map(function (c, i) { return enCombattant(c, 'moi', i); }),
-      B: d.adv.cartes.map(function (c, i) { return enCombattant(c, 'lui', i); })
-    };
-    var i = 0, tour = 0, colonne = null;
+    var A = d.mien.map(function (c, i) { return enCombattant(c, 'moi', i); });
+    var B = d.adv.cartes.map(function (c, i) { return enCombattant(c, 'lui', i); });
+    var i = 0;
+    var cle = function (camp, pos) { return (camp === 'moi' ? 'a' : 'b') + pos; };
+    var equipe = function (camp) { return camp === 'moi' ? A : B; };
 
-    var nomColonne = function (pos) {
-      if (pos == null) return '';
-      var l = pos < 3 ? 'avant' : 'arrière';
-      return 'Ligne ' + l + ' · place ' + ((pos % 3) + 1);
-    };
-
-    var dessiner = function (journal, classe) {
-      el('duel-body').innerHTML = '<p class="duel-titre">DUEL</p>'
-        + '<div class="db-entete">'
-        + '<span class="db-tour">Tour ' + tour + ' / ' + TOURS_MAX + '</span>'
-        + '<span class="db-col">' + nomColonne(colonne) + '</span>'
-        + '</div>'
-        + plateau(etat, colonne)
-        + '<p class="db-journal' + (classe ? ' ' + classe : '') + '">'
-        + (journal || '&nbsp;') + '</p>'
-        + '<div class="db-boutons">'
-        + '<button class="btn" data-duel-vite="1">'
-        + (duelAccelere ? 'Vitesse normale' : 'Accélérer') + '</button>'
-        + '<button class="btn" data-duel-passer="1">Passer</button>'
-        + '</div>';
-    };
-
-    var effacer = function () {
-      etat.A.concat(etat.B).forEach(function (x) {
-        x.eclair = false; x.touchee = false; x.degats = 0; x.capFlash = null;
-      });
-    };
+    el('duel-body').innerHTML = sceneHTML({
+      A: A, B: B, nomAdv: d.adv.nom,
+      boutons: { vite: 'data-duel-vite', passer: 'data-duel-passer' }
+    });
+    var sc = animateurScene(el('duel-body').querySelector('.sc'));
 
     var pas = function () {
-      effacer();
-
       while (i < r.actions.length && r.actions[i].type === 'tour') {
-        tour = r.actions[i].n; i += 1;
+        sc.tour(r.actions[i].n); i += 1;
       }
-      if (i >= r.actions.length) { finAnimation(); return; }
-
-      var a = r.actions[i]; i += 1;
-      colonne = (a.srcPos != null) ? a.srcPos : colonne;
-      var src = (a.camp === 'moi' ? etat.A : etat.B)[a.srcPos];
-
-      if (a.type === 'capacite') {
-        if (src) { src.eclair = true; src.capFlash = a.cap; }
-        if (a.ciblePos != null) {
-          var t = (a.ciblecamp === 'moi' ? etat.A : etat.B)[a.ciblePos];
-          if (t) t.touchee = true;
-          /* Endurance et Mecenat changent des PV hors d'un coup. */
-          if (t && a.pv != null) t.pv = a.pv;
-        }
-        dessiner('<b>' + esc(a.src) + '</b> — <i>' + esc(a.cap) + '</i> : '
-          + a.detail, 'cap');
-        vib(6);
-        duelMinuteur = setTimeout(pas, rythme());
+      if (i >= r.actions.length) {
+        duelMinuteur = setTimeout(finAnimation, duelAccelere ? 300 : 1000);
         return;
       }
+      var a = r.actions[i]; i += 1;
+      var duree = scDuree(duelAccelere, a);
 
-      var cib = (a.ciblecamp === 'moi' ? etat.A : etat.B)[a.ciblePos];
-      if (src) src.eclair = true;
-      if (cib) { cib.touchee = true; cib.pv = a.pv; cib.degats = a.degats; }
-
-      dessiner('<b>' + esc(a.src) + '</b>'
-        + (a.second ? ' <i>(' + esc(a.cap) + ')</i>' : '')
-        + ' frappe <b>' + esc(a.cible) + '</b> — '
-        + a.degats.toLocaleString('fr-FR') + ' dégâts'
-        + (a.mort ? ' · <i class="db-mort">éliminée</i>' : ''),
-        a.mort ? 'mort' : '');
-      if (a.mort) vib(14); else if (a.second) vib(8);
-      duelMinuteur = setTimeout(pas, rythme());
-    };
-
-    var rythme = function () {
-      if (duelAccelere) return DUEL_RYTHME_VITE;
-      /* Les premiers tours posent la scene ; ensuite on resserre un peu, sans
-         aller jusqu'a rendre le combat illisible. */
-      return tour <= 2 ? DUEL_RYTHME : Math.round(DUEL_RYTHME * 0.72);
+      if (a.type === 'capacite') {
+        var t = a.ciblePos != null ? equipe(a.ciblecamp)[a.ciblePos] : null;
+        if (t && a.pv != null) t.pv = a.pv;
+        sc.capacite(cle(a.camp, a.srcPos), a.cap,
+                    (t && a.pv != null) ? cle(a.ciblecamp, a.ciblePos) : null,
+                    t ? t.pv : null, t ? t.pvMax : null, duree);
+        sc.annonce('<b>' + esc(a.src) + '</b> — ' + esc(a.cap) + ' : ' + a.detail);
+        vib(6);
+      } else {
+        var cib = equipe(a.ciblecamp)[a.ciblePos];
+        if (cib) cib.pv = a.pv;
+        sc.coup(cle(a.camp, a.srcPos), cle(a.ciblecamp, a.ciblePos), a.degats, a.pv,
+                cib ? cib.pvMax : 1, a.mort, duree, a.second ? a.cap : null);
+        sc.annonce(esc(a.src) + ' frappe ' + esc(a.cible) + ' : ' + nbFr(a.degats) + ' dégâts'
+          + (a.mort ? ', éliminée' : ''));
+        if (a.mort) vib(14); else if (a.second) vib(8);
+      }
+      duelMinuteur = setTimeout(pas, duree);
     };
 
     var finAnimation = function () {
@@ -8282,13 +8365,10 @@
     };
     duelCourant.basculerVitesse = function () {
       duelAccelere = !duelAccelere;
-      dessiner(el('duel-body').querySelector('.db-journal')
-        ? el('duel-body').querySelector('.db-journal').innerHTML : '');
+      sc.vite(duelAccelere);
     };
 
-    colonne = null;
-    dessiner('');
-    duelMinuteur = setTimeout(pas, DUEL_RYTHME);
+    duelMinuteur = setTimeout(pas, 700);
   }
 
   function peindreDuel(r, adv, mien, gagne, recu, delta, cote) {
@@ -8304,7 +8384,8 @@
       + (gagne ? ' · ' + recu + ' Wikigold' : '')
       + '<span class="duel-delta">' + (delta > 0 ? '+' : '') + delta
       + ' · cote ' + cote.toLocaleString('fr-FR') + '</span></div>'
-      + plateau(etat)
+      + sceneHTML({ A: etat.A, B: etat.B, nomAdv: etat.nomAdv,
+                    legende: r.tours + ' tour' + (r.tours > 1 ? 's' : '') })
       + boutonDuel();
     el('duel-body').innerHTML = html;
   }
