@@ -1377,6 +1377,59 @@
   .rc-jauge { height: 6px; background: var(--night-up); border: 1px solid var(--night-line); margin-bottom: 8px; }
   .rc-jauge i { display: block; height: 100%; background: #8d5050; transition: width .3s ease; }
 
+  /* ---------- Raid de clan ----------
+     Meme langage que la scene de raid : l'adversaire en grand, puis ce que
+     chacun peut faire. Les frappes restantes sont des pastilles, les cartes
+     se touchent directement, et la contribution de chaque membre se lit en
+     barres — c'est un combat commun, il doit se voir comme tel. */
+  .rc2-boss { margin-bottom: 12px; }
+  .rc2-boss .rs-boss-img { height: 180px; }
+  .rc2-rang {
+    position: absolute; top: 10px; left: 12px; z-index: 2;
+    padding: 3px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 600;
+    color: #14161f; background: var(--tier);
+  }
+  .rc2-etat {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin: 0 2px 16px;
+  }
+  .rc2-pips { display: flex; gap: 6px; }
+  .rc2-pips i {
+    width: 11px; height: 11px; border-radius: 50%;
+    border: 1.5px solid rgba(201,153,46,.55);
+  }
+  .rc2-pips i.pleine { background: #c9992e; border-color: #c9992e; }
+  .rc2-part { font-size: 12px; color: var(--glass-dim); }
+  .rc2-part b { color: var(--ivory); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .rc2-t { margin: 0 0 8px; font-size: 12.5px; color: var(--glass); }
+  .rc2-grille { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 18px; }
+  .rc2-carte {
+    display: block; width: 100%; padding: 0; border: 0; font: inherit; color: inherit;
+    text-align: left; cursor: pointer;
+  }
+  .rc2-carte:active { transform: scale(.96); }
+  .rc2-carte:focus-visible { outline: 2px solid #c9992e; outline-offset: 2px; }
+  .rc2-carte .rs-img { height: 84px; }
+  .rc2-deg {
+    position: absolute; top: 7px; right: 6px; z-index: 3;
+    padding: 2px 7px; border-radius: 999px;
+    font: 600 12.5px/1.3 var(--display); color: #f0dda4;
+    background: rgba(13,16,26,.82); font-variant-numeric: tabular-nums;
+  }
+  .rc2-contrib { display: grid; gap: 7px; margin-bottom: 16px; }
+  .rc2-ligne {
+    display: grid; grid-template-columns: minmax(0, 7.5em) 1fr auto; align-items: center; gap: 10px;
+    font-size: 12.5px; color: var(--glass);
+  }
+  .rc2-ligne.moi { color: var(--ivory); }
+  .rc2-nom { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rc2-barre { height: 6px; border-radius: 999px; background: rgba(255,255,255,.07); overflow: hidden; }
+  .rc2-barre i { display: block; height: 100%; border-radius: inherit; background: rgba(246,241,228,.4); }
+  .rc2-ligne.moi .rc2-barre i { background: #c9992e; }
+  .rc2-ligne b { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .rc2-fin { margin: 0 2px 16px; font-size: 12.5px; color: var(--glass-dim); }
+  .rc2-etat + .btn-action { margin-bottom: 18px; }
+
   .lig-lots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 14px; }
   .lig-lot {
     display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -11277,11 +11330,16 @@
     maj['parMembre.' + nuage.uid] = firebase.firestore.FieldValue.increment(d);
 
     loc.coups += 1; writeRaidClan(loc);
+    clanEtat.rcAnim = { degats: d, pctAvant: Math.max(0, 100 - Math.min(r.degats || 0, r.pvMax) / r.pvMax * 100) };
     r.degats = (r.degats || 0) + d;
     r.parMembre = r.parMembre || {};
     r.parMembre[nuage.uid] = (r.parMembre[nuage.uid] || 0) + d;
-    clanEtat.msg = d.toLocaleString('fr-FR') + ' dégâts infligés.';
     showClan(); vib(8);
+    /* La jauge part de l'ancienne valeur et glisse jusqu'a la nouvelle. */
+    requestAnimationFrame(function () { requestAnimationFrame(function () {
+      var j = document.querySelector('.rc2-boss .rs-boss-vie i[data-vers]');
+      if (j) j.style.width = j.getAttribute('data-vers') + '%';
+    }); });
 
     /* L'echec d'ecriture etait avale en silence : les degats s'affichaient,
        puis disparaissaient au rechargement suivant, ce qui donne exactement
@@ -12732,53 +12790,86 @@
     var mort = deg >= r.pvMax;
     var mien = (r.parMembre && r.parMembre[nuage.uid]) || 0;
     var t = tierOf(r.rank);
+    var restants = Math.max(0, RC_COUPS - loc.coups);
+    /* Le coup qu'on vient de porter se rejoue une fois a l'affichage : chiffre
+       qui monte sur l'adversaire, jauge qui part de l'ancienne valeur. */
+    var anim = clanEtat.rcAnim; clanEtat.rcAnim = null;
+    var pctDepart = anim ? anim.pctAvant : pct;
 
-    var h = '<div class="titre-aide"><p class="sheet-sub">RAID DE CLAN</p>'
-      + '<button class="aide-btn" data-regles="clan" aria-label="Règles du raid de clan">?</button></div>'
-      + '<div class="rc-boss">'
+    var pips = '';
+    for (var k = 0; k < RC_COUPS; k++) pips += '<i' + (k < restants ? ' class="pleine"' : '') + '></i>';
+
+    var h = tete
+      + '<div class="rs"><div class="rs-boss rc2-boss' + (mort ? ' rs-vaincu' : '')
+      + (anim ? ' rs-touche' : '') + '" style="--tier:' + t.color + '">'
       /* Une simple image, et non visuelHTML : cette fonction est faite pour le
-         plein ecran de revelation, avec un fond floute en position absolue qui
-         deborde de toute vignette et recouvre l'ecran. */
-      + (r.thumb
-          ? '<div class="rc-vue"><img src="' + esc(r.thumb) + '" alt="" loading="lazy"></div>'
-          : '<div class="rc-art">' + artSVG(r.titre, t.color) + '</div>')
-      + '<div class="rc-info">'
-      + '<span class="rc-tag" style="color:' + t.color + '">' + esc(r.rank) + '</span>'
-      + '<span class="rc-nom">' + esc(r.titre) + '</span>'
-      + '<span class="rc-pv">' + (r.pvMax - deg).toLocaleString('fr-FR')
-      + ' / ' + r.pvMax.toLocaleString('fr-FR') + ' PV</span>'
-      + '</div></div>'
-      + '<div class="rc-jauge"><i style="width:' + pct + '%"></i></div>'
-      + '<p class="duel-intro">Votre part : ' + mien.toLocaleString('fr-FR') + ' dégâts · '
-      + (RC_COUPS - loc.coups) + ' frappe' + ((RC_COUPS - loc.coups) > 1 ? 's' : '')
-      + ' aujourd\u2019hui</p>';
+         plein ecran de revelation, avec un fond floute en position absolue. */
+      + '<div class="rs-boss-img">'
+      + (r.thumb ? '<img src="' + esc(r.thumb) + '" alt="" loading="lazy">' : artSVG(r.titre, t.color))
+      + '</div>'
+      + '<span class="rc2-rang">' + esc(r.rank) + '</span>'
+      + (anim ? '<span class="rs-boss-degats">' + nbFr(anim.degats) + '</span>' : '')
+      + (mort ? '<span class="rs-boss-verdict">Vaincu</span>' : '')
+      + '<div class="rs-boss-pied"><h3 class="rs-boss-nom">' + esc(r.titre) + '</h3>'
+      + '<div class="rs-boss-vie"><i style="width:' + pctDepart.toFixed(2) + '%" data-vers="'
+      + pct.toFixed(2) + '"></i></div>'
+      + '<span class="rs-boss-pv">' + nbFr(r.pvMax - deg) + ' / ' + nbFr(r.pvMax) + ' PV</span>'
+      + '</div></div></div>'
+      + '<div class="rc2-etat">'
+      + '<span class="rc2-pips" role="img" aria-label="' + restants + ' frappe'
+      + (restants > 1 ? 's' : '') + ' restante' + (restants > 1 ? 's' : '') + ' aujourd’hui">'
+      + pips + '</span>'
+      + '<span class="rc2-part">Votre part <b>' + nbFr(mien) + '</b></span></div>';
 
     if (mort) {
       h += loc.butin
-        ? '<p class="duel-intro">Adversaire vaincu. Butin déjà reçu.</p>'
-        : '<button class="btn btn-solid" data-rc-butin="1">Réclamer le butin</button>';
-      return h;
-    }
-    if (loc.coups >= RC_COUPS) {
-      h += '<p class="duel-intro">Revenez demain pour frapper à nouveau.</p>';
-      return h;
+        ? '<p class="rc2-fin">Adversaire vaincu, butin reçu. Un nouveau vous attend demain.</p>'
+        : '<button class="btn btn-solid btn-action" data-rc-butin="1">Réclamer le butin</button>';
+    } else if (restants <= 0) {
+      h += '<p class="rc2-fin">Vos frappes du jour sont portées. Revenez demain.</p>';
+    } else {
+      /* Six meilleures cartes contre cet adversaire, en grille : on touche la
+         carte pour frapper. */
+      var cartes = Object.keys(collection).map(function (k) { return collection[k]; })
+        .sort(function (a, b) { return degats(b, { def: r.def }) - degats(a, { def: r.def }); })
+        .slice(0, 6);
+      if (!cartes.length) {
+        h += '<p class="rc2-fin">Ouvrez un paquet pour combattre.</p>';
+      } else {
+        h += '<p class="rc2-t">Touchez une carte pour frapper</p><div class="rs rc2-grille">'
+          + cartes.map(function (c) {
+              var tr = tierOf(c.rank);
+              return '<button class="rs-carte rc2-carte" data-rc-frappe="' + esc(c.title) + '" '
+                + 'style="--tier:' + tr.color + '" aria-label="Frapper avec ' + esc(c.title) + '">'
+                + '<div class="rs-img">'
+                + (c.thumb ? '<img src="' + esc(c.thumb) + '" alt="" loading="lazy">'
+                           : artSVG(c.title, tr.color))
+                + '</div>'
+                + '<span class="rc2-deg">' + nbFr(degats(c, { def: r.def })) + '</span>'
+                + '<span class="rs-nom">' + esc(c.title) + '</span></button>';
+            }).join('') + '</div>';
+      }
     }
 
-    /* Cinq meilleures cartes proposees : sur mobile, une liste complete
-       noierait le geste. */
-    var cartes = Object.keys(collection).map(function (k) { return collection[k]; })
-      .sort(function (a, b) { return degats(b, { def: r.def }) - degats(a, { def: r.def }); })
-      .slice(0, 5);
-    if (!cartes.length) return h + '<p class="duel-intro">Ouvrez un paquet pour combattre.</p>';
-
-    h += '<div class="clan-liste">';
-    cartes.forEach(function (c) {
-      h += '<button class="clan-membre clan-dispo" data-rc-frappe="' + esc(c.title) + '">'
-        + '<span class="clan-m-nom">' + esc(c.title) + '</span>'
-        + '<span class="clan-m-stat">' + degats(c, { def: r.def }).toLocaleString('fr-FR')
-        + ' dég.</span></button>';
-    });
-    return h + '</div>';
+    /* Qui porte le clan aujourd'hui. */
+    var noms = {};
+    (clanEtat.membres || []).forEach(function (m) { noms[m.uid] = m.nom; });
+    var parts = Object.keys(r.parMembre || {})
+      .map(function (uid) { return { uid: uid, d: r.parMembre[uid] || 0, nom: noms[uid] || 'Ancien membre' }; })
+      .filter(function (x) { return x.d > 0; })
+      .sort(function (a, b) { return b.d - a.d; })
+      .slice(0, 6);
+    if (parts.length) {
+      var maxD = parts[0].d;
+      h += '<p class="rc2-t">Le clan aujourd’hui</p><div class="rc2-contrib">'
+        + parts.map(function (x) {
+            return '<div class="rc2-ligne' + (x.uid === nuage.uid ? ' moi' : '') + '">'
+              + '<span class="rc2-nom">' + esc(x.nom) + '</span>'
+              + '<span class="rc2-barre"><i style="width:' + Math.max(3, Math.round(x.d / maxD * 100))
+              + '%"></i></span><b>' + nbFr(x.d) + '</b></div>';
+          }).join('') + '</div>';
+    }
+    return h;
   }
 
   /* Vue Ligue : sa division, son rang, et le bilan de la semaine passee. */
