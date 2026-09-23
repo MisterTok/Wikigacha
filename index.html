@@ -198,6 +198,13 @@
     font-size: 12px; color: var(--glass-dim);
     font-variant-numeric: tabular-nums;
   }
+  /* Largeur reservee : sans elle, « 9:09 » et « 9:20 » ne mesurent pas tout a
+     fait pareil, la ligne se recoupait autrement d'une seconde a l'autre et
+     toute la page sautait d'une ligne. */
+  .chrono-fixe {
+    display: inline-block; min-width: 3.6em; text-align: left;
+    font-variant-numeric: tabular-nums;
+  }
   .pack-stage { text-align: center; padding: 30px 0 10px; }
   /* Sachet scelle : le corps + une bande doree sur le bord droit qu'on
      arrache vers la gauche. La variable --tear (0 a 1) suit le doigt. */
@@ -2714,9 +2721,11 @@
   .hud-marque { font-weight: 600; letter-spacing: -0.02em; }
 
   /* --- barre d'onglets : une surface flottante, sans trait doré brut --- */
+  /* Fond opaque et pas de flou : le flou d'arriere-plan se recalcule a chaque
+     repeinte de la page — or la ligne des paquets se met a jour toutes les
+     secondes — et la barre tressautait sur certains telephones. */
   .tabbar {
-    background: rgba(15,18,32,.86);
-    -webkit-backdrop-filter: blur(22px) saturate(1.4); backdrop-filter: blur(22px) saturate(1.4);
+    background: #10131f;
     border-top: 1px solid rgba(255,255,255,.07);
     box-shadow: 0 -10px 30px rgba(0,0,0,.35);
   }
@@ -4784,22 +4793,31 @@
     try { localStorage.setItem(PKEY, JSON.stringify(d)); } catch (e) {}
   }
 
+  var packsVu = { n: -1, themes: '', txt: '', chrono: '' };
+
   function refreshPacks() {
     var d = readPacks();
-    writePacks(d);
-    /* L'habillage suit la file : des qu'un paquet a theme est achete ou
-       consomme, la pochette change d'apparence sans intervention. */
-    if (typeof majPochette === 'function') majPochette();
+    var themes = JSON.stringify(d.themes || []);
+    /* Ecrire dans le stockage et refaire la pochette soixante fois par minute
+       ne servait a rien : on ne le fait que lorsque quelque chose a bouge. */
+    if (d.n !== packsVu.n || themes !== packsVu.themes) {
+      writePacks(d);
+      /* L'habillage suit la file : des qu'un paquet a theme est achete ou
+         consomme, la pochette change d'apparence sans intervention. */
+      if (typeof majPochette === 'function') majPochette();
+      packsVu.n = d.n; packsVu.themes = themes;
+    }
     /* Au-dessus du plafond (recompenses accumulees), on affiche le total brut ;
        la regeneration a la minute ne reprend qu'une fois repasse sous le plafond. */
     var txt = d.n > MAX_PAQUETS
       ? 'Paquets ' + d.n + ' (max auto ' + MAX_PAQUETS + ')'
       : 'Paquets ' + d.n + ' / ' + MAX_PAQUETS;
+    var chrono = '';
     if (d.n < MAX_PAQUETS) {
       var reste = Math.max(0, REGEN_MS - (Date.now() - d.ts));
       var sec = Math.ceil(reste / 1000);
-      txt += ' · prochain dans ' + Math.floor(sec / 60) + ':'
-           + String(sec % 60).padStart(2, '0');
+      chrono = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+      txt += ' · prochain dans @';       /* @ : emplacement du chronometre */
     }
     if (d.garDue) {
       txt += ' · ' + TIERS[d.garDue].name + ' garanti au prochain';
@@ -4813,7 +4831,28 @@
       var pv = pubRestantes();
       txt += ' · pub dans ' + pv + (pv > 1 ? ' paquets' : ' paquet');
     }
-    el('packs').textContent = txt;
+    /* La ligne complete n'est reconstruite que si elle change vraiment ; le
+       chronometre, lui, vit dans son propre element de largeur fixe. Ecrire
+       toute la phrase chaque seconde forcait le navigateur a la recouper, et
+       la page entiere bougeait d'une ligne. */
+    var boite = el('packs');
+    if (txt !== packsVu.txt) {
+      packsVu.txt = txt;
+      var morceaux = txt.split('@');
+      boite.textContent = '';
+      boite.appendChild(document.createTextNode(morceaux[0]));
+      if (morceaux.length > 1) {
+        var sp = document.createElement('span');
+        sp.className = 'chrono-fixe'; sp.id = 'packs-chrono'; sp.textContent = chrono;
+        packsVu.chrono = chrono;
+        boite.appendChild(sp);
+        boite.appendChild(document.createTextNode(morceaux[1] || ''));
+      }
+    } else if (chrono !== packsVu.chrono) {
+      var sp2 = el('packs-chrono');
+      if (sp2) sp2.textContent = chrono;
+      packsVu.chrono = chrono;
+    }
     var hp = el('hud-packs');
     if (hp) {
       if (hp.textContent !== String(d.n)) battre('res-packs');
