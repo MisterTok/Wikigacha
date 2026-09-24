@@ -2060,8 +2060,8 @@
   .bt-tuile.acquis, .bt-ligne.acquis { border-top-color: #4f8d72; }
 
   .bt-tuile {
-    display: flex; flex-direction: column; align-items: center; gap: 3px;
-    padding: 14px 8px 12px; text-align: center;
+    position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    padding: 18px 8px 12px; text-align: center; border-radius: var(--r-m);
   }
   .bt-chiffre {
     font-family: var(--display); font-size: 29px; line-height: 1;
@@ -2070,11 +2070,19 @@
   .bt-tuile[disabled] .bt-chiffre { color: var(--glass); }
   .bt-nom { font-size: 12px; color: var(--ivory); }
   .bt-sous { font-size: 10.5px; color: var(--glass-dim); }
+  /* La remise etait un pave jaune pleine largeur, qui passait a la ligne et
+     decalait les prix d'une tuile a l'autre. C'est devenu une pastille posee
+     sur le filet du haut : elle ne prend plus de place dans la colonne, donc
+     les trois offres s'alignent. */
   .bt-marque {
-    margin-top: 5px; padding: 2px 7px; font-size: 9.5px; letter-spacing: .06em;
-    color: #14161f; background: #c9992e;
+    position: absolute; top: -9px; left: 50%; transform: translateX(-50%);
+    padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+    font-size: 9px; font-weight: 700; letter-spacing: .02em; color: #1b1406;
+    background: linear-gradient(180deg, #e0b247, #c19023);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .45);
   }
   .bt-marque:empty { display: none; }
+  .bt-tuile[disabled] .bt-marque { filter: grayscale(.7); opacity: .6; }
   .bt-prix {
     margin-top: auto; padding-top: 10px;
     font-size: 13px; font-weight: 600; color: #f0dda4;
@@ -2082,10 +2090,13 @@
   }
   .bt-prix.hors { color: #cf7f7f; font-weight: 400; }
   .bt-unite {
-    margin-top: 2px; font-size: 10px; color: var(--glass-dim);
+    margin-top: 2px; min-height: 13px; font-size: 10px; color: var(--glass-dim);
     font-variant-numeric: tabular-nums;
   }
-  .bt-tuile.vedette { border-color: #6d5a2a; }
+  .bt-tuile.vedette {
+    border-color: #c9992e;
+    box-shadow: 0 0 0 1px rgba(201, 153, 46, .3), 0 12px 28px -16px rgba(201, 153, 46, .6);
+  }
   .bt-hors { color: #cf7f7f; margin-top: -6px; }
 
   /* Tuile de theme : une bande coloree a gauche, du meme ton que la pochette
@@ -2100,10 +2111,16 @@
     border-radius: var(--r-m);
     transition: transform .12s ease, background .12s ease;
   }
-  .bt-theme:active:not([disabled]) { transform: scale(.985); background: #212638; }
+  .bt-theme:active:not([disabled]) { transform: scale(.985); }
   .bt-theme[disabled] { cursor: default; opacity: .55; }
   .bt-bande { flex: none; width: 8px; align-self: stretch; min-height: 46px; }
-  .bt-theme .bt-nom { padding: 13px 12px; font-size: 13.5px; }
+  /* Le prix revient sur chaque tuile : c'est la qu'on decide, pas dans le
+     chapeau. Et la teinte du domaine deborde en un lavis sur la tuile. */
+  .bt-theme .bt-nom { flex: 1 1 auto; padding: 14px 10px 14px 12px; font-size: 13.5px; }
+  .bt-theme .bt-prix {
+    margin: 0; padding: 0 12px 0 0; font-size: 12.5px; font-weight: 600; color: #f0dda4;
+  }
+  .bt-theme[disabled] .bt-prix { color: #cf7f7f; font-weight: 400; }
   .bt-prix.pris { color: #7fb99a; }
   .bt-tuile[disabled] .bt-prix:not(.hors):not(.pris) { color: var(--glass-dim); }
 
@@ -12178,6 +12195,14 @@
      suppriment le hasard du domaine — c'est exactement ce qu'on vend ici, la
      direction, pas la rarete. */
   var PRIX_THEME = 150;
+
+  /* Teinte de domaine en rgba, pour le lavis des tuiles a theme. */
+  function hexRgba(hex, a) {
+    var h = String(hex).replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    var n = parseInt(h, 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
   /* Prix croissant dans la journee, et cinq essais au maximum. Un tarif fixe
      et illimite aurait laisse un joueur riche convertir son or en experience
      — donc en points d'activite, donc en classement de ligue — aussi
@@ -12288,20 +12313,26 @@
     html += '<div class="bt-section"><h3>PAQUETS</h3></div>'
       + '<p class="bt-mot">Cinq cartes tirées au hasard dans tout Wikipédia.</p>'
       + '<div class="bt-grille c3">';
+    var uniteBase = OFFRES[0].prix / OFFRES[0].paquets;
     OFFRES.forEach(function (o) {
       var ok = or >= o.prix;
       /* Le prix a l'unite evite au joueur de calculer lui-meme ce que vaut
          une remise : c'est la seule information qui permet de comparer les
          trois offres d'un coup d'oeil. */
       var unite = Math.round(o.prix / o.paquets);
-      html += '<button class="bt-tuile' + (o.note ? ' vedette' : '') + '" '
+      /* La remise est calculee, pas ecrite a la main : elle ne peut pas mentir
+         si un prix change. La derniere offre garde sa mention. */
+      var remise = Math.round((1 - unite / uniteBase) * 100);
+      var marque = o === OFFRES[OFFRES.length - 1] ? 'MEILLEURE OFFRE'
+                 : (remise > 0 ? '−' + remise + ' %' : '');
+      html += '<button class="bt-tuile' + (o === OFFRES[OFFRES.length - 1] ? ' vedette' : '') + '" '
         + (ok ? 'data-achat="' + o.id + '"' : 'disabled') + '>'
+        + '<span class="bt-marque">' + marque + '</span>'
         + '<span class="bt-chiffre">' + o.paquets + '</span>'
         + '<span class="bt-sous">paquet' + (o.paquets > 1 ? 's' : '') + '</span>'
-        + '<span class="bt-marque">' + (o.note ? esc(o.note) : '') + '</span>'
         + '<span class="bt-prix' + (ok ? '' : ' hors') + '">'
         + (ok ? o.prix + ' or' : 'il manque ' + (o.prix - or)) + '</span>'
-        + '<span class="bt-unite">' + unite + ' or l’unité</span>'
+        + '<span class="bt-unite">' + (o.paquets > 1 ? unite + ' or l’unité' : '') + '</span>'
         + '</button>';
     });
     html += '</div>';
@@ -12310,7 +12341,7 @@
     var fileThemes = (readPacks().themes || []);
     html += '<div class="bt-section"><h3>PAQUETS À THÈME</h3></div>'
       + '<p class="bt-mot">Cinq cartes du domaine choisi, aucune hors sujet. '
-      + 'Le paquet s’ouvre aussitôt. <b>' + PRIX_THEME + ' or</b> chacun.'
+      + 'Le paquet s’ouvre aussitôt.'
       + (fileThemes.length
           ? ' En attente : ' + fileThemes.map(function (d) { return domaineNom(d); }).join(', ') + '.'
           : '')
@@ -12322,11 +12353,15 @@
       /* Le prix a quitte chaque ligne pour le chapeau : il est identique pour
          les six, le repeter six fois n'apprenait rien et encombrait. Reste la
          teinte de la pochette, qui elle porte une information. */
+      var teinte = t.h || '#3a4260';
       html += '<button class="bt-theme" '
+        + 'style="background-image:linear-gradient(100deg,' + hexRgba(teinte, .22)
+        + ',rgba(0,0,0,0) 62%)" '
         + (ok ? 'data-theme="' + d.id + '"' : 'disabled') + '>'
         + '<span class="bt-bande" style="background:linear-gradient(180deg,'
-        + (t.h || '#3a4260') + ',' + (t.b || '#1d2338') + ')"></span>'
+        + teinte + ',' + (t.b || '#1d2338') + ')"></span>'
         + '<span class="bt-nom">' + esc(d.nom) + '</span>'
+        + '<span class="bt-prix">' + PRIX_THEME + ' or</span>'
         + '</button>';
     });
     html += '</div>'
