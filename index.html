@@ -2121,6 +2121,34 @@
     margin: 0; padding: 0 12px 0 0; font-size: 12.5px; font-weight: 600; color: #f0dda4;
   }
   .bt-theme[disabled] .bt-prix { color: #cf7f7f; font-weight: 400; }
+
+  /* Trois colonnes : le nom au-dessus, le prix dessous. Une rangee de moins
+     que sur deux colonnes, sans rien retirer. */
+  .bt-grille.c3 .bt-theme {
+    flex-direction: column; align-items: stretch; position: relative;
+  }
+  .bt-grille.c3 .bt-theme .bt-bande {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 5px; min-height: 0;
+  }
+  .bt-grille.c3 .bt-theme .bt-nom {
+    padding: 12px 8px 2px 14px; font-size: 12.5px; line-height: 1.25;
+  }
+  .bt-grille.c3 .bt-theme .bt-prix { padding: 0 8px 11px 14px; font-size: 12px; }
+
+  /* Dos de cartes en bandeau : on fait defiler du doigt, la hauteur reste
+     celle d'une tuile quel que soit leur nombre. */
+  .bt-defile {
+    display: flex; gap: 8px; margin: 0 -16px 4px; padding: 10px 16px 6px;
+    overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 16px; scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .bt-defile::-webkit-scrollbar { display: none; }
+  .bt-defile > .bt-tuile { flex: 0 0 104px; scroll-snap-align: start; }
+
+  /* Sous-onglets de la boutique : on arrive sur les paquets, le reste est a
+     un toucher. */
+  .bt-onglets { margin: 2px 0 6px; }
+  .bt-onglets + .bt-section { margin-top: 14px; }
   .bt-prix.pris { color: #7fb99a; }
   .bt-tuile[disabled] .bt-prix:not(.hors):not(.pris) { color: var(--glass-dim); }
 
@@ -12300,16 +12328,28 @@
     ouvrirDansLaFoulee();
   }
 
+  /* La boutique empilait six sections : trois onglets la ramenent a un
+     ecran chacun. On arrive toujours sur les paquets, l'achat le plus
+     frequent. */
+  var boutiqueVue = 'paquets';
+
   function showBoutique(msg) {
     var or = readGold();
     var boutiquable = achatsDisponibles();
-    var html = '<p class="hist-titre">BOUTIQUE</p>';
+    var html = '<nav class="sous-tabs bt-onglets">'
+      + [['paquets', 'Paquets'], ['objets', 'Objets'], ['premium', 'Premium']].map(function (o) {
+          return '<button class="sous-tab' + (boutiqueVue === o[0] ? ' is-active' : '')
+            + '" data-bt-vue="' + o[0] + '">' + o[1] + '</button>';
+        }).join('') + '</nav>';
+    var vueP = boutiqueVue === 'paquets', vueO = boutiqueVue === 'objets',
+        vueM = boutiqueVue === 'premium';
 
     /* Le solde ne s'affiche plus ici : il est deja en permanence dans le
        bandeau du haut, et le repeter en gros volait la place aux offres, qui
        sont la vraie raison de venir. */
 
     /* --- paquets --- */
+    if (vueP) {
     html += '<div class="bt-section"><h3>PAQUETS</h3></div>'
       + '<p class="bt-mot">Cinq cartes tirées au hasard dans tout Wikipédia.</p>'
       + '<div class="bt-grille c3">';
@@ -12346,7 +12386,7 @@
           ? ' En attente : ' + fileThemes.map(function (d) { return domaineNom(d); }).join(', ') + '.'
           : '')
       + '</p>'
-      + '<div class="bt-grille c2">';
+      + '<div class="bt-grille c3">';
     DOMAINES.forEach(function (d) {
       var ok = or >= PRIX_THEME;
       var t = TEINTES_DOMAINE[d.id] || {};
@@ -12368,8 +12408,10 @@
       + (or >= PRIX_THEME ? ''
           : '<p class="bt-mot bt-hors">Il vous manque '
             + (PRIX_THEME - or) + ' or pour un paquet à thème.</p>');
+    }
 
     /* --- essais de quiz --- */
+    if (vueO) {
     var prixQ = prixQuizSuivant();
     var achetes = quizBonus();
     html += '<div class="bt-section"><h3>ESSAIS DE QUIZ</h3></div>';
@@ -12399,7 +12441,7 @@
     html += '<div class="bt-section"><h3>DOS DE CARTES</h3></div>'
       + '<p class="bt-mot">Décoratif : le dos habille toutes vos cartes sans '
       + 'rien changer à leur force.</p>'
-      + '<div class="bt-grille c3">';
+      + '<div class="bt-defile">';
     DOS.forEach(function (o) {
       var possede = !o.prix || etatDos.achetes.indexOf(o.id) >= 0;
       var actif = etatDos.actif === o.id;
@@ -12437,10 +12479,13 @@
         + '</button>';
     }
 
+    }
+
     /* --- les deux achats, côte à côte ---
        Deux vraies options comparables, et non une offre principale suivie
        d'un lien discret : celui qui ne veut que le silence doit le trouver
        aussi facilement que celui qui veut tout. */
+    if (vueM) {
     html += '<div class="bt-section"><h3>ALLER PLUS LOIN</h3></div>';
 
     if (achats.premium) {
@@ -12494,6 +12539,7 @@
 
     if (boutiquable) {
       html += '<button class="lien-mini" data-play="restaurer">Restaurer mes achats</button>';
+    }
     }
 
     html += '<p class="recompense-msg" id="boutique-msg">' + (msg ? esc(msg) : '') + '</p>';
@@ -13733,6 +13779,8 @@
     }
     var li = e.target.closest ? e.target.closest('[data-lier]') : null;
     if (li) { nuageLierGoogle(); return; }
+    var bv = e.target.closest ? e.target.closest('[data-bt-vue]') : null;
+    if (bv) { boutiqueVue = bv.getAttribute('data-bt-vue'); showBoutique(); vib(6); return; }
     var th = e.target.closest ? e.target.closest('[data-theme]') : null;
     if (th) { acheterTheme(th.getAttribute('data-theme')); return; }
     if (e.target.closest && e.target.closest('[data-quiz-achat]')) { acheterQuiz(); return; }
