@@ -1226,11 +1226,83 @@
   /* Decor : l'affrontement se tient sur un terrain, pas sur un aplat. Une
      lueur au-dessus de l'adversaire, un fond qui s'assombrit vers le bas, et
      une ombre allongee sous chaque ligne de cartes. Aucune image chargee. */
+  /* L'ambiance prend la couleur de rarete de l'adversaire (--ambiance), posee
+     au rendu : un Mythique baigne la scene de rouge, un Legendaire d'or. */
   .sc {
-    position: relative; margin: 0 -16px; padding: 6px 16px 0;
+    position: relative; overflow: hidden; margin: 0 -16px; padding: 6px 16px 0;
     background:
-      radial-gradient(130% 55% at 50% 0%, rgba(74, 92, 140, .30), rgba(10, 12, 20, 0) 68%),
-      linear-gradient(180deg, rgba(8, 10, 18, 0) 40%, rgba(6, 8, 14, .55) 100%);
+      radial-gradient(130% 52% at 50% 0%, var(--ambiance, rgba(74, 92, 140, .3)),
+                      rgba(10, 12, 20, 0) 66%),
+      linear-gradient(180deg, rgba(8, 10, 18, 0) 38%, rgba(6, 8, 14, .6) 100%);
+  }
+  /* Une ligne d'horizon tres douce, juste sous l'adversaire : l'oeil comprend
+     qu'il y a un sol sans qu'on dessine un sol. */
+  .sc::before {
+    content: ''; position: absolute; left: -10%; right: -10%; top: var(--horizon, 240px);
+    height: 120px; pointer-events: none;
+    background: radial-gradient(60% 100% at 50% 0%, rgba(255, 255, 255, .06), rgba(0, 0, 0, 0) 70%);
+  }
+  /* Poussieres qui montent lentement : six elements, rien de plus. */
+  .sc-poussiere { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+  .sc-poussiere i {
+    position: absolute; bottom: -10px; width: 3px; height: 3px; border-radius: 50%;
+    background: rgba(246, 241, 228, .5);
+    animation: sc-monte-poussiere linear infinite;
+  }
+  @keyframes sc-monte-poussiere {
+    from { transform: translateY(0) scale(1); opacity: 0; }
+    15%  { opacity: .55; }
+    to   { transform: translateY(-340px) scale(.5); opacity: 0; }
+  }
+
+  /* ---------- Animations de capacite ----------
+     Quatre familles, selon ce que la capacite FAIT : se proteger, tendre un
+     lien vers une alliee, balayer une ligne, ou se renforcer. */
+  .sc-bouclier {
+    position: absolute; z-index: 4; border-radius: 12px; pointer-events: none;
+    border: 2px solid var(--eff, #7fc4d6);
+    animation: sc-bouclier .8s cubic-bezier(.2, .7, .3, 1) both;
+  }
+  @keyframes sc-bouclier {
+    from { transform: scale(1.18); opacity: 0; }
+    35%  { transform: scale(1); opacity: 1; box-shadow: 0 0 22px var(--eff, #7fc4d6); }
+    to   { transform: scale(1); opacity: 0; }
+  }
+  .sc-lien {
+    position: fixed; z-index: 5; height: 3px; transform-origin: 0 50%; pointer-events: none;
+    border-radius: 2px;
+    background: linear-gradient(90deg, rgba(201, 153, 46, 0), var(--eff, #c9992e));
+    animation: sc-lien .62s ease-out both;
+  }
+  .sc-lien i {
+    position: absolute; right: -3px; top: -3px; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--eff, #c9992e); box-shadow: 0 0 14px var(--eff, #c9992e);
+  }
+  @keyframes sc-lien {
+    from { opacity: 0; clip-path: inset(0 100% 0 0); }
+    25%  { opacity: 1; }
+    70%  { clip-path: inset(0 0 0 0); opacity: 1; }
+    to   { opacity: 0; clip-path: inset(0 0 0 0); }
+  }
+  .sc-vague {
+    position: absolute; inset: 0; z-index: 4; pointer-events: none; border-radius: inherit;
+    background: linear-gradient(105deg, rgba(255, 255, 255, 0) 35%, var(--eff, rgba(201,153,46,.55)) 50%,
+                rgba(255, 255, 255, 0) 65%);
+    animation: sc-vague .75s cubic-bezier(.3, .6, .3, 1) both;
+  }
+  @keyframes sc-vague {
+    from { transform: translateX(-110%); }
+    to   { transform: translateX(110%); }
+  }
+  .sc-mote {
+    position: absolute; width: 5px; height: 5px; border-radius: 50%; z-index: 4;
+    background: var(--eff, #c9992e); box-shadow: 0 0 10px var(--eff, #c9992e);
+    pointer-events: none; animation: sc-mote .85s ease-out both;
+  }
+  @keyframes sc-mote {
+    from { transform: translateY(6px) scale(.6); opacity: 0; }
+    30%  { opacity: 1; }
+    to   { transform: translateY(-46px) scale(1); opacity: 0; }
   }
   .sc .rs-ligne { position: relative; }
   .sc .rs-ligne::after {
@@ -1389,9 +1461,10 @@
   .rs-carte.rs-morte { opacity: .32; }
   .rs-carte.rs-morte .rs-img { filter: grayscale(1); }
   .rs-cap-nom {
-    position: absolute; left: 0; right: 0; top: 2px; z-index: 4;
+    position: absolute; left: 0; right: 0; top: 2px; z-index: 5;
     padding: 3px 4px; text-align: center; font-size: 10px; font-weight: 600;
-    color: #14161f; background: #c9992e;
+    letter-spacing: .02em; color: #14161f;
+    background: linear-gradient(180deg, #e0b247, #c9992e);
     animation: rs-ruban var(--rs-d) ease-out both;
   }
   .rs-degats {
@@ -7197,7 +7270,17 @@
       return '<div class="rs-ligne ' + cls + '">'
         + L.slice(de, a).map(function (x) { return scCarteHTML(x, camp); }).join('') + '</div>';
     };
-    var h = '<div class="rs sc ' + (o.boss ? 'sc-raid' : 'sc-duel') + '">';
+    /* Teinte d'ambiance et hauteur d'horizon : la scene s'accorde a
+       l'adversaire du jour au lieu d'etre toujours la meme. */
+    var amb = o.boss ? tierOf(o.boss.rank).color : '#4a5c8c';
+    var horizon = o.boss ? (150 + Math.max(0, rankIndex(o.boss.rank)) * 12 + 40) : 210;
+    var h = '<div class="rs sc ' + (o.boss ? 'sc-raid' : 'sc-duel')
+      + '" style="--ambiance:' + amb + '55;--horizon:' + horizon + 'px">'
+      + '<div class="sc-poussiere" aria-hidden="true">'
+      + [0, 1, 2, 3, 4, 5].map(function (k) {
+          return '<i style="left:' + (7 + k * 16) + '%;animation-duration:' + (9 + k * 2.5)
+            + 's;animation-delay:-' + (k * 3) + 's"></i>';
+        }).join('') + '</div>';
     if (o.boss) {
       var bt = tierOf(o.boss.rank);
       var pct = Math.max(0, o.pvBoss / o.pvBossMax * 100);
@@ -7228,6 +7311,29 @@
         + '<button class="btn" ' + o.boutons.passer + '="1">Passer</button></div>';
     }
     return h + '</div>';
+  }
+
+  /* Quelle animation pour quelle capacite : on part de ce qu'elle FAIT.
+     Le nom seul circule dans les actions de combat, d'ou ce retour au code. */
+  var CAP_FAMILLE = {
+    ancrage: ['bouclier', '#7fc4d6'], rigueur: ['bouclier', '#7fc4d6'],
+    frontiere: ['bouclier', '#9fd0e0'], reseau: ['bouclier', '#8fb8d8'],
+    mecenat: ['lien', '#e0b247'], heritage: ['lien', '#c9992e'],
+    inspiration: ['vague', 'rgba(224,178,71,.6)'], rumeur: ['vague', 'rgba(204,76,63,.55)'],
+    influence: ['vague', 'rgba(204,76,63,.5)'],
+    endurance: ['mote', '#6fb08f'],
+    conquete: ['mote', '#e0b247'], methode: ['mote', '#f0dda4'],
+    precedent: ['mote', '#f0dda4'], calcul: ['mote', '#9fd0e0'],
+    eclat: ['mote', '#e0b247'], percee: ['mote', '#ff9f8a'],
+    souffle: ['mote', '#f0dda4'], erosion: ['mote', '#b99a6b']
+  };
+  var CAP_PAR_NOM = null;
+  function familleCapacite(nom) {
+    if (!CAP_PAR_NOM) {
+      CAP_PAR_NOM = {};
+      Object.keys(CAPACITES).forEach(function (id) { CAP_PAR_NOM[CAPACITES[id].nom] = id; });
+    }
+    return CAP_FAMILLE[CAP_PAR_NOM[nom]] || ['mote', '#c9992e'];
   }
 
   function animateurScene(racine) {
@@ -7283,6 +7389,61 @@
       };
     };
 
+    /* Les quatre familles d'effet. Chacune se pose sur la scene, joue, et se
+       retire toute seule. */
+    /* Les quatre familles d'effet. Les cartes rognent ce qui depasse
+       (overflow), donc les effets se posent dans leur PARENT, a l'aplomb de la
+       carte : sinon le bouclier et les etincelles seraient coupes net. */
+    var effet = function (fam, coul, e, vers) {
+      if (reduit || !e) return;
+      var hote = e.offsetParent || racine;
+      var neuf = function (nom, cls, style) {
+        var x = document.createElement(nom);
+        x.className = cls;
+        x.style.cssText = (style || '') + ';--eff:' + coul;
+        return x;
+      };
+      var jeter = function (x, ms) {
+        setTimeout(function () { if (x.parentNode) x.parentNode.removeChild(x); }, ms);
+      };
+
+      if (fam === 'lien' && vers) {
+        var a = e.getBoundingClientRect(), b = vers.getBoundingClientRect();
+        var x1 = a.left + a.width / 2, y1 = a.top + a.height / 2;
+        var dx = (b.left + b.width / 2) - x1, dy = (b.top + b.height / 2) - y1;
+        var l = neuf('div', 'sc-lien',
+          'left:' + x1 + 'px;top:' + y1 + 'px;width:' + Math.round(Math.sqrt(dx * dx + dy * dy))
+          + 'px;transform:rotate(' + Math.atan2(dy, dx) + 'rad)');
+        l.appendChild(document.createElement('i'));
+        document.body.appendChild(l);
+        jeter(l, 680);
+        return;
+      }
+      if (fam === 'vague') {
+        var ligne = (e.parentNode && e.parentNode.classList.contains('rs-ligne'))
+          ? e.parentNode : hote;
+        var v = neuf('span', 'sc-vague');
+        ligne.appendChild(v);
+        jeter(v, 800);
+        return;
+      }
+      if (fam === 'bouclier') {
+        var bo = neuf('span', 'sc-bouclier',
+          'left:' + (e.offsetLeft - 5) + 'px;top:' + (e.offsetTop - 5) + 'px;width:'
+          + (e.offsetWidth + 10) + 'px;height:' + (e.offsetHeight + 10) + 'px');
+        hote.appendChild(bo);
+        jeter(bo, 850);
+        return;
+      }
+      for (var k = 0; k < 5; k++) {
+        var m = neuf('span', 'sc-mote',
+          'left:' + (e.offsetLeft + e.offsetWidth * (0.14 + k * 0.18)) + 'px;top:'
+          + (e.offsetTop + e.offsetHeight - 16) + 'px;animation-delay:' + (k * 70) + 'ms');
+        hote.appendChild(m);
+        jeter(m, 1200);
+      }
+    };
+
     return {
       tour: function (n) {
         var ticks = racine.querySelectorAll('.sc-tours i');
@@ -7325,10 +7486,19 @@
       },
       capacite: function (ref, nom, cibleRef, pv, pvMax, duree) {
         var e = q(ref);
+        var fam = familleCapacite(nom);
         if (e) {
           rejouer(e, 'rs-cap');
           flotter(e, nom, 'rs-cap-nom', duree);
           setTimeout(function () { e.classList.remove('rs-cap'); }, duree);
+          /* Un lien va toujours vers l'alliee de la meme colonne : c'est la
+             seule que Mecenat protege et dont Heritage hérite. */
+          var vers = null;
+          if (fam[0] === 'lien' && ref) {
+            var camp = ref.charAt(0), pos = parseInt(ref.slice(1), 10);
+            if (pos === pos) vers = q(camp + (pos < 3 ? pos + 3 : pos - 3));
+          }
+          effet(fam[0], fam[1], e, vers);
         }
         var c = q(cibleRef);
         if (c && pv != null) vie(c, pv, pvMax);
