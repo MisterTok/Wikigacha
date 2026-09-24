@@ -201,6 +201,85 @@
   /* Largeur reservee : sans elle, « 9:09 » et « 9:20 » ne mesurent pas tout a
      fait pareil, la ligne se recoupait autrement d'une seconde a l'autre et
      toute la page sautait d'une ligne. */
+  /* ---------- Guide de premiere partie ----------
+     Le voile ne se met pas DEVANT l'element a toucher : c'est un trou, dessine
+     par une ombre demesuree tout autour. L'element reste donc cliquable, et le
+     guide n'a rien a intercepter pour le laisser passer. */
+  .tuto { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
+  .tuto-trou {
+    position: fixed; border-radius: 18px;
+    box-shadow: 0 0 0 9999px rgba(8, 10, 18, .82);
+    transition: top .3s cubic-bezier(.3,.7,.3,1), left .3s cubic-bezier(.3,.7,.3,1),
+                width .3s ease, height .3s ease;
+  }
+  /* Un halo qui respire, pour que l'oeil sache ou aller sans qu'on l'ecrive. */
+  .tuto-trou::after {
+    content: ''; position: absolute; inset: -2px; border-radius: inherit;
+    border: 2px solid rgba(201, 153, 46, .9);
+    animation: tuto-halo 2s ease-in-out infinite;
+  }
+  @keyframes tuto-halo {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(201, 153, 46, .45); opacity: .9; }
+    50%      { box-shadow: 0 0 0 10px rgba(201, 153, 46, 0); opacity: 1; }
+  }
+  .tuto-bulle {
+    position: fixed; left: 12px; right: 12px; max-width: 430px; margin: 0 auto;
+    pointer-events: auto; padding: 16px 18px 14px; border-radius: 18px;
+    background: linear-gradient(180deg, #1b2133, #161a28);
+    border: 1px solid rgba(255, 255, 255, .1);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .06);
+    animation: tuto-venue .32s cubic-bezier(.2,.8,.3,1) both;
+  }
+  /* Une pointe relie la bulle a l'element eclaire : on voit de quoi on parle. */
+  .tuto-bulle::before {
+    content: ''; position: absolute; left: var(--fleche, 50%); width: 14px; height: 14px;
+    margin-left: -7px; background: inherit; transform: rotate(45deg);
+  }
+  .tuto-bulle.sous::before {
+    top: -8px; border-left: 1px solid rgba(255, 255, 255, .1);
+    border-top: 1px solid rgba(255, 255, 255, .1);
+  }
+  .tuto-bulle.sur::before {
+    bottom: -8px; border-right: 1px solid rgba(255, 255, 255, .1);
+    border-bottom: 1px solid rgba(255, 255, 255, .1);
+  }
+  @keyframes tuto-venue {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: none; }
+  }
+  .tuto-points { display: flex; gap: 5px; margin-bottom: 10px; }
+  .tuto-points i {
+    width: 16px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, .14);
+  }
+  .tuto-points i.fait { background: rgba(246, 241, 228, .45); }
+  .tuto-points i.ici { background: #c9992e; }
+  .tuto-bulle h4 {
+    margin: 0 0 6px; font-family: var(--display); font-weight: 600;
+    font-size: 17.5px; line-height: 1.25; color: var(--ivory);
+  }
+  .tuto-bulle p {
+    margin: 0 0 14px; font-size: 13.5px; line-height: 1.55; color: var(--glass);
+  }
+  .tuto-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .tuto-btn {
+    padding: 11px 20px; border: 0; border-radius: 12px; font: inherit; font-weight: 650;
+    font-size: 14px; color: #1b1406; background: linear-gradient(180deg, #d9aa3d, #b8861f);
+    box-shadow: inset 0 1px 0 rgba(255, 236, 190, .5); cursor: pointer;
+  }
+  .tuto-geste {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12.5px; color: var(--glass-dim);
+  }
+  .tuto-geste::before {
+    content: ''; width: 7px; height: 7px; border-radius: 50%; background: #c9992e;
+    animation: tuto-halo 1.6s ease-in-out infinite;
+  }
+  .tuto-passer {
+    margin-left: auto; padding: 8px 2px; border: 0; background: none; font: inherit;
+    font-size: 12.5px; color: var(--glass-dim); cursor: pointer;
+  }
+  .tuto-passer:active { color: var(--ivory); }
+
   .chrono-fixe {
     display: inline-block; min-width: 3.6em; text-align: left;
     font-variant-numeric: tabular-nums;
@@ -3135,7 +3214,7 @@
 </main>
 
 <main id="view-raid" hidden>
-  <nav class="sous-tabs">
+  <nav class="sous-tabs" id="sous-tabs-raid">
     <button id="sub-raid" class="sous-tab is-active">Raid</button>
     <button id="sub-duel" class="sous-tab">Duel</button>
     <button id="sub-hist" class="sous-tab">Histoire</button>
@@ -4880,6 +4959,165 @@
     }
     return d;
   }
+
+  /* ================= Guide de premiere partie =================
+     Cinq etapes accrochees a des GESTES, pas a des ecrans de texte : tant que
+     le joueur n'a pas fait le geste, on n'avance pas. Les autres onglets sont
+     bloques pendant ce temps — c'est la premiere partie, il n'y a rien a y
+     faire encore. Le guide ne se joue qu'une fois, et la progression est
+     retenue : ferme a l'etape 3, on reprend a l'etape 3. */
+  var TUTO_CLE = 'wikigacha:tuto';
+  var tutoEtape = 0, tutoTic = null, tutoDefile = false;
+
+  var TUTO = [
+    { cible: '#pack', titre: 'Votre première pochette',
+      texte: 'Tirez la languette dorée vers la droite pour l’ouvrir. Chaque pochette '
+           + 'contient cinq articles de Wikipédia, tirés au hasard.',
+      geste: 'Tirez la languette',
+      auto: function () { return !el('reveal').hidden; } },
+    { cible: '#flipper', titre: 'Votre première carte',
+      texte: 'Sa rareté vient de la qualité de l’article, son attaque de sa fréquentation '
+           + 'et ses points de vie de sa longueur. Touchez la carte pour voir les suivantes.' },
+    { cible: '#tab-collec', titre: 'Votre collection',
+      texte: 'Toutes vos cartes s’y rangent. Les doublons ne sont pas perdus : ils montent '
+           + 'vos cartes en étoiles, et les étoiles renforcent leurs statistiques.',
+      geste: 'Touchez Collection',
+      auto: function () { return el('tab-collec').classList.contains('is-active'); } },
+    { cible: '#tab-raid', titre: 'Jouer',
+      texte: 'Ici se jouent les combats. Vous y composez une équipe de six cartes : trois '
+           + 'devant, qui encaissent, et trois derrière, à l’abri tant que la ligne avant tient.',
+      geste: 'Touchez Jouer',
+      auto: function () { return el('tab-raid').classList.contains('is-active'); } },
+    { cible: '#sous-tabs-raid', titre: 'Deux façons de se battre',
+      texte: 'Le raid oppose votre équipe à l’article du jour, avec tout le monde sur le même '
+           + 'adversaire. Le duel vous oppose à l’équipe d’un autre joueur. À vous de jouer.',
+      fin: true }
+  ];
+
+  function tutoLire() {
+    try { return JSON.parse(localStorage.getItem(TUTO_CLE)) || {}; } catch (e) { return {}; }
+  }
+  function tutoEcrire(d) {
+    try { localStorage.setItem(TUTO_CLE, JSON.stringify(d)); } catch (e) {}
+  }
+
+  function tutoFinir() {
+    tutoEtape = 0;
+    if (tutoTic) { clearInterval(tutoTic); tutoTic = null; }
+    var v = el('tuto'); if (v) v.remove();
+    tutoEcrire({ fini: true });
+  }
+
+  function tutoPlacer() {
+    var v = el('tuto'); if (!v) return;
+    var pas = TUTO[tutoEtape - 1];
+    var c = document.querySelector(pas.cible);
+    var trou = v.querySelector('.tuto-trou'), bulle = v.querySelector('.tuto-bulle');
+    if (!c) { trou.style.display = 'none'; return; }
+    trou.style.display = '';
+    var r = c.getBoundingClientRect(), m = 8;
+    trou.style.top = (r.top - m) + 'px';
+    trou.style.left = (r.left - m) + 'px';
+    trou.style.width = (r.width + m * 2) + 'px';
+    trou.style.height = (r.height + m * 2) + 'px';
+
+    /* La bulle ne doit JAMAIS couvrir ce qu'on demande de toucher : elle se met
+       du cote ou il reste le plus de place, et si aucun cote n'en offre assez,
+       on fait defiler la page pour en creer. */
+    var h = bulle.offsetHeight || 170;
+    var basBarre = 58 + 12;                 /* barre de navigation + marge */
+    var placeHaut = r.top - 16;
+    var placeBas = window.innerHeight - r.bottom - 16 - basBarre;
+    if (placeHaut < h && placeBas < h && !tutoDefile) {
+      /* Pas assez de place : on pousse la cible vers le haut de l'ecran. */
+      tutoDefile = true;
+      var vise = Math.max(0, window.scrollY + r.top - 90);
+      window.scrollTo({ top: vise, behavior: 'smooth' });
+      setTimeout(function () { tutoDefile = false; }, 600);
+      return;
+    }
+    var sous = (placeBas >= h || placeBas >= placeHaut);
+    bulle.style.top = sous
+      ? Math.min(window.innerHeight - basBarre - h, r.bottom + 16) + 'px'
+      : Math.max(12, r.top - 16 - h) + 'px';
+    bulle.classList.toggle('sous', sous);
+    bulle.classList.toggle('sur', !sous);
+    /* La pointe se place a l'aplomb de la cible, sans sortir de la bulle. */
+    var b = bulle.getBoundingClientRect();
+    var x = Math.min(Math.max(r.left + r.width / 2, b.left + 22), b.right - 22) - b.left;
+    bulle.style.setProperty('--fleche', x + 'px');
+  }
+
+  function tutoAfficher() {
+    var pas = TUTO[tutoEtape - 1];
+    if (!pas) { tutoFinir(); return; }
+    var v = el('tuto');
+    if (!v) {
+      v = document.createElement('div');
+      v.className = 'tuto'; v.id = 'tuto';
+      v.innerHTML = '<div class="tuto-trou"></div><div class="tuto-bulle">'
+        + '<div class="tuto-points"></div><h4></h4><p></p>'
+        + '<div class="tuto-actions">'
+        + '<button class="tuto-btn" data-tuto-suivant="1"></button>'
+        + '<span class="tuto-geste"></span>'
+        + '<button class="tuto-passer" data-tuto-passer="1">Passer</button></div></div>';
+      document.body.appendChild(v);
+    }
+    var points = '';
+    for (var k = 1; k <= TUTO.length; k++) {
+      points += '<i class="' + (k < tutoEtape ? 'fait' : (k === tutoEtape ? 'ici' : '')) + '"></i>';
+    }
+    v.querySelector('.tuto-points').innerHTML = points;
+    v.querySelector('h4').textContent = pas.titre;
+    v.querySelector('p').textContent = pas.texte;
+    var suivant = v.querySelector('[data-tuto-suivant]');
+    var geste = v.querySelector('.tuto-geste');
+    suivant.textContent = pas.fin ? 'Commencer à jouer' : 'Continuer';
+    /* Quand l'etape attend un geste, le bouton ne doit pas permettre de sauter
+       l'etape : il laisse la place a un rappel de ce qu'on attend. */
+    suivant.hidden = !!pas.auto;
+    geste.hidden = !pas.auto;
+    geste.textContent = pas.geste || '';
+    tutoPlacer();
+    if (tutoTic) clearInterval(tutoTic);
+    tutoTic = setInterval(function () {
+      tutoPlacer();
+      var p = TUTO[tutoEtape - 1];
+      if (p && p.auto && p.auto()) tutoAvancer();
+    }, 300);
+  }
+
+  function tutoAvancer() {
+    tutoEtape += 1;
+    if (tutoEtape > TUTO.length) { tutoFinir(); return; }
+    tutoEcrire({ etape: tutoEtape });
+    tutoAfficher();
+  }
+
+  function tutoDemarrer() {
+    var d = tutoLire();
+    if (d.fini) return;
+    /* Un joueur qui a deja une collection n'a pas besoin qu'on lui explique. */
+    if (!d.etape && Object.keys(collection).length > 4) { tutoEcrire({ fini: true }); return; }
+    tutoEtape = d.etape || 1;
+    tutoEcrire({ etape: tutoEtape });
+    tutoAfficher();
+  }
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest) return;
+    if (e.target.closest('[data-tuto-passer]')) { tutoFinir(); return; }
+    if (e.target.closest('[data-tuto-suivant]')) { tutoAvancer(); return; }
+    if (!tutoEtape) return;
+    /* Pendant le guide, les autres onglets sont hors service : il n'y a encore
+       rien a y faire, et s'y perdre des la premiere minute fait fermer le jeu. */
+    var onglet = e.target.closest('.tab, .sous-tab');
+    if (!onglet) return;
+    var pas = TUTO[tutoEtape - 1];
+    var permis = pas && document.querySelector(pas.cible);
+    if (permis && (permis === onglet || permis.contains(onglet))) return;
+    e.preventDefault(); e.stopPropagation();
+  }, true);
 
   function refreshCount() {
     el('coll-count').textContent = '(' + Object.keys(collection).length + ')';
@@ -13535,6 +13773,8 @@
   refreshSucces();
   refreshPacks();
   setInterval(refreshPacks, 1000);
+  /* Apres le premier rendu, sans quoi les elements a montrer n'existent pas. */
+  setTimeout(tutoDemarrer, 900);
 })();
 </script>
 </body>
