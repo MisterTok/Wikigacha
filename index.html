@@ -1711,6 +1711,62 @@
      se touchent directement, et la contribution de chaque membre se lit en
      barres — c'est un combat commun, il doit se voir comme tel. */
   .rc2-boss { margin-bottom: 12px; }
+
+  /* ---------- Raid, avant l'assaut ---------- */
+  .raid-heros { margin: 0 -16px; padding: 0 16px; }
+  .raid-heros .rs-boss { margin-bottom: 10px; }
+  .raid-heros .rc2-rang { max-width: calc(100% - 24px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .raid-resume { margin: 0 2px 6px; font-size: 13px; line-height: 1.5; color: var(--glass); }
+  .raid-stats {
+    margin: 0 2px 16px; font-size: 12px; color: var(--glass-dim); font-variant-numeric: tabular-nums;
+  }
+  .raid-stats b { color: var(--ivory); font-weight: 600; }
+  .raid-stats span { display: inline-block; width: 14px; }
+
+  .piste { margin: 0 0 18px; padding: 14px 16px 6px; border-radius: var(--r-m);
+    background: var(--night-up); border: 1px solid var(--night-line); }
+  .piste-barre {
+    position: relative; height: 8px; margin: 6px 7px 0; border-radius: 999px;
+    background: rgba(255, 255, 255, .08);
+  }
+  .piste-barre > i {
+    position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit;
+    background: linear-gradient(90deg, #b8861f, #e0b247);
+  }
+  .piste-jalon {
+    position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px;
+    border-radius: 50%; background: #151a28; border: 2px solid rgba(255, 255, 255, .22);
+  }
+  .piste-jalon.atteint { background: #e0b247; border-color: #e0b247; box-shadow: 0 0 10px rgba(224,178,71,.6); }
+  .piste-gains { position: relative; height: 30px; margin: 10px 7px 0; }
+  .piste-gain {
+    position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap;
+    font-size: 11.5px; color: var(--glass-dim); font-variant-numeric: tabular-nums;
+  }
+  .piste-gain:last-child { transform: translateX(-100%); }
+  .piste-gain.pris { color: #7fbf98; }
+  button.piste-gain.pret {
+    padding: 4px 9px; border: 0; border-radius: 999px; font: inherit; font-size: 11.5px;
+    font-weight: 700; color: #1b1406; cursor: pointer;
+    background: linear-gradient(180deg, #e0b247, #c19023);
+    box-shadow: 0 0 0 0 rgba(224, 178, 71, .6); animation: piste-appel 1.6s ease-in-out infinite;
+  }
+  @keyframes piste-appel { 50% { box-shadow: 0 0 0 6px rgba(224, 178, 71, 0); } }
+  .piste .recompense-msg { margin: 2px 0 8px; font-size: 11.5px; }
+  .piste .recompense-msg:empty { display: none; }
+
+  .raid-journal { margin: 0 0 16px; font-size: 12px; color: var(--glass-dim); }
+  .raid-journal summary { cursor: pointer; padding: 6px 2px; color: var(--glass); }
+  .raid-journal div { padding: 3px 2px; line-height: 1.45; }
+
+  .assaut-tete { display: flex; align-items: center; gap: 12px; margin: 4px 0 8px; }
+  .assaut-tete h3 {
+    margin: 0; font-family: var(--display); font-weight: 600; font-size: 19px; color: var(--ivory);
+  }
+  .assaut-tete .aide-btn { margin-left: auto; }
+  .puissance { margin: 0 2px 12px; font-size: 13px; line-height: 1.5; color: var(--glass); }
+  .puissance b { color: #f0dda4; }
+  @media (prefers-reduced-motion: reduce) { button.piste-gain.pret { animation: none; } }
   .rc2-boss .rs-boss-img { height: 180px; }
   .rc2-rang {
     position: absolute; top: 10px; left: 12px; z-index: 2;
@@ -7423,47 +7479,72 @@
         + '<p>Un nouvel article vous attend demain.</p></div>';
     }
 
-    html += '<div class="boss" style="--tier:' + t.color + '">'
-      + '<p class="boss-tag">ARTICLE DU JOUR · ' + esc(b.rank.toUpperCase()) + '</p>'
-      + '<h2>' + esc(b.title) + '</h2>'
-      + visuel
-      + '<p class="boss-resume" data-resume="1">' + esc(b.extract || 'Aucun résumé disponible.') + '</p>'
-      + '<div class="bar"><span style="width:' + pct.toFixed(1) + '%"></span>'
-      + '<b>' + etat.pv.toLocaleString('fr-FR') + ' / '
-      + etat.pvMax.toLocaleString('fr-FR') + ' PV</b></div>'
-      + '<div class="boss-meta"><span>ATQ <b>' + b.atk + '</b></span>'
-      + '<span>DÉF <b>' + b.def + '</b></span>'
-      + '<span>Qualité <b>' + b.score + '</b></span></div>'
-      + '<div class="paliers">' + PALIERS.map(function (pl, i) {
+    /* L'adversaire se presente AVANT l'assaut exactement comme il apparaitra
+       pendant : image pleine largeur, nom et vie poses dessus. On reconnait ce
+       qu'on va affronter, et l'ecran perd un bon tiers de hauteur. */
+    var haut = 150 + Math.max(0, rankIndex(b.rank)) * 12;
+    html += '<div class="rs raid-heros"><div class="rs-boss' + (etat.vaincu ? ' rs-vaincu' : '')
+      + '" style="--tier:' + t.color + ';--h:' + haut + 'px">'
+      + '<div class="rs-boss-img">'
+      + (b.thumb ? '<img src="' + esc(b.thumb) + '" alt="">' : artSVG(b.title, t.color))
+      + '</div>'
+      + '<span class="rc2-rang">Article du jour · ' + esc(b.rank) + '</span>'
+      + (etat.vaincu ? '<span class="rs-boss-verdict">Vaincu</span>' : '')
+      + '<div class="rs-boss-pied"><h3 class="rs-boss-nom">' + esc(b.title) + '</h3>'
+      + '<div class="rs-boss-vie"><i style="width:' + pct.toFixed(2) + '%"></i></div>'
+      + '<span class="rs-boss-pv">' + nbFr(etat.pv) + ' / ' + nbFr(etat.pvMax) + ' PV</span>'
+      + '</div></div></div>'
+      + '<p class="boss-resume raid-resume" data-resume="1">'
+      + esc(b.extract || 'Aucun résumé disponible.') + '</p>'
+      + '<p class="raid-stats">Attaque <b>' + b.atk + '</b><span></span>Défense <b>' + b.def + '</b></p>';
+
+    /* Les recompenses sur une piste : la barre avance avec les degats portes,
+       les jalons atteints passent en or, et ce qui est a encaisser brille. */
+    var fait = Math.min(100, Math.max(0, 100 - pct));
+    html += '<div class="piste" role="group" aria-label="Récompenses du raid">'
+      + '<div class="piste-barre"><i style="width:' + fait.toFixed(1) + '%"></i>'
+      + PALIERS.map(function (pl) {
+          return '<span class="piste-jalon' + (fait >= pl.seuil * 100 - 0.01 ? ' atteint' : '')
+            + '" style="left:' + (pl.seuil * 100) + '%"></span>';
+        }).join('') + '</div>'
+      + '<div class="piste-gains">' + PALIERS.map(function (pl, i) {
           var atteint = (etat.paliers || []).indexOf(i) !== -1;
           var pris = (etat.reclames || []).indexOf(i) !== -1;
-          var cls = 'palier' + (pris ? ' pris' : (atteint ? ' pret' : ''));
-          var lib = Math.round(pl.seuil * 100) + '%<br>'
-            + (pris ? 'reçu'
-                    : (pl.or ? '+' + pl.or + ' or'
-                             : '+' + pl.gain + (pl.gain > 1 ? ' paquets' : ' paquet')));
-          return atteint && !pris
-            ? '<button class="' + cls + '" data-claim="' + i + '">' + lib + '</button>'
-            : '<span class="' + cls + '">' + lib + '</span>';
+          var gain = pl.or ? '+' + pl.or + ' or'
+                           : '+' + pl.gain + (pl.gain > 1 ? ' paquets' : ' paquet');
+          var style = 'left:' + (pl.seuil * 100) + '%';
+          if (atteint && !pris) {
+            return '<button class="piste-gain pret" style="' + style + '" data-claim="' + i + '">'
+              + gain + '</button>';
+          }
+          return '<span class="piste-gain' + (pris ? ' pris' : '') + '" style="' + style + '">'
+            + (pris ? '✓ reçu' : gain) + '</span>';
         }).join('') + '</div>'
       + '<p class="recompense-msg" id="recompense-msg">'
       + ((etat.paliers || []).some(function (i) {
             return (etat.reclames || []).indexOf(i) === -1; })
-          ? 'Touchez une récompense pour l’encaisser.' : '')
-      + '</p>'
-      + '</div>';
+          ? 'Touchez une récompense dorée pour l’encaisser.' : '')
+      + '</p></div>';
 
+    /* Le journal ecrit reste consultable, replie : le verdict en tete d'ecran
+       dit deja l'essentiel du dernier assaut. */
     if (etat.journal.length) {
-      html += '<div class="journal">' + etat.journal.slice(-6).map(function (l) {
-        return '<div>' + l + '</div>';
-      }).join('') + '</div>';
+      html += '<details class="raid-journal"><summary>Journal du jour</summary>'
+        + etat.journal.slice(-8).map(function (l) { return '<div>' + l + '</div>'; }).join('')
+        + '</details>';
     }
 
     if (!etat.vaincu) {
       var restants = RAID_ASSAUTS - (etat.assauts || 0);
       var eq = equipeAssaut(etat);
-      html += '<div class="titre-aide"><p class="raid-title">ASSAUT — ' + restants + ' tentative'
-        + (restants > 1 ? 's' : '') + ' sur ' + RAID_ASSAUTS + ' aujourd’hui</p>'
+      /* Une ligne : le titre, les tentatives en pastilles, l'aide. */
+      var pastilles = '';
+      for (var k = 0; k < RAID_ASSAUTS; k++) {
+        pastilles += '<i' + (k < restants ? ' class="pleine"' : '') + '></i>';
+      }
+      html += '<div class="assaut-tete"><h3>Assaut</h3>'
+        + '<span class="rc2-pips" role="img" aria-label="' + restants + ' tentative'
+        + (restants > 1 ? 's' : '') + ' sur ' + RAID_ASSAUTS + ' aujourd’hui">' + pastilles + '</span>'
         + '<button class="aide-btn" data-regles="raid" aria-label="Règles du raid">?</button></div>';
 
       if (restants <= 0) {
@@ -7484,9 +7565,15 @@
             return scCarteHTML(fausse(c, de + k), 'p');
           }).join('') + '</div>';
         };
-        html += '<p class="puissance">Cette équipe vaut environ <b>'
-          + parTour.toLocaleString('fr-FR') + '</b> dégâts par tour, sur '
-          + etat.pv.toLocaleString('fr-FR') + ' PV restants.</p>'
+        /* Ce que le joueur veut savoir avant de lancer : quelle part de la vie
+           de l'adversaire cet assaut peut emporter. « Au mieux », car des cartes
+           tomberont en route. */
+        var part = Math.round(parTour * RAID_TOURS_MAX / Math.max(1, etat.pv) * 100);
+        html += '<p class="puissance">' + (part >= 100
+            ? 'Au mieux, cette équipe peut <b>l’abattre</b> dès cet assaut.'
+            : 'Au mieux, cette équipe peut lui retirer environ <b>' + Math.max(1, part)
+              + ' %</b> de sa vie restante.')
+          + '</p>'
           + '<div class="rs raid-equipe">' + ligneAssaut(0, 3, 'rs-avant')
           + ligneAssaut(3, 6, 'rs-arriere') + '</div>';
         var actionAssaut = '<div class="action-fixe">'
