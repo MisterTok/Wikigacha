@@ -44,7 +44,13 @@
 
     --hud-h: 56px;
     --bar-h: 58px;
-    --safe-b: env(safe-area-inset-bottom, 0px);
+    /* Chrome Android dessine desormais la page sous la barre de navigation du
+       systeme (bord a bord). La marge « inset » varie pendant que Chrome fait
+       glisser son bandeau du bas : la barre du jeu passait en partie dessous,
+       libelles coupes. La marge « max » est la plus grande qu'elle puisse
+       atteindre : on la reserve d'office, la barre ne bouge plus et n'est
+       jamais rognee. Ailleurs, elle vaut zero et rien ne change. */
+    --safe-b: max(env(safe-area-inset-bottom, 0px), env(safe-area-max-inset-bottom, 0px));
     --safe-t: env(safe-area-inset-top, 0px);
     /* Hauteur reelle du bandeau, barre d'etat comprise. */
     --hud-tot: calc(var(--hud-h) + var(--safe-t));
@@ -53,8 +59,16 @@
     --sans: -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   }
   *, *::before, *::after { box-sizing: border-box; }
-  html { background: var(--night); }
+  /* Rien ne doit pouvoir elargir la page : quelques pixels de trop suffisent
+     pour que le telephone la laisse glisser de cote, et la barre du bas —
+     accrochee a la fenetre, pas au contenu — se decale et tressaute.
+     « clip » coupe sans creer de zone de defilement : les elements collants
+     (barre d'action, outils de collection) continuent de coller. */
+  html { background: var(--night); overflow-x: clip; }
   body {
+    overflow-x: clip;
+    /* Double toucher sans zoom (le pincement reste possible). */
+    touch-action: manipulation;
     margin: 0 auto; max-width: 640px;
     padding: 0 16px calc(var(--bar-h) + var(--safe-b) + 28px);
     overscroll-behavior-y: none;
@@ -62,7 +76,11 @@
     background:
       radial-gradient(120% 60% at 50% 0%, #1d2336 0%, transparent 70%),
       var(--night);
-    min-height: 100vh;
+    /* 100vh vaut la hauteur SANS la barre d'adresse : la page depassait
+       l'ecran de cette hauteur, et chaque petit defilement faisait entrer ou
+       sortir la barre d'adresse — donc bouger la barre du bas. dvh suit la
+       hauteur reellement visible. */
+    min-height: 100vh; min-height: 100dvh;
     -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent;
   }
 
@@ -281,7 +299,7 @@
   .tuto-passer:active { color: var(--ivory); }
 
   .chrono-fixe {
-    display: inline-block; min-width: 3.6em; text-align: left;
+    display: inline-block; min-width: 2.4em; text-align: left;
     font-variant-numeric: tabular-nums;
   }
   .pack-stage { position: relative; text-align: center; padding: 30px 0 10px; }
