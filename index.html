@@ -962,7 +962,15 @@
     border-bottom: 1px solid var(--night-line); padding-bottom: 12px; margin-bottom: 16px;
   }
   .coll-stats b { color: var(--ivory); font-variant-numeric: tabular-nums; }
-  .ladder { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  /* Une rangee par famille de filtres, qu'on fait defiler du doigt : les
+     treize pastilles tenaient sur cinq lignes et repoussaient la premiere
+     carte tout en bas de l'ecran. */
+  .ladder {
+    display: flex; flex-wrap: nowrap; gap: 6px; margin: 10px -16px 0; padding: 0 16px 2px;
+    overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  }
+  .ladder::-webkit-scrollbar { display: none; }
+  .ladder > .pip { flex: none; white-space: nowrap; }
   /* Les compteurs de palier servaient deja de repere : ils deviennent le
      filtre lui-meme, plutot que d'empiler une barre d'outils de plus. */
   .pip {
@@ -981,6 +989,8 @@
     opacity: 1; color: #14161f;
     background: color-mix(in srgb, var(--tier, var(--glass)) 78%, var(--ivory));
   }
+  .pip { letter-spacing: .01em; }
+  .pip b { font-weight: 600; color: inherit; margin-left: 2px; font-variant-numeric: tabular-nums; }
   .pip-dom { color: var(--glass-dim); }
   .pip-dom.actif { color: #14161f; background: var(--glass); }
   .ladder-dom { margin-top: 6px; }
@@ -2005,6 +2015,10 @@
   .manche.ko .verdict { color: #8d5050; }
 
   /* --- echange --- */
+  /* Le lien vivait en tete de collection, a la meilleure place, pour une
+     action rare : il est remplace par le bouton cadeau de la barre d'outils,
+     qui ouvre le meme encadre. */
+  #echange-plier { display: none; }
   .echange-lien {
     display: block; width: 100%; text-align: left; margin-bottom: 16px;
     padding: 0; background: none; border: 0; cursor: pointer;
@@ -2034,9 +2048,15 @@
   }
 
   /* --- outils de collection --- */
-  .outils { margin-bottom: 16px; }
-  .outils .code-champ { width: 100%; margin-bottom: 8px; }
-  .outils-ligne { display: flex; gap: 8px; }
+  /* Recherche et tri sur une meme ligne. */
+  .outils { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .outils .code-champ { flex: 1 1 110px; width: auto; min-width: 0; margin-bottom: 0; }
+  .outils-ligne { display: flex; gap: 8px; flex: 1 1 230px; min-width: 0; }
+  /* Le menu de tri prenait la largeur de sa plus longue option et poussait la
+     recherche sur une autre ligne : il se contente de la place qui reste. */
+  .outils-ligne .tri { flex: 1 1 0; width: 0; min-width: 0; }
+  .outils .tri-btn { flex: none; width: 42px; padding: 0; }
+  .outils .actifs { flex-basis: 100%; }
   .tri {
     flex: 1 1 auto; min-width: 0; padding: 10px;
     background: var(--night-up); border: 1px solid var(--night-line);
@@ -2138,6 +2158,41 @@
   }
   .sous-tab:active { transform: translateY(1px); }
   .sous-tab.is-active { background: var(--night-up); color: var(--ivory); border-color: var(--glass-dim); }
+
+  /* --- quiz : accueil --- */
+  .qz-carte {
+    margin: 0 0 6px; padding: 22px 16px 16px; text-align: center; border-radius: var(--r-l);
+    background:
+      radial-gradient(110% 80% at 50% 0%, rgba(74, 92, 140, .28), rgba(0, 0, 0, 0) 64%),
+      linear-gradient(180deg, #1c2233, #151a28);
+    border: 1px solid rgba(255, 255, 255, .08);
+  }
+  .qz-grand {
+    display: block; font-family: var(--display); font-weight: 600; font-size: 52px;
+    line-height: 1; color: var(--ivory);
+  }
+  .qz-legende { display: block; margin-top: 4px; font-size: 13px; color: var(--glass); }
+  .qz-gains { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 18px 0 14px; }
+  .qz-gains div {
+    padding: 11px 8px; border-radius: 12px;
+    background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .07);
+  }
+  .qz-gains b {
+    display: block; font-family: var(--display); font-size: 22px; color: #f0dda4;
+    font-variant-numeric: tabular-nums;
+  }
+  .qz-gains span { display: block; margin-top: 2px; font-size: 11px; line-height: 1.35; color: var(--glass-dim); }
+  .qz-jour {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, .07);
+    font-size: 12px; color: var(--glass-dim);
+  }
+  .qz-pastilles { display: flex; gap: 6px; }
+  .qz-pastilles i {
+    width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid rgba(201, 153, 46, .55);
+  }
+  .qz-pastilles i.plein { background: #c9992e; border-color: #c9992e; }
+  .qz-fin { margin: 14px 2px; font-size: 13px; line-height: 1.55; color: var(--glass-dim); text-align: center; }
 
   /* --- quiz --- */
   .quiz-question {
@@ -2451,6 +2506,24 @@
   }
   .album-plein { border-left-color: #c9992e; }
   .album-tete { display: flex; justify-content: space-between; align-items: baseline; }
+  /* Un album se lit replie : titre, progression, recompense. Ses cases ne
+     s'affichent qu'a la demande — sept cases vides pour dire « 0 / 7 »
+     occupaient un ecran entier. */
+  button.album-tete {
+    width: 100%; padding: 0; border: 0; background: none; font: inherit; color: inherit;
+    text-align: left; cursor: pointer; gap: 10px;
+  }
+  .album-fleche { margin-left: 6px; font-size: 11px; color: var(--glass-dim); transition: transform .2s ease; }
+  .album.ouvert .album-fleche { transform: rotate(90deg); }
+  .album-barre {
+    height: 5px; margin: 10px 0 8px; border-radius: 999px; overflow: hidden;
+    background: rgba(255, 255, 255, .07);
+  }
+  .album-barre i { display: block; height: 100%; border-radius: inherit; background: #c9992e; }
+  .album-gain { margin: 0; font-size: 12px; color: var(--glass-dim); }
+  .album-gain b { color: #f0dda4; font-weight: 600; }
+  .album-detail { margin-top: 12px; }
+  .album-plein .btn { margin-top: 12px; }
   .album-nom { font-family: var(--display); font-size: 17px; color: var(--ivory); }
   .album-prog { font-size: 12px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
   .album-plein .album-prog { color: #c9992e; }
@@ -2591,7 +2664,24 @@
     display: block; margin-top: 5px; font-size: 11.5px; color: var(--glass-dim);
     font-variant-numeric: tabular-nums;
   }
-  .chap-tete { display: flex; justify-content: space-between; align-items: baseline; }
+  /* L'embleme touchait le titre : un ecart, et un alignement au centre. */
+  .chap-tete { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  /* Un chapitre termine n'a plus rien a dire que son titre : il se replie en
+     une ligne, et laisse la place au chapitre a jouer. */
+  .chapitre.fini { padding-top: 10px; padding-bottom: 10px; }
+  .chapitre.fini .chap-barre, .chapitre.fini .chap-etat, .chapitre.fini .chap-dom { display: none; }
+  .chapitre.fini .chap-embleme { width: 30px; height: 30px; font-size: 15px; }
+  .chapitre.fini .chap-nom { font-size: 14.5px; color: var(--glass); }
+  .chapitre.suivant {
+    border-color: rgba(201, 153, 46, .6);
+    box-shadow: 0 0 0 1px rgba(201, 153, 46, .25), 0 12px 26px -16px rgba(201, 153, 46, .6);
+  }
+  .chap-suivant-tag {
+    display: inline-block; margin-bottom: 8px; padding: 2px 9px; border-radius: 999px;
+    font-size: 10px; font-weight: 700; letter-spacing: .04em; color: #1b1406;
+    background: linear-gradient(180deg, #e0b247, #c19023);
+  }
+  .hist-sep { margin: 18px 0 8px; font-size: 11px; letter-spacing: .12em; color: var(--glass-dim); }
   .chap-nom { font-family: var(--display); font-size: 16px; color: var(--ivory); }
   .chap-prog { font-size: 12px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
   .chapitre.fini .chap-prog { color: #c9992e; }
@@ -3519,6 +3609,7 @@
         <option value="ancien">Plus anciennes d’abord</option>
       </select>
       <button id="coll-favonly" class="tri-btn" aria-label="Favoris">★</button>
+      <button id="coll-cadeau" class="tri-btn" aria-label="Recevoir une carte offerte par un ami">🎁</button>
       <button id="coll-vue" class="tri-btn" aria-label="Affichage">▦</button>
     </div>
     <div id="coll-actifs" class="actifs" hidden></div>
@@ -9692,21 +9783,37 @@
           : 'Chaque chapitre se joue avec les cartes de son domaine.')
       + '</p>';
 
-    CHAPITRES.forEach(function (ch) {
+    /* Ordre de lecture : ce qu'on peut jouer, puis ce qui est bloque, puis ce
+       qui est termine, replie. Le prochain chapitre a jouer est mis en avant. */
+    var rang = function (ch) {
+      var f = prog[ch.id] || 0, t = ch.niveaux.length;
+      if (f >= t) return 2;
+      return cartesDomaine(ch.domaine).length >= 3 ? 0 : 1;
+    };
+    var ordonnes = CHAPITRES.slice().sort(function (a, b) { return rang(a) - rang(b); });
+    var suivantId = ordonnes.length && rang(ordonnes[0]) === 0 ? ordonnes[0].id : null;
+    var sepFaite = false;
+    ordonnes.forEach(function (ch) {
       var fait = prog[ch.id] || 0;
       var total = ch.niveaux.length;
       var termine = fait >= total;
       var dispo = cartesDomaine(ch.domaine).length;
       var jouable = dispo >= 3;
+      if (termine && !sepFaite) {
+        sepFaite = true;
+        html += '<p class="hist-sep">TERMINÉS</p>';
+      }
       /* L'état se lit maintenant AVANT d'entrer : on ne découvre plus en
          ouvrant le chapitre qu'on n'a pas assez de cartes. */
       var etat = termine ? 'Terminé'
                : (!jouable ? (3 - dispo) + ' carte' + (3 - dispo > 1 ? 's' : '') + ' manquante'
                              + (3 - dispo > 1 ? 's' : '')
                            : (fait ? 'En cours' : 'À commencer'));
+      var estSuivant = ch.id === suivantId;
       html += '<button class="chapitre' + (termine ? ' fini' : '')
-        + (jouable ? '' : ' bloque') + '" data-chap="' + ch.id + '" '
+        + (jouable ? '' : ' bloque') + (estSuivant ? ' suivant' : '') + '" data-chap="' + ch.id + '" '
         + 'style="--dom:' + teinteDom(ch.domaine) + '">'
+        + (estSuivant ? '<span class="chap-suivant-tag">À JOUER</span>' : '')
         + '<span class="chap-tete">'
         + '<span class="chap-embleme">' + esc(ch.nom.charAt(0)) + '</span>'
         + '<span class="chap-corps">'
@@ -9714,7 +9821,7 @@
         + '<span class="chap-dom">' + esc(domaineNom(ch.domaine)) + ' · '
         + dispo + ' carte' + (dispo > 1 ? 's' : '') + ' en réserve</span>'
         + '</span>'
-        + '<span class="chap-prog">' + fait + ' / ' + total + '</span>'
+        + '<span class="chap-prog">' + (termine ? '✓ ' : '') + fait + ' / ' + total + '</span>'
         + '</span>'
         + '<span class="chap-barre"><span style="width:'
         + Math.round(fait / total * 100) + '%"></span></span>'
@@ -11505,17 +11612,27 @@
 
     if (!quizSession) {
       var reste = quizRestants();
+      /* L'ecran d'accueil dit ce qu'on gagne en chiffres, pas en phrase, et
+         montre les quiz du jour comme des pastilles qu'on consomme. */
+      var total = Math.max(QUIZ_PAR_JOUR, reste);
+      var pastilles = '';
+      for (var k = 0; k < total; k++) pastilles += '<i' + (k < reste ? ' class="plein"' : '') + '></i>';
+      var carte = '<div class="qz-carte">'
+        + '<span class="qz-grand">' + QUIZ_TAILLE + '</span>'
+        + '<span class="qz-legende">questions sur des articles de Wikipédia</span>'
+        + '<div class="qz-gains">'
+        + '<div><b>+' + QUIZ_GAIN + '</b><span>Wikigold par bonne réponse</span></div>'
+        + '<div><b>+1</b><span>paquet pour un sans-faute</span></div></div>'
+        + '<div class="qz-jour"><span>Quiz du jour</span><span class="qz-pastilles">'
+        + pastilles + '</span></div></div>';
       if (reste < 1) {
-        body.innerHTML = '<p class="hist-titre">QUIZ DU JOUR</p>'
-          + '<p class="duel-intro">Vous avez fait vos ' + QUIZ_PAR_JOUR
-          + ' quiz aujourd’hui. De nouveaux vous attendent demain.</p>';
+        body.innerHTML = '<p class="hist-titre">QUIZ DU JOUR</p>' + carte
+          + '<p class="qz-fin">Vos quiz du jour sont faits. De nouveaux vous attendent demain.</p>';
       } else {
-        body.innerHTML = '<p class="hist-titre">QUIZ DU JOUR</p>'
-          + '<p class="duel-intro">Cinq questions de culture sur des articles de '
-          + 'Wikipédia. Chaque bonne réponse rapporte ' + QUIZ_GAIN + ' Wikigold, '
-          + 'et un <b>paquet</b> récompense le sans-faute. '
-          + 'Il vous reste ' + reste + ' quiz aujourd’hui.</p>'
-          + '<button class="btn btn-solid" id="quiz-start">Commencer le quiz</button>';
+        body.innerHTML = '<p class="hist-titre">QUIZ DU JOUR</p>' + carte
+          + '<div class="action-fixe"><button class="btn btn-solid btn-action" id="quiz-start">'
+          + 'Commencer le quiz<span class="btn-sous">' + reste + ' restant'
+          + (reste > 1 ? 's' : '') + ' aujourd’hui</span></button></div>';
       }
       return;
     }
@@ -12928,22 +13045,34 @@
     }
   }
 
+  /* Albums deplies : en memoire seulement. Par defaut, seul un album complet
+     et non reclame s'ouvre de lui-meme. */
+  var albumsOuverts = {};
+
   function showAlbums() {
     var reclames = albumsReclames();
+    /* L'ancienne phrase promettait des paquets : la recompense reelle est du
+       Wikigold, dite desormais sur chaque album. */
     var html = '<p class="coll-stats" style="border:0;padding:0">Complétez des séries '
-      + 'd’articles en ouvrant des paquets. Chaque série complète offre des paquets bonus.</p>';
+      + 'd’articles en ouvrant des paquets. Touchez un album pour voir ce qui manque.</p>';
 
     SERIES.forEach(function (s) {
       var e = etatSerie(s);
       var complet = e.trouves >= e.total;
       var pris = reclames.indexOf(s.id) !== -1;
-      html += '<div class="album' + (complet ? ' album-plein' : '') + '">'
-        + '<div class="album-tete"><span class="album-nom">' + esc(s.nom) + '</span>'
+      var ouvert = !!albumsOuverts[s.id];
+      html += '<div class="album' + (complet ? ' album-plein' : '') + (ouvert ? ' ouvert' : '') + '">'
+        + '<button class="album-tete" data-album-plier="' + esc(s.id) + '" aria-expanded="'
+        + ouvert + '"><span class="album-nom">' + esc(s.nom) + '</span>'
         + '<span class="album-prog">' + e.trouves + ' / ' + e.total
-        + (complet ? ' ✓' : '') + '</span></div>'
-        + '<p class="album-desc">' + esc(s.desc) + '</p>'
-        + '<div class="album-cases">'
-        + s.articles.map(function (a) {
+        + (complet ? ' ✓' : '') + '<span class="album-fleche">›</span></span></button>'
+        + '<div class="album-barre"><i style="width:' + Math.round(e.trouves / e.total * 100)
+        + '%"></i></div>'
+        + '<p class="album-gain">' + (pris ? 'Récompense reçue'
+            : 'Récompense : <b>' + (s.gain * 20) + ' Wikigold</b>') + '</p>'
+        + (ouvert ? '<div class="album-detail"><p class="album-desc">' + esc(s.desc) + '</p>'
+          + '<div class="album-cases">' : '')
+        + (ouvert ? s.articles.map(function (a) {
             var c = e.possede[cleTitre(a)];
             if (c) {
               var visuel = c.thumb
@@ -12954,15 +13083,14 @@
             }
             return '<div class="album-case vide" title="' + esc(a) + '">'
               + '<span>' + esc(a.charAt(0)) + '</span></div>';
-          }).join('')
-        + '</div>'
-        + (complet
-            ? (pris
-                ? '<p class="album-fait">Série complète · récompense reçue</p>'
-                : '<button class="btn btn-solid" data-album-go="' + s.id + '">'
-                  + 'Réclamer ' + (s.gain * 20) + ' Wikigold</button>')
-            : '<p class="album-manque">Encore ' + (e.total - e.trouves)
+          }).join('') : '')
+        + (ouvert ? '</div>'
+            + (complet ? '' : '<p class="album-manque">Encore ' + (e.total - e.trouves)
               + ' article' + (e.total - e.trouves > 1 ? 's' : '') + ' à trouver</p>')
+            + '</div>' : '')
+        + (complet && !pris
+            ? '<button class="btn btn-solid" data-album-go="' + s.id + '">'
+              + 'Réclamer ' + (s.gain * 20) + ' Wikigold</button>' : '')
         + '</div>';
     });
     el('coll-albums').innerHTML = html;
@@ -13043,10 +13171,12 @@
          joueur cherche des yeux, pas les Communes. */
       var pips = TIERS.slice().reverse().map(function (t) {
         var n = items.filter(function (c) { return c.rank === t.name; }).length;
+        /* Meme casse que les domaines : les capitales espacees d'une rangee
+           et les minuscules de l'autre se contredisaient. */
         return '<button class="pip' + (vue.rang === t.name ? ' actif' : '') + '" '
           + 'style="--tier:' + t.color + '" data-rang="' + esc(t.name) + '"'
           + (n ? '' : ' disabled') + '>'
-          + t.name.toUpperCase() + ' ' + n + '</button>';
+          + esc(t.name) + ' <b>' + n + '</b></button>';
       }).join('');
 
       /* Domaines : on ne montre que ceux reellement presents en collection. */
@@ -13058,11 +13188,11 @@
       var doms = DOMAINES.filter(function (dd) { return parDom[dd.id]; })
         .map(function (dd) {
           return '<button class="pip pip-dom' + (vue.dom === dd.id ? ' actif' : '') + '" '
-            + 'data-dom="' + esc(dd.id) + '">' + esc(dd.nom) + ' ' + parDom[dd.id] + '</button>';
+            + 'data-dom="' + esc(dd.id) + '">' + esc(dd.nom) + ' <b>' + parDom[dd.id] + '</b></button>';
         }).join('');
       if (parDom.divers) {
         doms += '<button class="pip pip-dom' + (vue.dom === 'divers' ? ' actif' : '') + '" '
-          + 'data-dom="divers">Divers ' + parDom.divers + '</button>';
+          + 'data-dom="divers">Divers <b>' + parDom.divers + '</b></button>';
       }
 
       el('coll-stats').innerHTML = '<b>' + items.length + '</b> articles distincts sur <b>'
@@ -13384,6 +13514,12 @@
     var o = e.target.closest ? e.target.closest('[data-offrir]') : null;
     if (o) offrir(o.getAttribute('data-offrir'));
   });
+  el('coll-cadeau').addEventListener('click', function () {
+    el('echange-plier').click();
+    var b = el('echange-bloc');
+    el('coll-cadeau').classList.toggle('actif', !b.hidden);
+    if (!b.hidden) b.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
   el('echange-plier').addEventListener('click', function () {
     var b = el('echange-bloc');
     b.hidden = !b.hidden;
@@ -13451,6 +13587,13 @@
   el('sub-albums').addEventListener('click', function () { sousCartes = 'albums'; basculerColl('albums'); });
   el('coll-albums').addEventListener('click', function (e) {
     if (!e.target.closest) return;
+    var pl = e.target.closest('[data-album-plier]');
+    if (pl) {
+      var ida = pl.getAttribute('data-album-plier');
+      albumsOuverts[ida] = !albumsOuverts[ida];
+      showAlbums(); vib(5);
+      return;
+    }
     var go = e.target.closest('[data-album-go]');
     if (go) { reclamerAlbum(go.getAttribute('data-album-go')); return; }
     var c = e.target.closest('[data-album-carte]');
