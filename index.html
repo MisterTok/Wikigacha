@@ -219,6 +219,306 @@
   /* Largeur reservee : sans elle, « 9:09 » et « 9:20 » ne mesurent pas tout a
      fait pareil, la ligne se recoupait autrement d'une seconde a l'autre et
      toute la page sautait d'une ligne. */
+  /* ================= Cosmetiques (genere) =================
+     Chaque style existe deux fois : porte (classe sur body) et en apercu
+     (classe sur une vignette de boutique ou du passe). */
+  body.cadre-argent .fig, body.cadre-argent .card-thumb, body.cadre-argent .card-thumb-alt, body.cadre-argent .sheet-vue, .cx-argent { outline: 3px double #cfd3de; outline-offset: -6px; }
+  body.cadre-marbre .fig, body.cadre-marbre .card-thumb, body.cadre-marbre .card-thumb-alt, body.cadre-marbre .sheet-vue, .cx-marbre { outline: 4px ridge #d8d2c4; outline-offset: -6px; }
+  body.cadre-neon .fig, body.cadre-neon .card-thumb, body.cadre-neon .card-thumb-alt, body.cadre-neon .sheet-vue, .cx-neon { outline: 2px solid #6ef3ff; outline-offset: -5px; animation: cx-neon 2.2s ease-in-out infinite; }
+  body.cadre-s1-filet-saison .fig, body.cadre-s1-filet-saison .card-thumb, body.cadre-s1-filet-saison .card-thumb-alt, body.cadre-s1-filet-saison .sheet-vue, .cx-s1-filet-saison { outline: 2px solid rgba(240,221,164,.85); outline-offset: -5px; }
+  body.cadre-s1-filet-or .fig, body.cadre-s1-filet-or .card-thumb, body.cadre-s1-filet-or .card-thumb-alt, body.cadre-s1-filet-or .sheet-vue, .cx-s1-filet-or { outline: 3px double #e0b247; outline-offset: -6px; }
+  body.cadre-s1-enluminure .fig, body.cadre-s1-enluminure .card-thumb, body.cadre-s1-enluminure .card-thumb-alt, body.cadre-s1-enluminure .sheet-vue, .cx-s1-enluminure { outline: 4px ridge #b8452f; outline-offset: -6px; box-shadow: 0 0 0 1px #e0b247; }
+  body.cadre-s1-sceau .fig, body.cadre-s1-sceau .card-thumb, body.cadre-s1-sceau .card-thumb-alt, body.cadre-s1-sceau .sheet-vue, .cx-s1-sceau { outline: 3px solid #8e1f23; outline-offset: -5px; box-shadow: 0 0 0 2px #e0b247; }
+  body.cadre-s1-constellation .fig, body.cadre-s1-constellation .card-thumb, body.cadre-s1-constellation .card-thumb-alt, body.cadre-s1-constellation .sheet-vue, .cx-s1-constellation { outline: 2px dotted #d7e6ff; outline-offset: -6px; animation: cx-scintille 1.8s steps(2) infinite; }
+  body.cadre-s1-marqueterie .fig, body.cadre-s1-marqueterie .card-thumb, body.cadre-s1-marqueterie .card-thumb-alt, body.cadre-s1-marqueterie .sheet-vue, .cx-s1-marqueterie { outline: 4px groove #a8743f; outline-offset: -6px; }
+  body.cadre-s1-vitrail .fig, body.cadre-s1-vitrail .card-thumb, body.cadre-s1-vitrail .card-thumb-alt, body.cadre-s1-vitrail .sheet-vue, .cx-s1-vitrail { outline: 4px groove #c0392b; outline-offset: -6px; animation: cx-vitrail 6s linear infinite; }
+  body.cadre-s1-lumieres .fig, body.cadre-s1-lumieres .card-thumb, body.cadre-s1-lumieres .card-thumb-alt, body.cadre-s1-lumieres .sheet-vue, .cx-s1-lumieres { outline: 3px double #f0dda4; outline-offset: -6px; animation: cx-lumieres 2.6s ease-in-out infinite; }
+  body.ava-argent .hud-ava, .ax-argent { box-shadow: 0 0 0 2px #cfd3de; }
+  body.ava-halo .hud-ava, .ax-halo { box-shadow: 0 0 0 2px #6ef3ff; animation: ax-halo 2.4s ease-in-out infinite; }
+  body.ava-s1-rameau .hud-ava, .ax-s1-rameau { box-shadow: 0 0 0 2px #7fa06a; }
+  body.ava-s1-laurier .hud-ava, .ax-s1-laurier { box-shadow: 0 0 0 2px #6b8f4e, 0 0 0 4px #e0b247; }
+  body.ava-s1-plume .hud-ava, .ax-s1-plume { box-shadow: 0 0 0 2px #f6f1e4, 0 0 0 4px #1b2133, 0 0 0 5px #f6f1e4; }
+  body.ava-s1-cachet .hud-ava, .ax-s1-cachet { box-shadow: 0 0 0 3px #8e1f23, 0 0 0 4px #e0b247; }
+  body.ava-s1-etoile .hud-ava, .ax-s1-etoile { box-shadow: 0 0 0 2px #d7e6ff, 0 0 12px rgba(215,230,255,.8); }
+  body.ava-s1-couronne .hud-ava, .ax-s1-couronne { box-shadow: 0 0 0 2px #e0b247, 0 0 0 4px #8a6415, 0 0 14px rgba(224,178,71,.65); }
+  body.ava-s1-soleil .hud-ava, .ax-s1-soleil { box-shadow: 0 0 0 2px #ffd76a; animation: ax-soleil 2.2s ease-in-out infinite; }
+  body.dos-aurore .face-back, .dx-aurore {
+    border-color: #3c6d6a;
+    background: linear-gradient(120deg, #0d2b2a, #1c5a4f 30%, #3b2a6b 60%, #0d2b2a);
+    background-size: 300% 300%; animation: dx-aurore 9s ease-in-out infinite;
+    box-shadow: 0 16px 38px rgba(0,0,0,.6), inset 0 0 0 6px rgba(111,242,192,.18);
+  }
+  body.dos-s1-velin .face-back, .dx-s1-velin {
+    border-color: #8a7550; color: #2a2318;
+    background: radial-gradient(120% 90% at 50% 40%, #f7eed8, #dccaa0);
+    box-shadow: 0 16px 38px rgba(0,0,0,.55), inset 0 0 0 5px rgba(138,117,80,.35), inset 0 0 0 7px rgba(247,238,216,.6);
+  }
+  body.dos-s1-encre-or .face-back, .dx-s1-encre-or {
+    border-color: #6d5a2a;
+    background:
+      radial-gradient(60% 40% at 30% 30%, rgba(224,178,71,.16), transparent 70%),
+      repeating-linear-gradient(115deg, transparent 0 22px, rgba(224,178,71,.07) 22px 23px),
+      linear-gradient(165deg, #15161d, #07080c);
+    box-shadow: 0 16px 38px rgba(0,0,0,.6), inset 0 0 0 6px rgba(224,178,71,.2);
+  }
+  body.dos-s1-cabinet .face-back, .dx-s1-cabinet {
+    border-color: #2f6650;
+    background:
+      radial-gradient(40% 30% at 50% 50%, rgba(224,178,71,.12), transparent 70%),
+      linear-gradient(165deg, #173a2e, #0b1a15);
+    box-shadow: 0 16px 38px rgba(0,0,0,.6), inset 0 0 0 4px #0b1a15, inset 0 0 0 6px rgba(224,178,71,.55);
+  }
+  body.dos-s1-planisphere .face-back, .dx-s1-planisphere {
+    border-color: #3a4d6b;
+    background:
+      repeating-radial-gradient(circle at 50% 50%, transparent 0 18px, rgba(215,230,255,.08) 18px 19px),
+      repeating-linear-gradient(90deg, transparent 0 17px, rgba(215,230,255,.06) 17px 18px),
+      linear-gradient(165deg, #1b2842, #0b1120);
+    box-shadow: 0 16px 38px rgba(0,0,0,.6), inset 0 0 0 6px rgba(215,230,255,.1);
+  }
+  body.dos-s1-soleil .face-back, .dx-s1-soleil {
+    border-color: #b8861f;
+    background: radial-gradient(circle at 50% 42%, #fff1c2 0%, #f0c555 18%, #c98a1c 42%, #3a2408 100%);
+    background-size: 160% 160%; animation: dx-soleil 5s ease-in-out infinite;
+    box-shadow: 0 16px 38px rgba(0,0,0,.6), inset 0 0 0 6px rgba(255,215,106,.35);
+  }
+  @keyframes cx-neon { 50% { outline-color: #c86bff; box-shadow: 0 0 14px rgba(110,243,255,.7); } }
+  @keyframes cx-scintille { 50% { outline-color: rgba(215,230,255,.35); } }
+  @keyframes cx-vitrail {
+    0%, 100% { outline-color: #c0392b; } 25% { outline-color: #2e6fb7; }
+    50% { outline-color: #d4a017; } 75% { outline-color: #2f8f5b; }
+  }
+  @keyframes cx-lumieres {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(240,221,164,0); }
+    50% { box-shadow: 0 0 16px 2px rgba(240,221,164,.75); }
+  }
+  @keyframes ax-halo { 50% { box-shadow: 0 0 0 2px #c86bff, 0 0 14px rgba(110,243,255,.8); } }
+  @keyframes ax-soleil {
+    0%, 100% { box-shadow: 0 0 0 2px #ffd76a, 0 0 6px rgba(255,215,106,.5); }
+    50% { box-shadow: 0 0 0 3px #ffd76a, 0 0 18px rgba(255,215,106,.95); }
+  }
+  @keyframes dx-aurore { 50% { background-position: 100% 50%; } }
+  @keyframes dx-soleil { 50% { background-position: 60% 40%; } }
+  @media (prefers-reduced-motion: reduce) {
+    [class*="cx-"], [class*="ax-"], [class*="dx-"], .fig, .card-thumb, .hud-ava, .face-back { animation: none !important; }
+  }
+
+  /* ================= Passe de saison ================= */
+  /* Bandeau d'accueil */
+  #passe-banniere { margin: 6px 0 14px; }
+  .pb {
+    display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px;
+    border-radius: 16px; font: inherit; color: inherit; text-align: left; cursor: pointer;
+    border: 1px solid rgba(224, 178, 71, .45);
+    background:
+      radial-gradient(120% 140% at 0% 0%, rgba(224, 178, 71, .2), rgba(0, 0, 0, 0) 55%),
+      linear-gradient(180deg, #1c2233, #151a28);
+    box-shadow: 0 12px 26px -16px rgba(224, 178, 71, .6);
+  }
+  .pb:active { transform: scale(.99); }
+  .pb-medaille {
+    flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff1c2, var(--saison) 55%, #8a6415);
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, .35), 0 0 16px rgba(224, 178, 71, .35);
+  }
+  .pb-medaille b { font-family: var(--display); font-size: 19px; color: #1b1406; }
+  .pb-corps { flex: 1 1 auto; min-width: 0; }
+  .pb-titre { display: block; font-family: var(--display); font-weight: 600; font-size: 15.5px; color: var(--ivory); }
+  .pb-barre { display: block; height: 5px; margin: 7px 0 5px; border-radius: 999px; background: rgba(255,255,255,.08); overflow: hidden; }
+  .pb-barre i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #b8861f, #f0dda4); }
+  .pb-sous { display: block; font-size: 11.5px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
+  .pb-badge {
+    flex: none; min-width: 26px; height: 26px; padding: 0 8px; border-radius: 999px; display: grid; place-items: center;
+    font-weight: 700; font-size: 13px; color: #1b1406; background: linear-gradient(180deg, #e0b247, #c19023);
+    animation: piste-appel 1.6s ease-in-out infinite;
+  }
+  .pb-fleche { flex: none; font-size: 22px; color: var(--glass-dim); }
+
+  /* Ecran plein */
+  .passe {
+    position: fixed; inset: 0; z-index: 45; overflow-y: auto; overscroll-behavior: contain;
+    background: #0f1320; -webkit-overflow-scrolling: touch;
+    animation: pt-entree .28s cubic-bezier(.2, .8, .3, 1) both;
+  }
+  .passe[hidden] { display: none; }
+  body.passe-ouvert { overflow: hidden; }
+  /* Les notifications restent visibles par-dessus l'ecran du passe, et
+     descendent en bas puisque la barre de navigation est masquee. */
+  body.passe-ouvert .toasts { z-index: 50; bottom: calc(var(--safe-b) + 18px); }
+  @keyframes pt-entree { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+  .pt-haut {
+    position: sticky; top: 0; z-index: 3;
+    padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 14px;
+    background:
+      radial-gradient(120% 120% at 50% 0%, rgba(224, 178, 71, .28), rgba(0, 0, 0, 0) 60%),
+      linear-gradient(180deg, #1a1f30, #121626);
+    border-bottom: 1px solid rgba(224, 178, 71, .25);
+    box-shadow: 0 10px 24px -14px rgba(0, 0, 0, .8);
+  }
+  .pt-barre-nav { display: flex; align-items: center; gap: 10px; }
+  .pt-retour {
+    width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(255,255,255,.14);
+    background: rgba(255,255,255,.04); color: var(--ivory); font-size: 22px; line-height: 1; cursor: pointer;
+  }
+  .pt-saison { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #e0b247; }
+  .pt-jours { margin-left: auto; font-size: 12px; color: var(--glass-dim); }
+  .pt-nom { margin: 8px 0 12px; font-family: var(--display); font-weight: 600; font-size: 28px; color: var(--ivory); }
+  .pt-niveau { display: flex; align-items: center; gap: 14px; }
+  .pt-medaille {
+    flex: none; display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff1c2, #e0b247 55%, #8a6415);
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, .4), 0 0 24px rgba(224, 178, 71, .45);
+    line-height: 1; text-align: center;
+  }
+  .pt-medaille small { display: block; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: #3a2a08; }
+  .pt-medaille b { display: block; font-family: var(--display); font-size: 26px; color: #1b1406; }
+  .pt-prog { flex: 1 1 auto; min-width: 0; }
+  .pt-prog-barre { display: block; height: 8px; border-radius: 999px; background: rgba(255,255,255,.09); overflow: hidden; }
+  .pt-prog-barre i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #b8861f, #f0dda4); }
+  .pt-prog-txt { display: block; margin-top: 6px; font-size: 12px; color: var(--glass); font-variant-numeric: tabular-nums; }
+  .pt-tout { margin-top: 12px; width: 100%; }
+
+  .pt-corps { max-width: 640px; margin: 0 auto; padding: 16px 16px calc(40px + env(safe-area-inset-bottom, 0px)); }
+  .pt-offre {
+    margin-bottom: 18px; padding: 16px; border-radius: 18px; text-align: center;
+    border: 1px solid rgba(224, 178, 71, .5);
+    background:
+      radial-gradient(120% 80% at 50% 0%, rgba(224, 178, 71, .22), rgba(0, 0, 0, 0) 60%),
+      linear-gradient(180deg, #1f2233, #151a28);
+  }
+  .pt-offre-tag {
+    display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 10.5px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase; color: #1b1406;
+    background: linear-gradient(180deg, #e0b247, #c19023);
+  }
+  .pt-offre h3 { margin: 10px 0 6px; font-family: var(--display); font-size: 20px; color: var(--ivory); }
+  .pt-offre p { margin: 0 0 12px; font-size: 12.5px; line-height: 1.5; color: var(--glass); }
+  .pt-vitrine { display: flex; justify-content: center; gap: 12px; margin: 4px 0 14px; }
+  .pt-vitr { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 86px; }
+  .pt-vitr small { font-size: 11px; line-height: 1.25; color: var(--glass); }
+  .pt-offre-indispo { font-size: 12.5px; color: var(--glass-dim); }
+  .pt-merci { margin: 0 0 16px; text-align: center; font-size: 12.5px; color: #e0b247; }
+
+  .pt-section { display: flex; justify-content: space-between; margin: 0 2px 8px; font-size: 11px;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--glass-dim); }
+  .pt-section span { letter-spacing: 0; text-transform: none; color: #e0b247; }
+  .pt-defis { margin-bottom: 20px; }
+  .pt-defi {
+    display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; margin-bottom: 8px; padding: 11px 12px;
+    border-radius: 12px; background: var(--night-up); border: 1px solid var(--night-line);
+  }
+  .pt-defi-n { font-size: 13px; color: var(--ivory); }
+  .pt-defi-v { font-size: 12px; color: var(--glass-dim); font-variant-numeric: tabular-nums; }
+  .pt-defi.fait .pt-defi-v { color: #7fbf98; }
+  .pt-defi-barre { grid-column: 1 / -1; height: 4px; border-radius: 999px; background: rgba(255,255,255,.07); overflow: hidden; }
+  .pt-defi-barre i { display: block; height: 100%; background: #e0b247; }
+  .pt-defi.fait .pt-defi-barre i { background: #7fbf98; }
+
+  .pt-colonnes {
+    display: grid; grid-template-columns: 1fr 44px 1fr; margin: 0 0 6px; font-size: 11px;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--glass-dim); text-align: center;
+  }
+  .pt-col-er { color: #e0b247; }
+  .pt-rang { display: grid; grid-template-columns: 1fr 44px 1fr; align-items: stretch; }
+  /* L'axe central : un trait qui se remplit d'or jusqu'au palier atteint. */
+  .pt-axe { position: relative; display: grid; place-items: center; }
+  .pt-axe::before {
+    content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 4px; margin-left: -2px;
+    background: rgba(255, 255, 255, .08);
+  }
+  .pt-rang.atteint .pt-axe::before { background: linear-gradient(180deg, #e0b247, #c19023); }
+  .pt-num {
+    position: relative; z-index: 1; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+    font-size: 12px; font-weight: 700; color: var(--glass-dim); background: #151a28;
+    border: 2px solid rgba(255, 255, 255, .15); font-variant-numeric: tabular-nums;
+  }
+  .pt-rang.atteint .pt-num { color: #1b1406; background: #e0b247; border-color: #f0dda4; }
+  .pt-rang.ici .pt-num { border-color: #e0b247; color: #f0dda4; box-shadow: 0 0 0 4px rgba(224,178,71,.2); }
+  .pt-cell {
+    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    margin: 5px 0; padding: 10px 6px 9px; min-height: 108px; border-radius: 14px; font: inherit; color: inherit;
+    text-align: center; cursor: pointer; background: var(--night-up); border: 1px solid var(--night-line);
+  }
+  .pt-cell.p { background: linear-gradient(180deg, #211f24, #191a26); border-color: rgba(224, 178, 71, .22); }
+  .pt-cell.futur { opacity: .72; }
+  .pt-cell.verrou { opacity: .78; }
+  .pt-cell.pret {
+    border-color: #e0b247; opacity: 1;
+    box-shadow: 0 0 0 1px rgba(224, 178, 71, .4), 0 0 18px -2px rgba(224, 178, 71, .55);
+    animation: pt-pret 1.8s ease-in-out infinite;
+  }
+  @keyframes pt-pret { 50% { box-shadow: 0 0 0 1px rgba(224,178,71,.6), 0 0 26px 0 rgba(224,178,71,.7); } }
+  .pt-cell.pris { opacity: .55; }
+  .pt-cell.vient { animation: pt-vient .38s cubic-bezier(.2, .9, .3, 1.3) both; }
+  @keyframes pt-vient { 50% { transform: scale(1.08); } to { transform: scale(1); } }
+  .pt-cell.vide { visibility: hidden; }
+  .pt-lab { font-size: 12px; line-height: 1.25; color: var(--ivory); }
+  .pt-type { font-size: 10px; color: var(--glass-dim); }
+  .pt-coche {
+    position: absolute; top: 6px; right: 7px; width: 18px; height: 18px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 11px; color: #0f1320; background: #7fbf98;
+  }
+  .pt-cadenas {
+    position: absolute; top: 7px; right: 8px; width: 11px; height: 9px; border-radius: 2px; background: #e0b247;
+  }
+  .pt-cadenas::before {
+    content: ''; position: absolute; left: 2px; top: -6px; width: 5px; height: 6px;
+    border: 2px solid #e0b247; border-bottom: 0; border-radius: 5px 5px 0 0;
+  }
+  .pt-ico { position: relative; display: grid; place-items: center; width: 44px; height: 44px; }
+  .pt-ico svg { width: 36px; height: 36px; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .pt-or svg { stroke: #e0b247; }
+  .pt-or svg circle { fill: rgba(224, 178, 71, .14); }
+  .pt-paq svg { stroke: #9fb4e0; }
+  .pt-paq svg rect { fill: rgba(159, 180, 224, .12); }
+  .pt-paq b { position: absolute; right: -4px; bottom: 0; font-size: 11px; color: var(--ivory); }
+  .pt-pied { margin: 16px 2px 0; font-size: 11.5px; line-height: 1.5; color: var(--glass-dim); text-align: center; }
+
+  /* ================= Apercus de cosmetiques ================= */
+  .apc { display: grid; place-items: center; width: 44px; height: 44px; }
+  .apc-carte {
+    display: block; width: 34px; height: 44px; border-radius: 4px;
+    background: linear-gradient(160deg, #5a6f9a, #2a3350);
+  }
+  .apc-rond {
+    display: block; width: 30px; height: 30px; border-radius: 7px;
+    background: linear-gradient(160deg, #7b86a6, #394260);
+  }
+  .apc-effet i {
+    display: block; width: 38px; height: 38px; border-radius: 50%;
+    background: radial-gradient(circle, var(--eff) 0%, rgba(0,0,0,0) 68%);
+    animation: apc-eclat 2.2s ease-in-out infinite;
+  }
+  @keyframes apc-eclat { 50% { transform: scale(1.18); opacity: .7; } }
+  .apc-dosc {
+    display: block; width: 32px; height: 44px; border-radius: 4px; border: 1px solid rgba(255,255,255,.15);
+    background: linear-gradient(165deg, #2b3149, #191d2c);
+  }
+  .apc-titre { width: auto; min-width: 44px; }
+  .apc-titre span {
+    display: block; max-width: 96px; font-family: var(--display); font-style: italic; font-size: 12px;
+    line-height: 1.2; color: #f0dda4;
+  }
+  .pt-vitr .apc { width: 64px; height: 64px; }
+  .pt-vitr .apc-carte { width: 48px; height: 64px; }
+  .pt-vitr .apc-rond { width: 44px; height: 44px; border-radius: 10px; }
+  .pt-vitr .apc-dosc { width: 46px; height: 64px; }
+
+  /* ================= Boutique : style ================= */
+  .st-tuile .apc { margin: 2px auto 4px; }
+  .st-tuile .bt-prix { font-size: 12px; }
+  .st-etat-porte { color: #7fbf98; }
+  .st-etat-passe { color: #e0b247; font-weight: 500; font-size: 11px; }
+  .titres-choix { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 14px; }
+  .titre-puce {
+    padding: 6px 11px; border-radius: 999px; font: inherit; font-size: 12.5px; cursor: pointer;
+    color: var(--ink); background: rgba(0,0,0,.05); border: 1px solid rgba(0,0,0,.12);
+  }
+  .titre-puce.choisi { color: #1b1406; background: #e0b247; border-color: #c19023; }
+  @media (prefers-reduced-motion: reduce) {
+    .passe, .pt-cell.pret, .pt-cell.vient, .pb-badge, .apc-effet i { animation: none !important; }
+  }
+
   /* ---------- Guide de premiere partie ----------
      Le voile ne se met pas DEVANT l'element a toucher : c'est un trou, dessine
      par une ombre demesuree tout autour. L'element reste donc cliquable, et le
@@ -3643,6 +3943,7 @@
   </div>
 
   <p id="packs" class="packs"></p>
+  <div id="passe-banniere"></div>
   <div id="draw" class="draw"></div>
   <div id="status" class="status" hidden></div>
   <div id="missions"></div>
@@ -3935,6 +4236,7 @@
     try { localStorage.setItem(XKEY, String(v)); } catch (e) {}
     var apres = niveauDe(v);
     majProfil();
+    passeGagner(n);
     if (apres.niveau > avant) {
       toast('<b>Niveau ' + apres.niveau + '</b> — ' + esc(apres.titre));
       son('legendaire'); vib([0, 24, 50, 45]);
@@ -4042,7 +4344,7 @@
   var PKEY_PUB = 'wikigacha:pub';
   var PITIE_PREM = 4;              /* garantie quotidienne premium : Légendaire */
 
-  var achats = { sansPub: false, premium: false };
+  var achats = { sansPub: false, premium: false, possedes: [] };
   var prix = {};                   /* libellés renvoyés par Play */
 
   function sansPub() { return achats.sansPub || achats.premium; }
@@ -4050,7 +4352,10 @@
   function litAchats() {
     try {
       var a = JSON.parse(localStorage.getItem(EKEY));
-      if (a) { achats.sansPub = !!a.sansPub; achats.premium = !!a.premium; }
+      if (a) {
+        achats.sansPub = !!a.sansPub; achats.premium = !!a.premium;
+        achats.possedes = Array.isArray(a.possedes) ? a.possedes : [];
+      }
     } catch (e) {}
   }
   function poseAchats() {
@@ -4239,7 +4544,11 @@
            ou impaye disparait de la liste, et le premium s'eteint tout seul.
            Ne jamais deduire le premium d'une valeur gardee sur l'appareil. */
         achats.premium = ids.indexOf(SKU_PREMIUM) !== -1;
-        if (av !== achats.sansPub + '/' + achats.premium) poseAchats();
+        /* Passe de saison et cosmetiques payants : la liste Play fait foi. */
+        var avAutres = (achats.possedes || []).join(',');
+        achats.possedes = ids.slice();
+        if (av !== achats.sansPub + '/' + achats.premium || avAutres !== ids.join(',')) poseAchats();
+        passeBanniere();
         if (!silencieux) {
           toast((achats.sansPub || achats.premium)
             ? 'Achats restaurés.' : 'Aucun achat trouvé sur ce compte.');
@@ -4257,9 +4566,9 @@
   function chargerPrix() {
     var pont = pontAchats();
     var source = (pont && typeof pont.prix === 'function')
-      ? Promise.resolve(pont.prix([SKU_SANS_PUB, SKU_PREMIUM]))
+      ? Promise.resolve(pont.prix(tousLesSkus()))
       : servicePlay().then(function (svc) {
-          return svc ? svc.getDetails([SKU_SANS_PUB, SKU_PREMIUM]) : null;
+          return svc ? svc.getDetails(tousLesSkus()) : null;
         });
     return source.then(function (items) {
       if (!items) return null;
@@ -4277,6 +4586,31 @@
     })['catch'](function () { return null; });
   }
 
+  /* Tous les produits Play connus du jeu : abonnement, sans-pub, passe de la
+     saison en cours et cosmetiques payants. */
+  function tousLesSkus() {
+    var l = [SKU_SANS_PUB, SKU_PREMIUM, skuPasse(saisonCourante().n)];
+    COSMETIQUES.concat(DOS).forEach(function (o) { if (o.sku && l.indexOf(o.sku) === -1) l.push(o.sku); });
+    return l;
+  }
+  /* Apres un achat reussi : chaque produit sait ce qu'il debloque. */
+  function acheteAvecSucces(sku) {
+    if (sku === SKU_SANS_PUB) achats.sansPub = true;
+    else if (sku === SKU_PREMIUM) achats.premium = true;
+    else if ((achats.possedes || []).indexOf(sku) === -1) achats.possedes.push(sku);
+    poseAchats();
+    son(sku === SKU_SANS_PUB ? 'legendaire' : 'mythique');
+    vib([0, 30, 55, 30, 55, 70]);
+    if (/^pass_saison_/.test(sku)) {
+      toast('<b>Passe Érudit débloqué</b> — les paliers atteints sont à réclamer');
+      peindrePasse(); passeBanniere();
+      return;
+    }
+    COSMETIQUES.concat(DOS.map(function (o) { return { id: o.id, sku: o.sku, type: 'dos' }; }))
+      .forEach(function (o) { if (o.sku === sku) porterCos(o.type, o.id); });
+    if (!el('view-boutique').hidden) showBoutique('Merci — c’est actif.');
+  }
+
   /* Nom distinct de acheter() : celui-la vend des paquets contre des
      Wikigold, celui-ci passe par Play. Les confondre serait une collision
      silencieuse — c'est arrive. */
@@ -4285,16 +4619,12 @@
     if (pont) {
       Promise.resolve(pont.acheter(sku)).then(function (ok) {
         if (!ok) return;
-        if (sku === SKU_SANS_PUB) achats.sansPub = true; else achats.premium = true;
-        poseAchats();
-        son(sku === SKU_SANS_PUB ? 'legendaire' : 'mythique');
-        vib([0, 30, 55, 30, 55, 70]);
-        showBoutique('Merci — c’est actif.');
-      })['catch'](function () { showBoutique('Achat non abouti.'); });
+        acheteAvecSucces(sku);
+      })['catch'](function () { toast('Achat non abouti.'); });
       return;
     }
     if (!window.PaymentRequest || !window.getDigitalGoodsService) {
-      showBoutique(motAchatsIndispo());
+      toast(motAchatsIndispo());
       return;
     }
     var req;
@@ -4307,14 +4637,7 @@
     req.show().then(function (rep) {
       /* Un achat unique est déjà acquitté par Play : aucun appel de
          confirmation n'est requis, contrairement à un consommable. */
-      return rep.complete('success').then(function () {
-        if (sku === SKU_SANS_PUB) achats.sansPub = true;
-        else achats.premium = true;
-        poseAchats();
-        son(sku === SKU_SANS_PUB ? 'legendaire' : 'mythique');
-        vib([0, 30, 55, 30, 55, 70]);
-        showBoutique('Merci — c’est actif.');
-      });
+      return rep.complete('success').then(function () { acheteAvecSucces(sku); });
     })['catch'](function (err) {
       if (err && err.name === 'AbortError') return;   /* annulation : silence */
       showBoutique('Achat non abouti.');
@@ -5961,7 +6284,7 @@
      affichee ; l'eclair s'efface seul. */
   function eclatRevelation(rang) {
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    var f = el('flipper'), couleur = f.style.getPropertyValue('--tier');
+    var f = el('flipper'), couleur = couleurEffet() || f.style.getPropertyValue('--tier');
     var ec = document.createElement('div');
     ec.className = 'rv-eclair';
     ec.style.setProperty('--tier', couleur);
@@ -6511,6 +6834,19 @@
         + '<p class="sheet-sub profil-titre">IDENTITÉ</p>'
         + '<input id="profil-nom" class="code-champ" type="text" maxlength="18" '
         + 'placeholder="Votre nom" autocomplete="off" value="' + esc(profil.nom) + '">'
+        + (function () {
+            var titres = COSMETIQUES.filter(function (o) {
+              return o.type === 'titre' && possedeCos('titre', o.id); });
+            if (!titres.length) return '';
+            var porte = porteCos('titre');
+            return '<p class="profil-aide">Votre titre</p><div class="titres-choix">'
+              + '<button class="titre-puce' + (porte ? '' : ' choisi') + '" data-titre="">'
+              + esc(niveauDe(readXp()).titre) + '</button>'
+              + titres.map(function (o) {
+                  return '<button class="titre-puce' + (porte === o.id ? ' choisi' : '') + '" data-titre="'
+                    + o.id + '">' + esc(o.nom) + '</button>';
+                }).join('') + '</div>';
+          })()
         + (avatars.length
             ? '<p class="profil-aide">Choisissez votre portrait parmi vos cartes.</p>'
               + '<div class="profil-ava">'
@@ -8086,7 +8422,17 @@
     return d;
   }
   function writeJour(d) {
+    /* Ce qui augmente ici alimente aussi les defis de la semaine du passe. */
+    var avant = null;
+    try { avant = JSON.parse(localStorage.getItem(JKEY)); } catch (e) {}
+    if (!avant || avant.date !== d.date) avant = {};
     try { localStorage.setItem(JKEY, JSON.stringify(d)); } catch (e) {}
+    if (typeof passeNoter === 'function') {
+      ['paquets', 'nouvelles', 'duels', 'degats'].forEach(function (k) {
+        var delta = (d[k] || 0) - (avant[k] || 0);
+        if (delta > 0) passeNoter(k, delta);
+      });
+    }
   }
   function noterJour(champ, valeur) {
     var d = readJour();
@@ -12711,6 +13057,538 @@
     showBoutique('Dos « ' + o.nom + ' » appliqué.');
   }
 
+  /* =====================================================================
+     COSMETIQUES
+     Ce qui change l'apparence, jamais la force. Quatre familles portees
+     (cadre de carte, cadre d'avatar, effet de revelation, titre) plus les
+     dos de cartes, qui gardent leur propre registre. Trois provenances :
+     l'or gagne en jouant, le Play Store, et le passe de saison.
+     ===================================================================== */
+  var COSKEY = 'wikigacha:cosmetiques';
+  var COS_TYPES = {
+    cadre:  { nom: 'Cadre de carte',   pluriel: 'Cadres de carte' },
+    avatar: { nom: 'Cadre de portrait', pluriel: 'Cadres de portrait' },
+    effet:  { nom: 'Effet de révélation', pluriel: 'Effets de révélation' },
+    titre:  { nom: 'Titre',            pluriel: 'Titres' },
+    dos:    { nom: 'Dos de cartes',    pluriel: 'Dos de cartes' }
+  };
+  var COSMETIQUES = [
+    /* --- boutique : or --- */
+    { id: 'argent', type: 'cadre',  nom: 'Filet d’argent', prix: 800 },
+    { id: 'marbre', type: 'cadre',  nom: 'Marbre',         prix: 1500 },
+    { id: 'argent', type: 'avatar', nom: 'Anneau d’argent', prix: 600 },
+    { id: 'argent', type: 'effet',  nom: 'Argent', couleur: '#e6e9f2', prix: 1000 },
+    /* --- boutique : Play Store --- */
+    { id: 'neon', type: 'cadre',  nom: 'Néon', sku: 'cosm_neon', anime: 1 },
+    { id: 'halo', type: 'avatar', nom: 'Halo', sku: 'cosm_halo', anime: 1 },
+    /* --- saison 1 : piste gratuite --- */
+    { id: 's1-curieux',      type: 'titre',  nom: 'Curieux de saison', saison: 1 },
+    { id: 's1-rameau',       type: 'avatar', nom: 'Rameau',            saison: 1 },
+    { id: 's1-filet-saison', type: 'cadre',  nom: 'Filet de saison',   saison: 1 },
+    /* --- saison 1 : Passe Erudit --- */
+    { id: 's1-apprenti',     type: 'titre',  nom: 'Apprenti des Lumières', saison: 1, erudit: 1 },
+    { id: 's1-laurier',      type: 'avatar', nom: 'Laurier',          saison: 1, erudit: 1 },
+    { id: 's1-filet-or',     type: 'cadre',  nom: 'Filet d’or',       saison: 1, erudit: 1 },
+    { id: 's1-aube',         type: 'effet',  nom: 'Aube', couleur: '#ffb3a1', saison: 1, erudit: 1 },
+    { id: 's1-copiste',      type: 'titre',  nom: 'Copiste',          saison: 1, erudit: 1 },
+    { id: 's1-plume',        type: 'avatar', nom: 'Plume',            saison: 1, erudit: 1 },
+    { id: 's1-enluminure',   type: 'cadre',  nom: 'Enluminure',       saison: 1, erudit: 1 },
+    { id: 's1-braise',       type: 'effet',  nom: 'Braise', couleur: '#ff7a3d', saison: 1, erudit: 1 },
+    { id: 's1-lecteur',      type: 'titre',  nom: 'Lecteur assidu',   saison: 1, erudit: 1 },
+    { id: 's1-cachet',       type: 'avatar', nom: 'Cachet de cire',   saison: 1, erudit: 1 },
+    { id: 's1-sceau',        type: 'cadre',  nom: 'Sceau',            saison: 1, erudit: 1 },
+    { id: 's1-givre',        type: 'effet',  nom: 'Givre', couleur: '#9fe3ff', saison: 1, erudit: 1 },
+    { id: 's1-encyclo',      type: 'titre',  nom: 'Encyclopédiste',   saison: 1, erudit: 1 },
+    { id: 's1-etoile',       type: 'avatar', nom: 'Étoile',           saison: 1, erudit: 1 },
+    { id: 's1-constellation',type: 'cadre',  nom: 'Constellation',    saison: 1, erudit: 1, anime: 1 },
+    { id: 's1-nuit',         type: 'effet',  nom: 'Nuit étoilée', couleur: '#9d7cff', saison: 1, erudit: 1 },
+    { id: 's1-philosophe',   type: 'titre',  nom: 'Philosophe',       saison: 1, erudit: 1 },
+    { id: 's1-couronne',     type: 'avatar', nom: 'Couronne',         saison: 1, erudit: 1 },
+    { id: 's1-marqueterie',  type: 'cadre',  nom: 'Marqueterie',      saison: 1, erudit: 1 },
+    { id: 's1-aurore',       type: 'effet',  nom: 'Aurore', couleur: '#6ff2c0', saison: 1, erudit: 1 },
+    { id: 's1-esprit',       type: 'titre',  nom: 'Esprit des Lumières', saison: 1, erudit: 1 },
+    { id: 's1-soleil',       type: 'avatar', nom: 'Soleil',           saison: 1, erudit: 1, anime: 1 },
+    { id: 's1-vitrail',      type: 'cadre',  nom: 'Vitrail',          saison: 1, erudit: 1, anime: 1 },
+    { id: 's1-or',           type: 'effet',  nom: 'Or pur', couleur: '#ffd76a', saison: 1, erudit: 1 },
+    { id: 's1-lumieres',     type: 'cadre',  nom: 'Lumières',         saison: 1, erudit: 1, anime: 1 }
+  ];
+  /* Les dos du passe et du Play Store rejoignent le registre des dos
+     existant : un seul endroit decide du dos porte. */
+  DOS.push(
+    { id: 'aurore',        nom: 'Aurore boréale',        prix: null, sku: 'cosm_aurore', anime: 1 },
+    { id: 's1-velin',      nom: 'Vélin',                 prix: null, saison: 1, erudit: 1 },
+    { id: 's1-encre-or',   nom: 'Encre d’or',            prix: null, saison: 1, erudit: 1 },
+    { id: 's1-cabinet',    nom: 'Cabinet de curiosités', prix: null, saison: 1, erudit: 1 },
+    { id: 's1-planisphere',nom: 'Planisphère',           prix: null, saison: 1, erudit: 1 },
+    { id: 's1-soleil',     nom: 'Soleil levant',         prix: null, saison: 1, erudit: 1, anime: 1 }
+  );
+
+  function readCos() {
+    var d;
+    try { d = JSON.parse(localStorage.getItem(COSKEY)); } catch (e) { d = null; }
+    if (!d || !d.possede) d = { possede: {}, porte: {} };
+    d.porte = d.porte || {};
+    return d;
+  }
+  function writeCos(d) {
+    try { localStorage.setItem(COSKEY, JSON.stringify(d)); } catch (e) {}
+  }
+  /* Cle unique : un meme identifiant peut exister dans deux familles
+     (« argent » est un cadre, un anneau et un effet). */
+  function cleCos(type, id) { return type + ':' + id; }
+  function trouverCos(type, id) {
+    if (type === 'dos') return DOS.filter(function (o) { return o.id === id; })[0] || null;
+    return COSMETIQUES.filter(function (o) { return o.type === type && o.id === id; })[0] || null;
+  }
+  function possedeCos(type, id) {
+    var o = trouverCos(type, id);
+    if (!o) return false;
+    if (o.sku && (achats.possedes || []).indexOf(o.sku) !== -1) return true;
+    if (type === 'dos') return !id || readDos().achetes.indexOf(id) !== -1;
+    return !!readCos().possede[cleCos(type, id)];
+  }
+  function donnerCos(type, id) {
+    if (type === 'dos') {
+      var d = readDos();
+      if (d.achetes.indexOf(id) === -1) { d.achetes.push(id); writeDos(d); }
+      return;
+    }
+    var c = readCos();
+    c.possede[cleCos(type, id)] = 1;
+    writeCos(c);
+  }
+  function porteCos(type) {
+    if (type === 'dos') return readDos().actif || '';
+    return readCos().porte[type] || '';
+  }
+  function porterCos(type, id) {
+    if (id && !possedeCos(type, id)) return false;
+    if (type === 'dos') {
+      var d = readDos(); d.actif = id; writeDos(d); appliquerDos();
+    } else {
+      var c = readCos(); c.porte[type] = id; writeCos(c); appliquerCos();
+    }
+    return true;
+  }
+  function appliquerCos() {
+    var p = readCos().porte;
+    Array.prototype.slice.call(document.body.classList).forEach(function (k) {
+      if (/^(cadre|ava)-/.test(k)) document.body.classList.remove(k);
+    });
+    if (p.cadre) document.body.classList.add('cadre-' + p.cadre);
+    if (p.avatar) document.body.classList.add('ava-' + p.avatar);
+  }
+  function couleurEffet() {
+    var id = readCos().porte.effet;
+    var o = id && trouverCos('effet', id);
+    return o ? o.couleur : '';
+  }
+  function titrePorte() {
+    var id = readCos().porte.titre;
+    var o = id && trouverCos('titre', id);
+    return o ? o.nom : '';
+  }
+
+  /* Apercu miniature d'un cosmetique : la meme regle CSS que le style porte,
+     posee sur une vignette. Ce qu'on voit est exactement ce qu'on aura. */
+  function apercuCos(type, o) {
+    if (type === 'cadre') {
+      return '<span class="apc apc-cadre"><span class="apc-carte cx-' + o.id + '"></span></span>';
+    }
+    if (type === 'avatar') {
+      return '<span class="apc apc-ava"><span class="apc-rond ax-' + o.id + '"></span></span>';
+    }
+    if (type === 'effet') {
+      return '<span class="apc apc-effet" style="--eff:' + o.couleur + '"><i></i></span>';
+    }
+    if (type === 'dos') {
+      return '<span class="apc apc-dos"><span class="apc-dosc dx-' + o.id + '"'
+        + (o.apercu ? ' style="background:' + o.apercu + '"' : '') + '></span></span>';
+    }
+    return '<span class="apc apc-titre"><span>« ' + esc(o.nom) + ' »</span></span>';
+  }
+
+  /* =====================================================================
+     PASSE DE SAISON
+     Vingt-huit jours, trente paliers, deux pistes. La piste gratuite paie en
+     or et en paquets — gagnes en jouant, rien n'est vendu. Le Passe Erudit
+     ne contient QUE des cosmetiques : on n'y achete jamais de hasard, ni
+     directement ni par l'or. Les points viennent de toute l'experience
+     gagnee, plus trois defis par semaine.
+     ===================================================================== */
+  var PASSE_KEY = 'wikigacha:passe';
+  var PASSE_EPOQUE = Date.UTC(2026, 8, 21);     /* lundi 21 septembre 2026 */
+  var PASSE_JOURS = 28;
+  var PASSE_PALIERS = 30;
+  var PASSE_PALIER = 400;                       /* points par palier */
+  var PASSE_DEFI = 1200;                        /* points par defi hebdomadaire */
+
+  function or_(v) { return { t: 'or', v: v }; }
+  function pq(v) { return { t: 'paquets', v: v }; }
+  function cs(type, id) { return { t: 'cos', type: type, id: id }; }
+
+  var SAISONS = {
+    1: {
+      nom: 'Les Lumières',
+      accroche: 'Le siècle de l’Encyclopédie : trente paliers pour devenir un esprit éclairé.',
+      couleur: '#e0b247',
+      gratuit: [
+        or_(40), or_(40), pq(1), or_(50), pq(1), or_(50), or_(60), pq(1), or_(60), cs('titre', 's1-curieux'),
+        or_(70), pq(1), or_(70), or_(80), pq(2), or_(80), or_(90), pq(1), or_(90), cs('avatar', 's1-rameau'),
+        or_(100), pq(1), or_(100), or_(120), pq(2), or_(120), or_(140), pq(2), or_(150), cs('cadre', 's1-filet-saison')
+      ],
+      erudit: [
+        cs('titre', 's1-apprenti'), cs('avatar', 's1-laurier'), cs('cadre', 's1-filet-or'),
+        cs('effet', 's1-aube'), cs('dos', 's1-velin'), cs('titre', 's1-copiste'),
+        cs('avatar', 's1-plume'), cs('cadre', 's1-enluminure'), cs('effet', 's1-braise'),
+        cs('dos', 's1-encre-or'), cs('titre', 's1-lecteur'), cs('avatar', 's1-cachet'),
+        cs('cadre', 's1-sceau'), cs('effet', 's1-givre'), cs('dos', 's1-cabinet'),
+        cs('titre', 's1-encyclo'), cs('avatar', 's1-etoile'), cs('cadre', 's1-constellation'),
+        cs('effet', 's1-nuit'), cs('dos', 's1-planisphere'), cs('titre', 's1-philosophe'),
+        cs('avatar', 's1-couronne'), cs('cadre', 's1-marqueterie'), cs('effet', 's1-aurore'),
+        cs('dos', 's1-soleil'), cs('titre', 's1-esprit'), cs('avatar', 's1-soleil'),
+        cs('cadre', 's1-vitrail'), cs('effet', 's1-or'), cs('cadre', 's1-lumieres')
+      ]
+    }
+  };
+
+  /* Une saison non encore ecrite garde une piste gratuite (celle du modele)
+     mais pas de Passe Erudit : on ne vend jamais un passe vide. */
+  function defSaison(n) {
+    if (SAISONS[n]) return SAISONS[n];
+    return {
+      nom: 'Saison ' + n, accroche: 'Une nouvelle saison commence.', couleur: '#9fb4e0',
+      gratuit: SAISONS[1].gratuit.map(function (r) { return r.t === 'cos' ? or_(150) : r; }),
+      erudit: null
+    };
+  }
+  function saisonCourante() {
+    var jour = 86400000, ecart = Math.max(0, Date.now() - PASSE_EPOQUE);
+    var n = Math.floor(ecart / (PASSE_JOURS * jour)) + 1;
+    var debut = PASSE_EPOQUE + (n - 1) * PASSE_JOURS * jour;
+    var fin = debut + PASSE_JOURS * jour;
+    return { n: n, debut: debut, fin: fin, def: defSaison(n),
+             jours: Math.max(0, Math.ceil((fin - Date.now()) / jour)) };
+  }
+  function skuPasse(n) { return 'pass_saison_' + n; }
+  function passePossede() {
+    return (achats.possedes || []).indexOf(skuPasse(saisonCourante().n)) !== -1;
+  }
+
+  /* --- defis de la semaine : trois, tires dans un meme ordre pour tous --- */
+  var DEFIS = [
+    { id: 'paquets',   c: 'paquets',   v: 25,    n: 'Ouvrir 25 paquets' },
+    { id: 'nouvelles', c: 'nouvelles', v: 60,    n: 'Découvrir 60 nouveaux articles' },
+    { id: 'duels',     c: 'duels',     v: 8,     n: 'Gagner 8 duels' },
+    { id: 'degats',    c: 'degats',    v: 30000, n: 'Infliger 30 000 dégâts en raid' },
+    { id: 'paquets2',  c: 'paquets',   v: 40,    n: 'Ouvrir 40 paquets' },
+    { id: 'duels2',    c: 'duels',     v: 12,    n: 'Gagner 12 duels' }
+  ];
+  function defisSemaine() {
+    var s = semaineISO(), h = 0;
+    for (var k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) >>> 0;
+    var pris = [], pool = DEFIS.slice();
+    while (pris.length < 3 && pool.length) {
+      var i = h % pool.length;
+      var d = pool.splice(i, 1)[0];
+      if (!pris.some(function (x) { return x.c === d.c; })) pris.push(d);
+      h = (h * 1103515245 + 12345) >>> 0;
+    }
+    return pris;
+  }
+
+  function passeLire() {
+    var s = saisonCourante().n, d;
+    try { d = JSON.parse(localStorage.getItem(PASSE_KEY)); } catch (e) { d = null; }
+    if (!d || d.saison !== s) d = { saison: s, pts: 0, pris: { g: [], p: [] }, defis: null };
+    if (!d.defis || d.defis.sem !== semaineISO()) d.defis = { sem: semaineISO(), c: {}, faits: [] };
+    return d;
+  }
+  function passeEcrire(d) {
+    try { localStorage.setItem(PASSE_KEY, JSON.stringify(d)); } catch (e) {}
+  }
+  function passeNiveau(pts) {
+    var p = Math.min(PASSE_PALIERS, Math.floor(pts / PASSE_PALIER));
+    return { palier: p, dans: p >= PASSE_PALIERS ? PASSE_PALIER : pts % PASSE_PALIER };
+  }
+  function passeAReclamer(d) {
+    d = d || passeLire();
+    var niv = passeNiveau(d.pts).palier, def = saisonCourante().def, n = 0;
+    for (var i = 0; i < niv; i++) {
+      if (d.pris.g.indexOf(i) === -1) n++;
+      if (def.erudit && passePossede() && d.pris.p.indexOf(i) === -1) n++;
+    }
+    return n;
+  }
+
+  /* Toute l'experience du jeu alimente le passe : aucun bareme en double. */
+  function passeGagner(n) {
+    /* Garde-fou : l'experience peut etre gagnee avant que le module soit
+       initialise ; on ignore alors silencieusement. */
+    if (!n || !SAISONS) return;
+    var d = passeLire();
+    var avant = passeNiveau(d.pts).palier;
+    d.pts += n;
+    passeEcrire(d);
+    var apres = passeNiveau(d.pts).palier;
+    if (apres > avant) {
+      toast('<b>Palier ' + apres + '</b> du passe — une récompense vous attend');
+      son('gain');
+    }
+    passeBanniere();
+    if (el('passe') && !el('passe').hidden) peindrePasse();
+  }
+
+  /* Les compteurs du jour existants (paquets, decouvertes, duels, degats)
+     alimentent aussi les defis de la semaine : on recoit leurs increments. */
+  function passeNoter(champ, delta) {
+    if (!delta || delta < 0 || !DEFIS) return;
+    var d = passeLire(), gagne = 0;
+    d.defis.c[champ] = (d.defis.c[champ] || 0) + delta;
+    defisSemaine().forEach(function (df) {
+      if (df.c !== champ || d.defis.faits.indexOf(df.id) !== -1) return;
+      if ((d.defis.c[champ] || 0) >= df.v) {
+        d.defis.faits.push(df.id);
+        gagne += PASSE_DEFI;
+        toast('Défi réussi : <b>' + esc(df.n) + '</b> · +' + PASSE_DEFI + ' points de saison');
+      }
+    });
+    passeEcrire(d);
+    if (gagne) passeGagner(gagne);
+  }
+
+  function nomRecompense(r) {
+    if (r.t === 'or') return nbFr(r.v) + ' or';
+    if (r.t === 'paquets') return r.v + ' paquet' + (r.v > 1 ? 's' : '');
+    var o = trouverCos(r.type, r.id);
+    return o ? o.nom : '—';
+  }
+  var ICONE_OR = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/>'
+    + '<path d="M9 9.5l1.4 5h.1L12 10l1.5 4.5h.1l1.4-5"/></svg>';
+  var ICONE_PAQUET = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="3.5" width="12" height="17" rx="1.5"/>'
+    + '<path d="M6 8h12M9.5 12.5h5"/></svg>';
+  function visuelRecompense(r) {
+    if (r.t === 'or') return '<span class="pt-ico pt-or">' + ICONE_OR + '</span>';
+    if (r.t === 'paquets') return '<span class="pt-ico pt-paq">' + ICONE_PAQUET
+      + (r.v > 1 ? '<b>×' + r.v + '</b>' : '') + '</span>';
+    var o = trouverCos(r.type, r.id);
+    return o ? apercuCos(r.type, o) : '';
+  }
+  function donnerRecompense(r) {
+    if (r.t === 'or') { ajouterGold(r.v); return; }
+    if (r.t === 'paquets') {
+      var d = readPacks(); d.n += r.v; writePacks(d); refreshPacks();
+      return;
+    }
+    donnerCos(r.type, r.id);
+  }
+
+  function passeReclamer(piste, i, silencieux) {
+    var d = passeLire(), s = saisonCourante();
+    if (i >= passeNiveau(d.pts).palier) return false;
+    if (piste === 'p' && (!s.def.erudit || !passePossede())) return false;
+    var liste = piste === 'g' ? s.def.gratuit : s.def.erudit;
+    if (d.pris[piste].indexOf(i) !== -1) return false;
+    d.pris[piste].push(i);
+    passeEcrire(d);
+    donnerRecompense(liste[i]);
+    if (!silencieux) {
+      var r = liste[i];
+      if (r.t !== 'or') toast('Obtenu : <b>' + esc(nomRecompense(r)) + '</b>');
+      son(r.t === 'cos' ? 'rare' : 'gain'); vib([0, 16, 40, 22]);
+    }
+    return true;
+  }
+  function passeToutReclamer() {
+    var d = passeLire(), niv = passeNiveau(d.pts).palier, n = 0;
+    for (var i = 0; i < niv; i++) {
+      if (passeReclamer('g', i, true)) n++;
+      if (passeReclamer('p', i, true)) n++;
+    }
+    if (n) {
+      toast('<b>' + n + '</b> récompense' + (n > 1 ? 's' : '') + ' obtenue' + (n > 1 ? 's' : ''));
+      son('legendaire'); vib([0, 24, 50, 45]);
+    }
+    peindrePasse(); passeBanniere();
+  }
+
+  /* --- bandeau d'accueil --- */
+  function passeBanniere() {
+    var b = el('passe-banniere');
+    if (!b) return;
+    var s = saisonCourante(), d = passeLire(), niv = passeNiveau(d.pts);
+    var att = passeAReclamer(d);
+    b.innerHTML = '<button class="pb" data-passe="1" style="--saison:' + s.def.couleur + '">'
+      + '<span class="pb-medaille"><b>' + niv.palier + '</b></span>'
+      + '<span class="pb-corps"><span class="pb-titre">Saison ' + s.n + ' · ' + esc(s.def.nom) + '</span>'
+      + '<span class="pb-barre"><i style="width:' + Math.round(niv.dans / PASSE_PALIER * 100) + '%"></i></span>'
+      + '<span class="pb-sous">' + (niv.palier >= PASSE_PALIERS ? 'Saison terminée — bravo'
+          : 'Palier ' + (niv.palier + 1) + ' · ' + niv.dans + ' / ' + PASSE_PALIER)
+      + ' · ' + s.jours + ' j restants</span></span>'
+      + (att ? '<span class="pb-badge">' + att + '</span>' : '<span class="pb-fleche">›</span>')
+      + '</button>';
+  }
+
+  /* --- ecran du passe --- */
+  function ouvrirPasse() {
+    var v = el('passe');
+    if (!v) {
+      v = document.createElement('div');
+      v.id = 'passe'; v.className = 'passe'; v.setAttribute('role', 'dialog');
+      v.setAttribute('aria-label', 'Passe de saison');
+      document.body.appendChild(v);
+    }
+    v.hidden = false;
+    document.body.classList.add('passe-ouvert');
+    peindrePasse(true);
+  }
+  function fermerPasse() {
+    var v = el('passe');
+    if (v) v.hidden = true;
+    document.body.classList.remove('passe-ouvert');
+    passeBanniere();
+  }
+
+  function cellule(piste, i, r, etat) {
+    var lab = nomRecompense(r);
+    var type = r.t === 'cos' ? COS_TYPES[r.type].nom : (r.t === 'or' ? 'Wikigold' : 'Paquets');
+    return '<button class="pt-cell ' + piste + ' ' + etat + '" '
+      + (etat === 'pret' ? 'data-pt-prendre="' + piste + '-' + i + '"' : 'data-pt-voir="' + piste + '-' + i + '"')
+      + ' aria-label="' + esc(type + ' : ' + lab) + '">'
+      + visuelRecompense(r)
+      + '<span class="pt-lab">' + esc(lab) + '</span>'
+      + '<span class="pt-type">' + esc(type) + '</span>'
+      + (etat === 'verrou' ? '<span class="pt-cadenas" aria-hidden="true"></span>' : '')
+      + (etat === 'pris' ? '<span class="pt-coche" aria-hidden="true">✓</span>' : '')
+      + '</button>';
+  }
+
+  function peindrePasse(defiler) {
+    var v = el('passe');
+    if (!v || v.hidden) return;
+    var s = saisonCourante(), d = passeLire(), niv = passeNiveau(d.pts);
+    var possede = passePossede(), erudit = s.def.erudit;
+    var att = passeAReclamer(d);
+    var h = '<div class="pt-haut" style="--saison:' + s.def.couleur + '">'
+      + '<div class="pt-barre-nav"><button class="pt-retour" data-passe-fermer="1" aria-label="Retour">‹</button>'
+      + '<span class="pt-saison">Saison ' + s.n + '</span>'
+      + '<span class="pt-jours">' + s.jours + ' j restants</span></div>'
+      + '<h2 class="pt-nom">' + esc(s.def.nom) + '</h2>'
+      + '<div class="pt-niveau"><span class="pt-medaille"><small>Palier</small><b>' + niv.palier + '</b></span>'
+      + '<span class="pt-prog"><span class="pt-prog-barre"><i style="width:'
+      + Math.round(niv.dans / PASSE_PALIER * 100) + '%"></i></span>'
+      + '<span class="pt-prog-txt">' + (niv.palier >= PASSE_PALIERS ? 'Tous les paliers atteints'
+          : niv.dans + ' / ' + PASSE_PALIER + ' points vers le palier ' + (niv.palier + 1)) + '</span></span></div>'
+      + (att ? '<button class="btn btn-solid pt-tout" data-passe-tout="1">Tout réclamer · ' + att + '</button>' : '')
+      + '</div>';
+
+    h += '<div class="pt-corps" style="--saison:' + s.def.couleur + '">';
+
+    /* Le Passe Erudit, presente par ses plus belles pieces. */
+    if (erudit && !possede) {
+      var vitrine = [erudit[29], erudit[24], erudit[26]];
+      var prixP = prix[skuPasse(s.n)];
+      h += '<div class="pt-offre"><div class="pt-offre-tete"><span class="pt-offre-tag">Passe Érudit</span>'
+        + '<h3>' + erudit.length + ' récompenses exclusives</h3>'
+        + '<p>Cadres, portraits, dos, effets et titres de la saison. Uniquement de l’apparence : '
+        + 'rien qui change la force de vos cartes.</p></div>'
+        + '<div class="pt-vitrine">' + vitrine.map(function (r) {
+            return '<span class="pt-vitr">' + visuelRecompense(r)
+              + '<small>' + esc(nomRecompense(r)) + '</small></span>';
+          }).join('') + '</div>'
+        + (achatsDisponibles()
+            ? '<button class="btn btn-solid btn-action" data-play="' + skuPasse(s.n) + '">'
+              + 'Débloquer le Passe Érudit' + (prixP ? '<span class="btn-sous">' + prixP
+              + ' · les paliers déjà atteints sont crédités</span>' : '') + '</button>'
+            : '<p class="pt-offre-indispo">' + motAchatsIndispo() + '</p>')
+        + '</div>';
+    } else if (erudit && possede) {
+      h += '<p class="pt-merci">Passe Érudit actif — merci de soutenir le jeu.</p>';
+    }
+
+    /* Defis de la semaine */
+    var defs = defisSemaine();
+    h += '<div class="pt-defis"><p class="pt-section">Défis de la semaine<span>+'
+      + nbFr(PASSE_DEFI) + ' points chacun</span></p>'
+      + defs.map(function (df) {
+          var fait = d.defis.faits.indexOf(df.id) !== -1;
+          var val = Math.min(df.v, d.defis.c[df.c] || 0);
+          return '<div class="pt-defi' + (fait ? ' fait' : '') + '"><span class="pt-defi-n">' + esc(df.n)
+            + '</span><span class="pt-defi-v">' + (fait ? '✓' : nbFr(val) + ' / ' + nbFr(df.v)) + '</span>'
+            + '<span class="pt-defi-barre"><i style="width:' + Math.round(val / df.v * 100) + '%"></i></span></div>';
+        }).join('') + '</div>';
+
+    /* La piste : gratuit a gauche, Erudit a droite, l'axe au milieu. */
+    h += '<div class="pt-colonnes"><span>Gratuit</span><span></span><span class="pt-col-er">Passe Érudit</span></div>'
+      + '<div class="pt-piste">';
+    for (var i = 0; i < PASSE_PALIERS; i++) {
+      var atteint = i < niv.palier;
+      var eg = d.pris.g.indexOf(i) !== -1 ? 'pris' : (atteint ? 'pret' : 'futur');
+      var ep = !erudit ? 'vide'
+             : (!possede ? 'verrou' : (d.pris.p.indexOf(i) !== -1 ? 'pris' : (atteint ? 'pret' : 'futur')));
+      h += '<div class="pt-rang' + (atteint ? ' atteint' : '') + (i === niv.palier ? ' ici' : '')
+        + '" data-rang="' + i + '">'
+        + cellule('g', i, s.def.gratuit[i], eg)
+        + '<span class="pt-axe"><span class="pt-num">' + (i + 1) + '</span></span>'
+        + (erudit ? cellule('p', i, erudit[i], ep) : '<span class="pt-cell vide"></span>')
+        + '</div>';
+    }
+    h += '</div><p class="pt-pied">Les points de saison viennent de toute l’expérience gagnée en jouant, '
+      + 'plus les défis de la semaine. La saison se termine dans ' + s.jours + ' jour'
+      + (s.jours > 1 ? 's' : '') + ' ; les récompenses non réclamées sont perdues.</p></div>';
+
+    var haut = v.scrollTop;
+    v.innerHTML = h;
+    if (defiler) {
+      var ici = v.querySelector('.pt-rang.ici') || v.querySelector('.pt-rang:last-child');
+      if (ici) v.scrollTop = Math.max(0, ici.offsetTop - v.clientHeight / 2 + 60);
+    } else {
+      v.scrollTop = haut;
+    }
+  }
+
+  /* Apercu : toucher une recompense la presente en grand. */
+  function voirRecompense(piste, i) {
+    var s = saisonCourante();
+    var r = (piste === 'g' ? s.def.gratuit : s.def.erudit)[i];
+    if (!r) return;
+    var o = r.t === 'cos' ? trouverCos(r.type, r.id) : null;
+    var mot = r.t === 'cos'
+      ? COS_TYPES[r.type].nom + (o && o.anime ? ' animé' : '')
+      : (r.t === 'or' ? 'Wikigold' : 'Paquets');
+    var etat = piste === 'p' && !passePossede() ? 'Passe Érudit · palier ' + (i + 1)
+             : 'Palier ' + (i + 1);
+    toast('<b>' + esc(nomRecompense(r)) + '</b> — ' + esc(mot) + ' · ' + etat);
+  }
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest) return;
+    var ti = e.target.closest('[data-titre]');
+    if (ti) { porterCos('titre', ti.getAttribute('data-titre')); ouvrirProfil(true); vib(6); return; }
+    if (e.target.closest('[data-passe]')) { ouvrirPasse(); return; }
+    if (e.target.closest('[data-passe-fermer]')) { fermerPasse(); return; }
+    if (e.target.closest('[data-passe-tout]')) { passeToutReclamer(); return; }
+    var pr = e.target.closest('[data-pt-prendre]');
+    if (pr) {
+      var a = pr.getAttribute('data-pt-prendre').split('-');
+      if (passeReclamer(a[0], parseInt(a[1], 10))) {
+        pr.classList.add('vient');
+        setTimeout(function () { peindrePasse(); passeBanniere(); }, 380);
+      }
+      return;
+    }
+    var vo = e.target.closest('[data-pt-voir]');
+    if (vo) {
+      var b = vo.getAttribute('data-pt-voir').split('-');
+      voirRecompense(b[0], parseInt(b[1], 10));
+    }
+  });
+  /* Le bouton retour du telephone ferme le passe plutot que de quitter. */
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && el('passe') && !el('passe').hidden) fermerPasse();
+  });
+
+
   /* Paquets a theme : plus chers qu'un paquet ordinaire, parce qu'ils
      suppriment le hasard du domaine — c'est exactement ce qu'on vend ici, la
      direction, pas la rarete. */
@@ -12820,6 +13698,59 @@
     ouvrirDansLaFoulee();
   }
 
+  /* --- onglet Style : tout ce qui habille, rien qui renforce --- */
+  function boutiqueStyleHTML(or) {
+    var h = '<p class="bt-mot" style="margin-top:14px">Uniquement de l’apparence : rien ici '
+      + 'ne change la force de vos cartes. Les pièces de saison s’obtiennent avec le passe.</p>';
+    ['dos', 'cadre', 'avatar', 'effet', 'titre'].forEach(function (type) {
+      var liste = type === 'dos' ? DOS : COSMETIQUES.filter(function (o) { return o.type === type; });
+      if (type !== 'dos') liste = [{ id: '', type: type, nom: type === 'titre' ? 'Aucun' : 'Sans' }].concat(liste);
+      var porte = porteCos(type);
+      h += '<div class="bt-section"><h3>' + COS_TYPES[type].pluriel.toUpperCase() + '</h3></div>'
+        + '<div class="bt-defile">';
+      liste.forEach(function (o) {
+        var poss = !o.id || possedeCos(type, o.id);
+        var actif = porte === o.id;
+        var etat, cls = '';
+        if (actif) { etat = '<span class="st-etat-porte">porté</span>'; }
+        else if (poss) { etat = 'porter'; }
+        else if (o.prix) { etat = or >= o.prix ? nbFr(o.prix) + ' or' : '−' + nbFr(o.prix - or); cls = or >= o.prix ? '' : ' hors'; }
+        else if (o.sku) { etat = prix[o.sku] || 'Play Store'; }
+        else if (o.saison) { etat = '<span class="st-etat-passe">Passe · saison ' + o.saison + '</span>'; }
+        else { etat = '—'; }
+        var vis = o.id ? apercuCos(type, o)
+          : '<span class="apc"><span class="apc-carte" style="opacity:.5"></span></span>';
+        h += '<button class="bt-tuile st-tuile' + (poss ? ' acquis' : '') + '" '
+          + (actif ? 'disabled' : 'data-cos="' + type + '|' + o.id + '"') + '>'
+          + vis + '<span class="bt-nom">' + esc(o.nom) + (o.anime ? ' ✦' : '') + '</span>'
+          + '<span class="bt-prix' + cls + '">' + etat + '</span></button>';
+      });
+      h += '</div>';
+    });
+    return h;
+  }
+
+  function toucherCos(type, id) {
+    var o = id ? trouverCos(type, id) : null;
+    if (!id || possedeCos(type, id)) {
+      porterCos(type, id);
+      showBoutique(id ? '« ' + o.nom + ' » porté.' : 'Retiré.');
+      vib(8); return;
+    }
+    if (o.prix) {
+      if (readGold() < o.prix) { showBoutique('Pas assez de Wikigold.'); return; }
+      ajouterGold(-o.prix);
+      donnerCos(type, id); porterCos(type, id);
+      son('rare'); vib(12);
+      showBoutique('« ' + o.nom + ' » débloqué et porté.');
+      return;
+    }
+    if (o.sku) { acheterPlay(o.sku); return; }
+    if (o.saison) {
+      toast('« ' + esc(o.nom) + ' » s’obtient avec le passe de la saison ' + o.saison + '.');
+    }
+  }
+
   /* La boutique empilait six sections : trois onglets la ramenent a un
      ecran chacun. On arrive toujours sur les paquets, l'achat le plus
      frequent. */
@@ -12829,12 +13760,13 @@
     var or = readGold();
     var boutiquable = achatsDisponibles();
     var html = '<nav class="sous-tabs bt-onglets">'
-      + [['paquets', 'Paquets'], ['objets', 'Objets'], ['premium', 'Premium']].map(function (o) {
+      + [['paquets', 'Paquets'], ['objets', 'Objets'], ['style', 'Style'], ['premium', 'Premium']].map(function (o) {
           return '<button class="sous-tab' + (boutiqueVue === o[0] ? ' is-active' : '')
             + '" data-bt-vue="' + o[0] + '">' + o[1] + '</button>';
         }).join('') + '</nav>';
     var vueP = boutiqueVue === 'paquets', vueO = boutiqueVue === 'objets',
         vueM = boutiqueVue === 'premium';
+    if (boutiqueVue === 'style') html += boutiqueStyleHTML(or);
 
     /* Le solde ne s'affiche plus ici : il est deja en permanence dans le
        bandeau du haut, et le repeter en gros volait la place aux offres, qui
@@ -12927,29 +13859,6 @@
         + (okQ ? prixQ + ' or' : '−' + (prixQ - or)) + '</span>'
         + '</button>';
     }
-
-    /* --- dos de cartes --- */
-    var etatDos = readDos();
-    html += '<div class="bt-section"><h3>DOS DE CARTES</h3></div>'
-      + '<p class="bt-mot">Décoratif : le dos habille toutes vos cartes sans '
-      + 'rien changer à leur force.</p>'
-      + '<div class="bt-defile">';
-    DOS.forEach(function (o) {
-      var possede = !o.prix || etatDos.achetes.indexOf(o.id) >= 0;
-      var actif = etatDos.actif === o.id;
-      var ok = possede || or >= o.prix;
-      html += '<button class="bt-tuile' + (possede ? ' acquis' : '') + '" '
-        + (ok && !actif ? 'data-dos="' + o.id + '"' : 'disabled') + '>'
-        + '<span class="bt-pastille" style="width:40px;height:54px;background:'
-        + o.apercu + '"></span>'
-        + '<span class="bt-nom">' + esc(o.nom) + '</span>'
-        + '<span class="bt-prix' + (actif ? ' pris' : (ok ? '' : ' hors')) + '">'
-        + (actif ? 'en usage'
-                 : (possede ? 'appliquer'
-                            : (ok ? o.prix + ' or' : '−' + (o.prix - or))))
-        + '</span></button>';
-    });
-    html += '</div>';
 
     /* Le paquet offert contre une publicite : la seule ligne gratuite. */
     if (pubRecompenseDisponible()) {
@@ -13355,7 +14264,7 @@
 
   }
 
-  var TOUTES_CLES = [KEY, PKEY, RKEY, SKEY, JKEY, CKEY, VKEY, HKEY, SERKEY, DOSKEY];
+  var TOUTES_CLES = [KEY, PKEY, RKEY, SKEY, JKEY, CKEY, VKEY, HKEY, SERKEY, DOSKEY, COSKEY, PASSE_KEY];
 
   /* Rassemble tout l'etat du jeu en un objet unique. */
   function exporterTout() {
@@ -14299,6 +15208,8 @@
     }
     var li = e.target.closest ? e.target.closest('[data-lier]') : null;
     if (li) { nuageLierGoogle(); return; }
+    var co = e.target.closest ? e.target.closest('[data-cos]') : null;
+    if (co) { var cp = co.getAttribute('data-cos').split('|'); toucherCos(cp[0], cp[1]); return; }
     var bv = e.target.closest ? e.target.closest('[data-bt-vue]') : null;
     if (bv) { boutiqueVue = bv.getAttribute('data-bt-vue'); showBoutique(); vib(6); return; }
     var th = e.target.closest ? e.target.closest('[data-theme]') : null;
@@ -14516,6 +15427,8 @@
   litAchats();
   appliquerAchats();
   appliquerDos();
+  appliquerCos();
+  passeBanniere();
   /* Le SDK est charge en differe : on attend qu'il soit la, sans rien bloquer. */
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', nuageInit);
