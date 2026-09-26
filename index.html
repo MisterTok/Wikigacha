@@ -5979,6 +5979,18 @@
   function onFlip(ev) {
     var f = el('flipper');
     var more = ev && ev.target && ev.target.closest ? ev.target.closest('.more') : null;
+    /* La carte est en 3D et s'incline sous le doigt : sur certains telephones,
+       le navigateur attribue alors le toucher a la face cachee plutot qu'au
+       bouton, et « Fiche complete » ne reagissait pas. On regarde donc aussi
+       OU le doigt s'est pose, avec quelques pixels de marge. */
+    if (!more && ev && ev.clientX != null && f.classList.contains('is-open')) {
+      var bt = f.querySelector('.face-front .more');
+      if (bt) {
+        var r = bt.getBoundingClientRect();
+        if (ev.clientX >= r.left - 8 && ev.clientX <= r.right + 8
+            && ev.clientY >= r.top - 8 && ev.clientY <= r.bottom + 8) more = bt;
+      }
+    }
     if (more) { openSheet(more.getAttribute('data-title')); return; }
     if (qi >= queue.length) return;
     if (!f.classList.contains('is-open')) {
@@ -6855,7 +6867,10 @@
   }
 
   function openSheet(title) {
-    var c = collection[title];
+    /* Repli sur la carte du paquet en cours : la fiche ne doit jamais rester
+       muette parce que la collection n'a pas encore la carte sous ce titre. */
+    var c = collection[title]
+      || (typeof queue !== 'undefined' && queue.filter(function (q) { return q && q.title === title; })[0]);
     if (!c) return;
     var t = tierOf(c.rank);
     var inner = el('sheet-inner');
@@ -13651,6 +13666,8 @@
     }
     function debut(e) {
       if (!f.classList.contains('is-open')) return;
+      /* Le bouton ne doit pas bouger sous le doigt qui le vise. */
+      if (e.target && e.target.closest && e.target.closest('.more')) return;
       f.classList.add('touche');
       var t = e.touches ? e.touches[0] : e;
       maj(t.clientX, t.clientY);
