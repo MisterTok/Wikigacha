@@ -4000,6 +4000,70 @@
     border-top: 1px solid #e1d7c1; font-size: 9.5px; font-weight: 600; letter-spacing: .12em; color: #8a8170;
   }
   .ff-pied .more { margin-left: auto; letter-spacing: 0; }
+
+  /* Commandes de la vue d'examen */
+  .r3d-actions { display: flex; gap: 10px; pointer-events: auto; margin-top: 4px; }
+  .r3d-actions[hidden], .r3d-neuf[hidden], .r3d-compteur[hidden] { display: none; }
+  .r3d-actions .btn { min-width: 132px; }
+
+  /* Paquet 3D : la scène remplace le dessin du sachet ; le geste, lui, reste
+     porté par #pack. */
+  .pack.p3d { overflow: visible; border-radius: 0; box-shadow: none; transform: none; background: none; }
+  .pack.p3d > .pack-corps, .pack.p3d > .pack-breche, .pack.p3d > .pack-dents,
+  .pack.p3d > .pack-bande, .pack.p3d > .pack-eclat { visibility: hidden; }
+  .p3d-scene {
+    position: absolute; left: -15%; top: -10%; width: 130%; height: 120%;
+    display: block; z-index: 0; pointer-events: none;
+  }
+  .pack.p3d .pack-attente, .pack.p3d .pack-doigt { z-index: 3; }
+
+  /* Carte en grand dans la fiche : même face qu'à la révélation. */
+  .carte-face {
+    position: relative; display: flex; flex-direction: column;
+    width: min(300px, 100%); aspect-ratio: 5 / 7; margin: 0 auto 14px; padding: 6px;
+    color: var(--ink); text-align: left;
+    background: linear-gradient(180deg, var(--tier, var(--t1)), color-mix(in srgb, var(--tier, var(--t1)) 68%, #0b0e17));
+    box-shadow: 0 14px 34px rgba(0,0,0,.45);
+  }
+  .carte-face.rg-3, .carte-face.rg-4, .carte-face.rg-5 {
+    background: linear-gradient(135deg,
+      color-mix(in srgb, var(--tier) 62%, #fff) 0%, var(--tier) 30%,
+      color-mix(in srgb, var(--tier) 62%, #0b0e17) 55%,
+      color-mix(in srgb, var(--tier) 78%, #fff) 76%,
+      color-mix(in srgb, var(--tier) 65%, #0b0e17) 100%);
+  }
+  .carte-face .fig { position: relative; flex: 1 1 auto; min-height: 60px; overflow: hidden; border: 0; background: #10131e; }
+  .carte-face .fig::after {
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(180deg, rgba(13,16,25,0) 45%, rgba(13,16,25,.94) 100%);
+  }
+  .carte-face .ff-titre {
+    position: absolute; left: 12px; right: 12px; bottom: 10px; z-index: 2; margin: 0;
+    font-family: var(--display); font-weight: 600; font-size: 21px; line-height: 1.12;
+    color: #fbf7ee; text-shadow: 0 1px 8px rgba(0,0,0,.6); text-wrap: balance;
+  }
+  .ff-img { position: absolute; inset: 0; display: block; }
+  .ff-img > .art { display: block; width: 100%; height: 100%; }
+  .ff-img .sheet-vue { position: absolute; inset: 0; height: auto; margin: 0; border: 0; border-radius: 0; }
+
+  /* Vue liste : la vignette prend le cadre de son palier. */
+  .grid:not(.compact) .card-thumb, .grid:not(.compact) .card-thumb-alt { border: 2px solid var(--tier, var(--t1)); }
+
+  /* Récapitulatif du paquet : les cinq cartes en vignettes. */
+  .draw.compact .draw-bilan { grid-column: 1 / -1; }
+
+  /* Équipe de combat : cadre du palier et gemmes. */
+  .eq-slot:not(.vide) {
+    padding: 3px; border: 0;
+    background: linear-gradient(180deg, var(--tier, var(--t1)), color-mix(in srgb, var(--tier, var(--t1)) 68%, #0b0e17));
+  }
+  .eq-slot:not(.vide) .eq-stats { background: var(--night-up); }
+  .eq-vue .gemmes {
+    position: absolute; top: 4px; right: 4px; z-index: 2; margin: 0; gap: 3px;
+    padding: 3px 5px; background: rgba(13,16,25,.72);
+  }
+  .eq-vue .gemmes i { width: 4px; height: 4px; }
+  .ff-pied > :last-child:not(:first-child) { margin-left: auto; }
 </style>
 </head>
 <body>
@@ -5929,7 +5993,7 @@
       texte: 'Tirez la languette dorée vers la droite pour l’ouvrir. Chaque pochette '
            + 'contient cinq articles de Wikipédia, tirés au hasard.',
       geste: 'Tirez la languette',
-      auto: function () { return !el('reveal').hidden; } },
+      auto: function () { return !el('reveal').hidden || (R3D && R3D.actif()); } },
     { cible: '#flipper', titre: 'Votre première carte',
       texte: 'Sa rareté vient de la qualité de l’article, son attaque de sa fréquentation '
            + 'et ses points de vie de sa longueur. Touchez la carte pour voir les suivantes.' },
@@ -5963,10 +6027,21 @@
     tutoEcrire({ fini: true });
   }
 
+  /* Pendant la révélation 3D, la carte classique n'est pas à l'écran : le
+     guide désigne alors la légende de la carte (ou le compteur avant le
+     premier retournement). */
+  function tutoCible(pas) {
+    if (pas.cible === '#flipper' && R3D && R3D.actif()) {
+      return document.querySelector('.r3d-legende:not([hidden])')
+          || document.querySelector('.r3d-compteur');
+    }
+    return document.querySelector(pas.cible);
+  }
+
   function tutoPlacer() {
     var v = el('tuto'); if (!v) return;
     var pas = TUTO[tutoEtape - 1];
-    var c = document.querySelector(pas.cible);
+    var c = tutoCible(pas);
     var trou = v.querySelector('.tuto-trou'), bulle = v.querySelector('.tuto-bulle');
     if (!c) { trou.style.display = 'none'; return; }
     trou.style.display = '';
@@ -6292,9 +6367,21 @@
     return '<span class="gemmes" role="img" aria-label="' + esc(rank) + '">' + h + '</span>';
   }
 
-  /* Face de carte : grande image, titre posé dessus, palier et gemmes en
-     haut, extrait et numéro de collection sur un bandeau ivoire. Les
-     statistiques de combat restent dans la fiche complète. */
+  /* Face de carte commune à la révélation et à la fiche : grande image,
+     titre posé dessus, palier et gemmes en haut, extrait et numéro de
+     collection sur un bandeau ivoire. Les statistiques de combat restent
+     dans la fiche complète et dans l'équipe. */
+  function faceCarteHTML(c, visuel, piedDroit) {
+    var marques = (c.garantie ? ' · GARANTIE' : '') + (niveau(c) > 1 ? ' · ' + etoiles(niveau(c)) : '');
+    return '<div class="fig">' + visuel
+      + '<div class="ff-puce">' + esc(c.rank) + gemmesHTML(c.rank)
+      + (marques ? '<span class="ff-marque">' + esc(marques.slice(3)) + '</span>' : '') + '</div>'
+      + '<h2 class="ff-titre">' + esc(c.title) + '</h2></div>'
+      + '<div class="ff-bas"><p>' + esc(blurb(c, 110)) + '</p>'
+      + '<div class="ff-pied"><span>N° ' + String(seedOf(c.title) % 999 + 1).padStart(3, '0') + '</span>'
+      + (piedDroit || '') + '</div></div>';
+  }
+
   function frontHTML(c, neuve, copies) {
     var t = tierOf(c.rank);
     var fig = c.thumb
@@ -6303,15 +6390,8 @@
     var badge = '';
     if (neuve === true) badge = '<div class="neuf">NOUVELLE</div>';
     else if (neuve === false) badge = '<div class="neuf vu">EXEMPLAIRE ×' + copies + '</div>';
-    var marques = (c.garantie ? ' · GARANTIE' : '') + (niveau(c) > 1 ? ' · ' + etoiles(niveau(c)) : '');
-    return badge
-      + '<div class="fig">' + fig
-      + '<div class="ff-puce">' + esc(c.rank) + gemmesHTML(c.rank)
-      + (marques ? '<span class="ff-marque">' + esc(marques.slice(3)) + '</span>' : '') + '</div>'
-      + '<h2 class="ff-titre">' + esc(c.title) + '</h2></div>'
-      + '<div class="ff-bas"><p>' + esc(blurb(c, 110)) + '</p>'
-      + '<div class="ff-pied"><span>N° ' + String(seedOf(c.title) % 999 + 1).padStart(3, '0') + '</span>'
-      + '<button class="more" data-title="' + esc(c.title) + '">Fiche complète</button></div></div>';
+    return badge + faceCarteHTML(c, fig,
+      '<button class="more" data-title="' + esc(c.title) + '">Fiche complète</button>');
   }
 
   /* Un cadre qui ne coupe jamais le sujet.
@@ -6387,6 +6467,7 @@
       el('reveal').hidden = true;
       el('tout-reveler').hidden = true;
       var nb = queue.filter(function (c) { return neuvesTirage[c.title]; }).length;
+      el('draw').classList.add('grid', 'compact');
       el('draw').innerHTML = '<p class="draw-bilan">'
         + (nb
             ? '<b>' + nb + '</b> nouvelle' + (nb > 1 ? 's' : '') + ' sur ' + queue.length
@@ -6735,7 +6816,7 @@
     var edgeMats = {};
     var tweens = [], actif = false, occupe = false, cartes = [], courante = null, ouverte = false, gen = 0, secousse = 0;
     var tilt = { x: 0, y: 0 }, tiltT = { x: 0, y: 0 }, orient = false, beta0 = null, down = null, dernierGeste = 0;
-    var horloge = null, temps = 0;
+    var horloge = null, temps = 0, mode = null, dragRot = { x: 0, y: 0 };
 
     var HOLO_V = [
       'varying vec2 vUv; varying vec3 vN; varying vec3 vV;',
@@ -6788,6 +6869,8 @@
         + '<h2 class="r3d-titre"></h2><span class="r3d-neuf"></span></div>'
         + '<p class="r3d-aide"></p>'
         + '<button class="reveal-vite r3d-vite" type="button">Tout révéler ›</button>'
+        + '<div class="r3d-actions" hidden><button class="btn r3d-fiche" type="button">Fiche complète</button>'
+        + '<button class="btn r3d-fermer" type="button">Fermer</button></div>'
         + '</div>';
       document.body.appendChild(racine);
       canvas = racine.querySelector('.r3d-scene');
@@ -6860,7 +6943,13 @@
       canvas.addEventListener('pointermove', function (e) {
         if (!down) return;
         down.bouge += Math.abs(e.clientX - down.lx) + Math.abs(e.clientY - down.ly);
+        var ddx = e.clientX - down.lx, ddy = e.clientY - down.ly;
         down.lx = e.clientX; down.ly = e.clientY; dernierGeste = Date.now();
+        if (mode === 'examen') {
+          dragRot.y = Math.max(-1.1, Math.min(1.1, dragRot.y + ddx * 0.009));
+          dragRot.x = Math.max(-0.7, Math.min(0.7, dragRot.x + ddy * 0.007));
+          return;
+        }
         if (!orient) {
           tiltT.x = (e.clientX / window.innerWidth - 0.5) * 2;
           tiltT.y = (e.clientY / window.innerHeight - 0.5) * 2;
@@ -6870,12 +6959,17 @@
         if (!down) return;
         var tape = down.bouge < 14 && Date.now() - down.t < 650;
         down = null;
-        if (tape) toucher();
+        if (tape && mode === 'revele') toucher();
       });
       canvas.addEventListener('pointercancel', function () { down = null; });
       racine.querySelector('.r3d-vite').addEventListener('click', toutReveler3D);
+      racine.querySelector('.r3d-fermer').addEventListener('click', function () { if (mode === 'examen') { gen++; sortir(); } });
+      racine.querySelector('.r3d-fiche').addEventListener('click', function () {
+        if (mode !== 'examen' || !courante) return;
+        var t = courante.c.title; gen++; fermer(); openSheet(t);
+      });
       window.addEventListener('deviceorientation', function (e) {
-        if (!actif || e.gamma == null || e.beta == null) return;
+        if (e.gamma == null || e.beta == null) return;
         if (beta0 === null) beta0 = e.beta;
         orient = true;
         tiltT.x = Math.max(-1, Math.min(1, e.gamma / 25));
@@ -6942,6 +7036,7 @@
         if (cp) hautPx = cp.getBoundingClientRect().bottom + 10;
         return { x: -total / 2 + 1.25 * s + i * (2.5 * s + ecart), y: H / 2 - hautPx * pxW - 1.75 * s, z: 0.2, s: s, rz: 0 };
       }
+      if (p.k === 'examen') return { x: 0, y: 0.15, z: D * 0.2, s: 1, rz: 0 };
       if (p.k === 'bas') return { x: 0, y: -H * 0.85, z: (n - 1 - i) * 0.04, s: 1, rz: 0 };
     }
 
@@ -7008,7 +7103,11 @@
         }
         if (!orient && Date.now() - dernierGeste > 1500) { tiltT.x *= 0.97; tiltT.y *= 0.97; }
         tilt.x += (tiltT.x - tilt.x) * 0.08; tilt.y += (tiltT.y - tilt.y) * 0.08;
-        if (courante) {
+        if (courante && mode === 'examen') {
+          if (!down) { dragRot.x *= 0.97; dragRot.y *= 0.97; }
+          courante.mesh.rotation.y += (dragRot.y + (orient ? tilt.x * 0.3 : Math.sin(temps * 0.6) * 0.05) - courante.mesh.rotation.y) * 0.15;
+          courante.mesh.rotation.x += (dragRot.x + (orient ? tilt.y * 0.2 : 0) - courante.mesh.rotation.x) * 0.15;
+        } else if (courante) {
           courante.mesh.rotation.y += (tilt.x * 0.3 + Math.sin(temps * 0.7) * 0.06 - courante.mesh.rotation.y) * 0.1;
           courante.mesh.rotation.x += (tilt.y * 0.22 + Math.sin(temps * 0.9) * 0.04 - courante.mesh.rotation.x) * 0.1;
         }
@@ -7036,6 +7135,7 @@
     function legende(c, neuf, copies) {
       var bloc = q('.r3d-legende');
       if (!c) { bloc.hidden = true; return; }
+      q('.r3d-neuf').hidden = false;
       var t = tierOf(c.rank), niv = niveau(c);
       bloc.style.setProperty('--tier', t.color);
       q('.r3d-rang').textContent = c.rank + (c.garantie ? ' · Garantie' : '') + (niv > 1 ? ' · ' + etoiles(niv) : '');
@@ -7051,15 +7151,13 @@
     /* ----- déroulé ----- */
     function lancer() {
       if (!dispo() || !queue.length) return false;
-      /* Pendant le guide de démarrage, qui s'appuie sur la carte classique,
-         on garde la révélation classique. */
-      if (tutoEtape) return false;
       try {
         if (!renderer && !initMoteur()) { echec = true; return false; }
       } catch (e) { echec = true; if (racine && racine.parentNode) racine.parentNode.removeChild(racine); renderer = null; return false; }
       try {
         gen++; nettoyer();
-        actif = true; ouverte = false; occupe = true; courante = null;
+        actif = true; ouverte = false; occupe = true; courante = null; mode = 'revele';
+        q('.r3d-actions').hidden = true; q('.r3d-compteur').hidden = false;
         racine.hidden = false; racine.classList.remove('sort');
         document.body.classList.add('r3d-ouvert');
         disposer(false);
@@ -7206,7 +7304,7 @@
     }
 
     function fermer() {
-      actif = false; occupe = false; ouverte = false;
+      actif = false; occupe = false; ouverte = false; mode = null; down = null;
       try { nettoyer(); } catch (e) {}
       if (racine) { racine.hidden = true; racine.classList.remove('sort'); }
       document.body.classList.remove('r3d-ouvert');
@@ -7216,12 +7314,216 @@
     function secours() {
       if (!actif) return;
       gen++; echec = true;
+      if (mode === 'examen') {
+        var tt = courante && courante.c.title;
+        fermer(); if (tt) openSheet(tt);
+        return;
+      }
       if (ouverte) qi += 1;
       fermer();
       el('reveal').hidden = false;
       el('flipper').classList.remove('is-open');
       showNext();
     }
+
+    /* ----- examiner une carte de la collection ----- */
+    function examiner(titre) {
+      if (!dispo()) return false;
+      var c = collection[titre] || queue.filter(function (x) { return x && x.title === titre; })[0];
+      if (!c) return false;
+      try {
+        if (!renderer && !initMoteur()) { echec = true; return false; }
+      } catch (e) { echec = true; if (racine && racine.parentNode) racine.parentNode.removeChild(racine); renderer = null; return false; }
+      try {
+        gen++; nettoyer();
+        var g = gen;
+        actif = true; occupe = false; ouverte = false; mode = 'examen'; dragRot.x = dragRot.y = 0;
+        racine.hidden = false; racine.classList.remove('sort');
+        document.body.classList.add('r3d-ouvert');
+        disposer(false);
+        q('.r3d-compteur').hidden = true;
+        q('.r3d-vite').hidden = true;
+        q('.r3d-actions').hidden = false;
+        var poss = collection[c.title];
+        legende(c, false, poss ? poss.count : 1);
+        q('.r3d-neuf').hidden = true;
+        aide('Faites pivoter la carte du doigt');
+        var o = creerCarte(c);
+        cartes = [o]; courante = o;
+        chargerVisuel(o);
+        var p = poseDe({ k: 'examen', i: 0 });
+        o.group.position.set(p.x, p.y - 0.6, p.z); o.pose = { k: 'examen', i: 0 };
+        o.glow.material.color.set(o.col);
+        horloge = new T.Clock(); temps = 0;
+        requestAnimationFrame(boucle);
+        tween(0.7, function (k) {
+          o.pivot.rotation.y = Math.PI * (1 - k);
+          o.group.position.y = p.y - 0.6 * (1 - k);
+        }, eOut).then(function () {
+          if (g !== gen) return;
+          o.pivot.rotation.y = 0;
+          fondu(o.glow.material, [0.1, 0.18, 0.3, 0.45, 0.6, 0.75][o.rg], 0.5);
+          if (o.rg >= 3) eclats(0, p.y, p.z + 0.3, [0, 0, 0, 40, 70, 110][o.rg], o.rg === 5
+            ? ['#ff5d5d', '#ffd166', '#6ee7b7', '#60a5fa', '#c084fc'] : [o.col, '#f6f1e4'], 2.2, 0.4);
+        });
+        return true;
+      } catch (e) { echec = true; fermer(); return false; }
+    }
+
+    /* ----- paquet 3D de l'onglet Ouvrir -----
+       Le geste reste celui du jeu : le doigt fait varier --tear sur #pack et
+       les classes 'pret', 'ouvert', 'inerte' ; la scène 3D se contente de les
+       lire à chaque image. Sons, vibrations, démonstration, décompte du
+       paquet et garanties ne changent donc pas. */
+    var P = null, pEchec = false;
+    function texPaquet(c) { var t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; t.anisotropy = Math.min(8, P.r.capabilities.getMaxAnisotropy()); return t; }
+    function faceAvantPaquet(label) {
+      var a = mk(540, 660), g = a[1];
+      var gr = g.createLinearGradient(0, 0, 540, 660); gr.addColorStop(0, '#2a3250'); gr.addColorStop(1, '#141826');
+      g.fillStyle = gr; g.fillRect(0, 0, 540, 660);
+      g.save(); g.translate(270, 330); g.rotate(-0.5);
+      var fb = g.createLinearGradient(-400, 0, 400, 0);
+      fb.addColorStop(0, 'rgba(201,153,46,0)'); fb.addColorStop(0.5, 'rgba(240,221,164,.28)'); fb.addColorStop(1, 'rgba(201,153,46,0)');
+      g.fillStyle = fb; g.fillRect(-500, -60, 1000, 120); g.restore();
+      g.strokeStyle = '#c9992e'; g.lineWidth = 3; g.strokeRect(18, 10, 504, 632);
+      g.textAlign = 'center';
+      g.fillStyle = '#f6f1e4'; g.font = '600 58px Fraunces, Georgia, serif'; espace(g, 6); g.fillText('WIKIGACHA', 273, 118); espace(g, 0);
+      g.fillStyle = '#b9c0d4'; g.font = '600 16px Inter, -apple-system, Arial, sans-serif'; espace(g, 4);
+      g.fillText(String(label || 'POCHETTE DE 5 CARTES').toUpperCase().slice(0, 34), 272, 156); espace(g, 0);
+      g.fillStyle = '#141826'; g.beginPath(); g.arc(270, 330, 110, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#c9992e'; g.lineWidth = 4; g.stroke();
+      g.strokeStyle = 'rgba(240,221,164,.4)'; g.lineWidth = 1; g.beginPath(); g.arc(270, 330, 124, 0, Math.PI * 2); g.stroke();
+      g.fillStyle = '#f0dda4'; g.font = '600 140px Fraunces, Georgia, serif'; g.textBaseline = 'middle'; g.fillText('W', 270, 338);
+      g.textBaseline = 'alphabetic';
+      var sw = 30, ec = 8, x0 = 270 - (6 * sw + 5 * ec) / 2;
+      TIERS.forEach(function (t, i) { g.fillStyle = t.color; g.fillRect(x0 + i * (sw + ec), 510, sw, 12); });
+      g.fillStyle = '#8b94ae'; g.font = '500 16px Inter, -apple-system, Arial, sans-serif'; g.fillText('De Commune à Mythique', 270, 556);
+      g.fillStyle = '#b9c0d4'; g.font = 'italic 400 20px Fraunces, Georgia, serif'; g.fillText('L’encyclopédie à collectionner', 270, 604);
+      return a[0];
+    }
+    function languettePaquet() {
+      var a = mk(540, 90), g = a[1];
+      g.fillStyle = '#232a42'; g.fillRect(0, 0, 540, 90);
+      g.fillStyle = '#141826';
+      for (var x = 0; x < 540; x += 18) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 9, 12); g.lineTo(x + 18, 0); g.fill(); }
+      g.strokeStyle = 'rgba(240,221,164,.18)'; g.lineWidth = 1;
+      for (var y = 22; y < 70; y += 6) { g.beginPath(); g.moveTo(0, y); g.lineTo(540, y); g.stroke(); }
+      g.setLineDash([10, 7]); g.strokeStyle = '#c9992e'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, 86); g.lineTo(540, 86); g.stroke();
+      g.fillStyle = '#f0dda4'; g.font = '600 17px Inter, -apple-system, Arial, sans-serif'; espace(g, 4); g.textAlign = 'center';
+      g.fillText('TIREZ  ›››', 270, 56);
+      return a[0];
+    }
+    function initPaquet(pack) {
+      T = window.THREE;
+      var cv = document.createElement('canvas');
+      cv.className = 'p3d-scene'; cv.setAttribute('aria-hidden', 'true');
+      pack.appendChild(cv);
+      var r = new T.WebGLRenderer({ canvas: cv, antialias: true, alpha: true });
+      r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.5));
+      r.outputEncoding = T.sRGBEncoding; r.setClearColor(0x000000, 0);
+      P = { pack: pack, cv: cv, r: r, sc: new T.Scene(), cam: new T.PerspectiveCamera(30, 1, 0.1, 50),
+            label: null, ouvert: false, tOuv: 0, t: 0, w: 0, h: 0, horloge: new T.Clock() };
+      P.sc.add(new T.AmbientLight(0xffffff, 0.6));
+      var sun = new T.DirectionalLight(0xffffff, 0.8); sun.position.set(2, 3, 6); P.sc.add(sun);
+      P.lum = new T.PointLight(0xf0dda4, 1.2, 14); P.lum.position.set(0, 1, 4); P.sc.add(P.lum);
+      var flanc = new T.MeshStandardMaterial({ color: 0x232a42, roughness: 0.5, metalness: 0.3 });
+      var dos = new T.MeshStandardMaterial({ color: 0x1a1f2e, roughness: 0.5, metalness: 0.3 });
+      P.texAvant = texPaquet(faceAvantPaquet(''));
+      P.matAvant = new T.MeshStandardMaterial({ map: P.texAvant, roughness: 0.35, metalness: 0.25 });
+      P.corps = new T.Mesh(new T.BoxGeometry(2.7, 3.3, 0.22), [flanc, flanc, flanc, flanc, P.matAvant, dos]);
+      P.corps.position.y = -0.225;
+      var matHaut = new T.MeshStandardMaterial({ map: texPaquet(languettePaquet()), roughness: 0.35, metalness: 0.25, transparent: true });
+      var flancH = flanc.clone(); flancH.transparent = true;
+      P.matsHaut = [matHaut, flancH];
+      P.haut = new T.Mesh(new T.BoxGeometry(2.7, 0.45, 0.22), [flancH, flancH, flancH, flancH, matHaut, flancH]);
+      P.haut.position.y = 1.65;
+      P.dechirure = new T.Mesh(new T.PlaneGeometry(1, 0.06), new T.MeshBasicMaterial({ color: 0xf0dda4, transparent: true, blending: T.AdditiveBlending, depthWrite: false }));
+      P.dechirure.position.set(-1.35, 1.425, 0.115); P.dechirure.scale.x = 0.0001;
+      var lueur = degrade(128, [[0, 'rgba(255,255,255,1)'], [0.35, 'rgba(255,255,255,.45)'], [1, 'rgba(255,255,255,0)']]);
+      P.pointe = new T.Sprite(new T.SpriteMaterial({ map: lueur, color: 0xf0dda4, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false }));
+      P.pointe.scale.set(0.6, 0.6, 1); P.pointe.position.set(-1.35, 1.425, 0.2);
+      P.halo = new T.Sprite(new T.SpriteMaterial({ map: lueur, color: 0xf6f1e4, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false }));
+      P.halo.position.set(0, 1.4, 0.3); P.halo.scale.set(3, 3, 1);
+      P.grp = new T.Group(); P.grp.add(P.corps, P.haut, P.dechirure, P.pointe, P.halo);
+      P.sc.add(P.grp);
+      cv.addEventListener('webglcontextlost', function (e) { e.preventDefault(); pEchec = true; retirerPaquet(); });
+      pack.classList.add('p3d');
+      requestAnimationFrame(bouclePaquet);
+    }
+    function remettreLanguette() {
+      P.haut.position.set(0, 1.65, 0); P.haut.rotation.set(0, 0, 0);
+      P.matsHaut.forEach(function (m) { m.opacity = 1; });
+      P.halo.material.opacity = 0;
+    }
+    function bouclePaquet() {
+      if (!P) return;
+      var pack = P.pack;
+      if (!pack.isConnected) { retirerPaquet(); return; }
+      if (!pack.offsetParent || document.hidden || actif) {
+        P.horloge.getDelta();
+        setTimeout(function () { requestAnimationFrame(bouclePaquet); }, 350);
+        return;
+      }
+      try {
+        var dt = Math.min(0.05, P.horloge.getDelta()); P.t += dt;
+        var cw = P.cv.clientWidth, ch = P.cv.clientHeight;
+        if (cw && ch && (cw !== P.w || ch !== P.h)) {
+          P.w = cw; P.h = ch; P.r.setSize(cw, ch, false);
+          P.cam.aspect = cw / ch;
+          P.cam.position.set(0, 0, (3.75 * 1.2) / (2 * Math.tan(T.MathUtils.degToRad(15))));
+          P.cam.updateProjectionMatrix();
+        }
+        var lab = el('pack-label') ? el('pack-label').textContent : '';
+        if (lab !== P.label) {
+          P.label = lab;
+          P.texAvant.dispose();
+          P.texAvant = texPaquet(faceAvantPaquet(lab));
+          P.matAvant.map = P.texAvant; P.matAvant.needsUpdate = true;
+        }
+        var tear = Math.max(0, Math.min(1, parseFloat(pack.style.getPropertyValue('--tear')) || 0));
+        var ouvert = pack.classList.contains('ouvert'), inerte = pack.classList.contains('inerte');
+        var pret = pack.classList.contains('pret');
+        if (ouvert && !P.ouvert) { P.ouvert = true; P.tOuv = 0; }
+        if (!ouvert && P.ouvert) { P.ouvert = false; remettreLanguette(); }
+        if (P.ouvert) {
+          P.tOuv += dt;
+          var k = eOut(Math.min(1, P.tOuv / 0.7));
+          P.haut.position.set(1.6 * k, 1.65 + 1.8 * k, 0.4 * k); P.haut.rotation.z = -1.0 * k;
+          P.matsHaut.forEach(function (m) { m.opacity = 1 - k; });
+          P.halo.material.opacity = 0.45 + 0.3 * Math.sin(P.tOuv * 4);
+          P.halo.scale.setScalar(3 + 0.6 * Math.sin(P.tOuv * 4));
+          P.dechirure.scale.x = 0.0001; P.pointe.material.opacity = 0;
+        } else {
+          P.dechirure.scale.x = Math.max(0.0001, 2.7 * tear);
+          P.dechirure.position.x = -1.35 + 1.35 * tear;
+          P.dechirure.material.opacity = (pret ? 0.9 : 0.55) + 0.1 * Math.sin(P.t * 12);
+          P.pointe.position.x = -1.35 + 2.7 * tear;
+          P.pointe.material.opacity = tear > 0.02 ? (pret ? 1 : 0.7) : 0;
+        }
+        tilt.x += (tiltT.x - tilt.x) * 0.06; tilt.y += (tiltT.y - tilt.y) * 0.06;
+        var calme = inerte ? 0.3 : 1;
+        P.grp.rotation.y = (tilt.x * 0.3 + Math.sin(P.t * 0.6) * 0.08) * calme - tear * 0.06;
+        P.grp.rotation.x = (tilt.y * 0.2 + Math.sin(P.t * 0.8) * 0.04) * calme;
+        P.grp.rotation.z = -tear * 0.03;
+        P.grp.position.y = Math.sin(P.t * 1.1) * 0.05 * calme;
+        var teinte = inerte ? 0x7a7f8e : 0xffffff;
+        if (P.matAvant.color.getHex() !== teinte) P.matAvant.color.setHex(teinte);
+        P.lum.position.set(tilt.x * 3, 1.5 - tilt.y * 2, 4);
+        P.r.render(P.sc, P.cam);
+      } catch (e) { pEchec = true; retirerPaquet(); return; }
+      requestAnimationFrame(bouclePaquet);
+    }
+    function retirerPaquet() {
+      if (!P) return;
+      try { P.pack.classList.remove('p3d'); if (P.cv.parentNode) P.cv.parentNode.removeChild(P.cv); P.r.dispose(); } catch (e) {}
+      P = null;
+    }
+    setInterval(function () {
+      if (P || pEchec || !dispo()) return;
+      var pack = el('pack');
+      if (!pack || !pack.offsetParent) return;
+      try { initPaquet(pack); } catch (e) { pEchec = true; retirerPaquet(); }
+    }, 700);
 
     function majImage(c) {
       if (!actif) return;
@@ -7230,7 +7532,7 @@
       });
     }
 
-    return { charger: charger, lancer: lancer, majImage: majImage, actif: function () { return actif; } };
+    return { charger: charger, lancer: lancer, examiner: examiner, majImage: majImage, dispo: dispo, actif: function () { return actif; } };
   })();
   window.addEventListener('load', function () { setTimeout(R3D.charger, 2500); });
 
@@ -8109,13 +8411,14 @@
     var t = tierOf(c.rank);
     var inner = el('sheet-inner');
     inner.style.setProperty('--tier', t.color);
-    inner.innerHTML = '<h2>' + esc(c.title) + '</h2>'
+    inner.innerHTML = '<div class="carte-face rg-' + Math.max(0, rankIndex(c.rank)) + '" style="--tier:' + t.color + '">'
+      + faceCarteHTML(c, '<span class="ff-img" id="sheet-visuel">' + (c.thumb
+          ? '<div class="sheet-vue">' + visuelHTML(c.thumb) + '</div>'
+          : artSVG(c.title, t.color)) + '</span>', '<span>FR.WIKIPEDIA.ORG</span>')
+      + '</div>'
       + '<p class="sheet-sub">' + esc(c.rank.toUpperCase())
       + ' · ' + etoiles(niveau(c))
       + (c.count > 1 ? ' · ' + c.count + ' EXEMPLAIRES' : '') + '</p>'
-      + '<div id="sheet-visuel">' + (c.thumb
-          ? '<div class="sheet-vue">' + visuelHTML(c.thumb) + '</div>'
-          : '<div class="sheet-art">' + artSVG(c.title, t.color) + '</div>') + '</div>'
       + '<p class="sheet-text" id="sheet-text">'
       + esc(c.extract || 'Chargement du résumé…') + '</p>'
       + (ambiance(c) ? '<p class="ambiance">« ' + esc(ambiance(c)) + ' »</p>' : '')
@@ -8141,6 +8444,7 @@
       + '<button class="btn" id="sheet-close">Fermer</button>'
       + '<a class="btn" href="' + esc(c.url) + '" target="_blank" rel="noopener">Lire l’article</a>'
       + '</div>'
+      + (R3D.dispo() ? '<button class="btn" data-examiner="' + esc(c.title) + '">Voir la carte en 3D</button>' : '')
       + '<button class="btn" data-partage="' + esc(c.title) + '">Partager cette carte</button>'
       + blocFusion(c)
       + '<button class="btn btn-offrir" id="sheet-offrir" data-offrir="' + esc(c.title) + '">'
@@ -10640,6 +10944,7 @@
     return '<span class="eq-vue">'
       + (c.thumb ? '<img src="' + esc(c.thumb) + '" alt="" loading="lazy" decoding="async">'
                  : artSVG(c.title, tr.color))
+      + gemmesHTML(c.rank)
       + '<span class="eq-nom">' + esc(c.title) + '</span></span>'
       + '<span class="eq-stats">'
       + '<span><i>ATQ</i><b>' + nbFr(atkReelle(c)) + '</b></span>'
@@ -15436,6 +15741,8 @@
   })();
   el('sheet-inner').addEventListener('click', function (e) {
     e.stopPropagation();
+    var ex = e.target.closest ? e.target.closest('[data-examiner]') : null;
+    if (ex) { var tEx = ex.getAttribute('data-examiner'); closeSheet(); R3D.examiner(tEx); return; }
     var fu = e.target.closest ? e.target.closest('[data-fusion]') : null;
     if (fu) { fusionner(fu.getAttribute('data-fusion')); return; }
     var o = e.target.closest ? e.target.closest('[data-offrir]') : null;
@@ -16250,7 +16557,10 @@
       saveVue(); showCollection(); return;
     }
     var card = e.target.closest('.card');
-    if (card) openSheet(card.getAttribute('data-title'));
+    if (card) {
+      var titreC = card.getAttribute('data-title');
+      if (!R3D.examiner(titreC)) openSheet(titreC);
+    }
   });
   el('coll-tri').addEventListener('change', function () {
     vue.tri = el('coll-tri').value; saveVue(); showCollection();
