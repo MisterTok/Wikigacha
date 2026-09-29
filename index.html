@@ -3854,6 +3854,152 @@
       radial-gradient(circle at 50% 0, transparent 1.2px, #596492 1.4px)
         repeat-x 0 0 / 4px 10px;
   }
+  /* ---------- Révélation 3D ---------- */
+  .r3d {
+    position: fixed; inset: 0; z-index: 40;
+    background: radial-gradient(120% 70% at 50% 40%, #232a40 0%, #141826 68%);
+    touch-action: none; user-select: none; -webkit-user-select: none;
+    transition: opacity .3s ease;
+  }
+  .r3d[hidden] { display: none; }
+  .r3d.sort { opacity: 0; pointer-events: none; }
+  .r3d-scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .r3d-compteur {
+    position: absolute; top: 0; left: 0; right: 0; margin: 0;
+    padding: calc(var(--safe-t) + 16px) 16px 0; text-align: center; pointer-events: none;
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--glass-dim);
+  }
+  .r3d-bas {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 0 16px calc(var(--safe-b) + 16px);
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    text-align: center; pointer-events: none;
+  }
+  .r3d-legende { max-width: 30rem; }
+  .r3d-legende[hidden] { display: none; }
+  .r3d-rang {
+    display: block; font-size: 11px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase;
+    color: color-mix(in srgb, var(--tier, var(--t1)) 72%, var(--ivory));
+  }
+  .r3d-titre {
+    font-family: var(--display); font-weight: 600; font-size: 22px; line-height: 1.15;
+    color: var(--ivory); margin: 4px 0 7px; text-wrap: balance;
+  }
+  .r3d-neuf {
+    display: inline-block; padding: 4px 9px; font-size: 10px; font-weight: 600; letter-spacing: .14em;
+    color: #14161f; background: linear-gradient(160deg, #f6ecc9, #c9992e);
+  }
+  .r3d-neuf.vu { color: var(--ivory); background: #4a5062; }
+  .r3d-aide { margin: 0; min-height: 1.4em; font-size: 13px; color: var(--glass); }
+  .r3d-vite { pointer-events: auto; margin-top: 2px; }
+  .r3d-eclair {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0;
+    background: radial-gradient(circle at 50% 45%, #fff 0%, var(--fx, #cc4c3f) 38%, transparent 78%);
+  }
+  .r3d-eclair.go { animation: r3dEclair 1s ease-out; }
+  @keyframes r3dEclair { 0% { opacity: .9; } 100% { opacity: 0; } }
+  body.r3d-ouvert { overflow: hidden; }
+
+  /* ---------- Nouveau visuel des cartes ----------
+     Gemmes de rareté : une par palier franchi, de Commune (1) à Mythique (6). */
+  .gemmes { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+  .gemmes i {
+    display: block; width: 6px; height: 6px; transform: rotate(45deg);
+    border: 1px solid color-mix(in srgb, var(--tier, var(--t1)) 55%, var(--ivory)); opacity: .45;
+  }
+  .gemmes i.on {
+    border-color: transparent; opacity: 1;
+    background: color-mix(in srgb, var(--tier, var(--t1)) 70%, var(--ivory));
+  }
+
+  /* Vue vignettes : de vraies petites cartes. Cadre à la couleur du palier,
+     métal dégradé à partir d'Épique, image pleine, titre posé dessus. */
+  .grid.compact .card {
+    position: relative; aspect-ratio: 5 / 7; padding: 0; border: 0; overflow: hidden;
+    background: linear-gradient(180deg, var(--tier, var(--t1)), color-mix(in srgb, var(--tier, var(--t1)) 68%, #0b0e17));
+  }
+  .grid.compact .card.rg-3, .grid.compact .card.rg-4, .grid.compact .card.rg-5 {
+    background: linear-gradient(135deg,
+      color-mix(in srgb, var(--tier) 62%, #fff) 0%, var(--tier) 30%,
+      color-mix(in srgb, var(--tier) 62%, #0b0e17) 55%,
+      color-mix(in srgb, var(--tier) 78%, #fff) 76%,
+      color-mix(in srgb, var(--tier) 65%, #0b0e17) 100%);
+  }
+  .grid.compact .card-head { position: absolute; inset: 4px; display: block; overflow: hidden; background: #10131e; }
+  .grid.compact .card-thumb, .grid.compact .card-thumb-alt {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
+  }
+  .grid.compact .card-head::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(180deg, rgba(13,16,25,0) 40%, rgba(13,16,25,.94) 100%);
+  }
+  .grid.compact .card.rg-3 .card-head::before, .grid.compact .card.rg-4 .card-head::before {
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(115deg, transparent 28%, rgba(255,255,255,.2) 44%, rgba(255,236,180,.12) 52%, transparent 66%);
+  }
+  .grid.compact .card.rg-5 .card-head::before {
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: .22;
+    background: linear-gradient(115deg, #ff5d5d, #ffd166, #6ee7b7, #60a5fa, #c084fc);
+    mix-blend-mode: screen;
+  }
+  .grid.compact .card-head > span:last-child { position: absolute; left: 0; right: 0; bottom: 18px; z-index: 2; }
+  .grid.compact .card-title {
+    padding: 0 6px; font-size: 11.5px; font-weight: 600; color: #fbf7ee;
+    text-shadow: 0 1px 4px rgba(0,0,0,.75);
+  }
+  .grid.compact .card-foot {
+    position: absolute; left: 4px; right: 4px; bottom: 4px; z-index: 2;
+    margin: 0; padding: 0 6px 5px; border: 0; gap: 5px; flex-wrap: nowrap; align-items: center;
+  }
+  .grid.compact .card-foot > span:nth-child(3) { display: none; }
+  .grid.compact .gemmes { order: -1; margin: 0 auto 0 0; gap: 3px; }
+  .grid.compact .gemmes i { width: 5px; height: 5px; }
+  .grid.compact .card-foot .stars, .grid.compact .card-foot .dupe { color: #f0dda4; }
+  .grid.compact .card-wrap { contain-intrinsic-size: auto 170px; }
+  .grid.compact .card-wrap.neuve .card { box-shadow: 0 0 0 2px #c9992e; }
+
+  /* Face de carte à la révélation classique (quand la 3D n'est pas disponible). */
+  .face-front {
+    padding: 6px; border: 0;
+    background: linear-gradient(180deg, var(--tier, var(--t1)), color-mix(in srgb, var(--tier, var(--t1)) 68%, #0b0e17));
+  }
+  .flipper.rg-3 .face-front, .flipper.rg-4 .face-front, .flipper.rg-5 .face-front {
+    background: linear-gradient(135deg,
+      color-mix(in srgb, var(--tier) 62%, #fff) 0%, var(--tier) 30%,
+      color-mix(in srgb, var(--tier) 62%, #0b0e17) 55%,
+      color-mix(in srgb, var(--tier) 78%, #fff) 76%,
+      color-mix(in srgb, var(--tier) 65%, #0b0e17) 100%);
+  }
+  .face-front .fig { flex: 1 1 auto; border: 0; background: #10131e; }
+  .face-front .fig::after {
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(180deg, rgba(13,16,25,0) 45%, rgba(13,16,25,.94) 100%);
+  }
+  .ff-puce {
+    position: absolute; top: 8px; left: 8px; z-index: 2;
+    display: flex; align-items: center; gap: 8px; padding: 5px 8px;
+    background: rgba(13,16,25,.74); border: 1px solid rgba(255,255,255,.14);
+    font-size: 9.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase;
+    color: color-mix(in srgb, var(--tier, var(--t1)) 55%, #fff);
+  }
+  .ff-puce .gemmes { margin: 0; gap: 3px; }
+  .ff-puce .gemmes i { width: 5px; height: 5px; }
+  .ff-marque { color: #f0dda4; }
+  .face-front .ff-titre {
+    position: absolute; left: 12px; right: 12px; bottom: 10px; z-index: 2; margin: 0;
+    font-family: var(--display); font-weight: 600; font-size: 21px; line-height: 1.12;
+    color: #fbf7ee; text-shadow: 0 1px 8px rgba(0,0,0,.6); text-wrap: balance;
+  }
+  .ff-bas { flex: 0 0 auto; margin-top: 6px; padding: 9px 11px 8px; background: var(--ivory); }
+  .ff-bas p {
+    margin: 0; font-family: var(--display); font-style: italic; font-size: 12.5px; line-height: 1.4; color: #5b5446;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .ff-pied {
+    display: flex; align-items: center; gap: 8px; margin-top: 7px; padding-top: 6px;
+    border-top: 1px solid #e1d7c1; font-size: 9.5px; font-weight: 600; letter-spacing: .12em; color: #8a8170;
+  }
+  .ff-pied .more { margin-left: auto; letter-spacing: 0; }
 </style>
 </head>
 <body>
@@ -6125,7 +6271,7 @@
     return '<div class="card-wrap' + (neuve ? ' neuve' : '') + '">'
       + '<button class="fav' + (c.fav ? ' on' : '') + '" data-fav="' + esc(c.title) + '"'
       + ' aria-label="Favori">' + (c.fav ? '\u2605' : '\u2606') + '</button>'
-      + '<button class="card" style="--tier:' + t.color + '" data-title="' + esc(c.title) + '">'
+      + '<button class="card rg-' + Math.max(0, rankIndex(c.rank)) + '" style="--tier:' + t.color + '" data-title="' + esc(c.title) + '">'
       + '<span class="card-head">' + visual
       + '<span><span class="card-title">' + esc(c.title) + '</span>'
       + '<span class="card-desc">' + esc(blurb(c, 120)) + '</span></span></span>'
@@ -6136,9 +6282,19 @@
       + (niveau(c) > 1 ? '<span class="stars">' + etoiles(niveau(c)) + '</span>' : '')
       + (dupes > 1 ? '<span class="dupe">\u00d7' + dupes + '</span>' : '')
       + (neuve ? '<span class="neuve-chip">NOUVELLE</span>' : '')
-      + '<span class="rank">' + esc(tierOf(c.rank).short) + '</span></span></button></div>';
+      + gemmesHTML(c.rank) + '</span></button></div>';
   }
 
+  /* Gemmes de rareté : une par palier, de Commune (1) à Mythique (6). */
+  function gemmesHTML(rank) {
+    var r = Math.max(0, rankIndex(rank)), h = '';
+    for (var i = 0; i < TIERS.length; i++) h += i <= r ? '<i class="on"></i>' : '<i></i>';
+    return '<span class="gemmes" role="img" aria-label="' + esc(rank) + '">' + h + '</span>';
+  }
+
+  /* Face de carte : grande image, titre posé dessus, palier et gemmes en
+     haut, extrait et numéro de collection sur un bandeau ivoire. Les
+     statistiques de combat restent dans la fiche complète. */
   function frontHTML(c, neuve, copies) {
     var t = tierOf(c.rank);
     var fig = c.thumb
@@ -6147,18 +6303,15 @@
     var badge = '';
     if (neuve === true) badge = '<div class="neuf">NOUVELLE</div>';
     else if (neuve === false) badge = '<div class="neuf vu">EXEMPLAIRE ×' + copies + '</div>';
+    var marques = (c.garantie ? ' · GARANTIE' : '') + (niveau(c) > 1 ? ' · ' + etoiles(niveau(c)) : '');
     return badge
-      + '<div class="ribbon">' + esc(c.rank.toUpperCase())
-      + (c.garantie ? ' · GARANTIE' : '')
-      + (niveau(c) > 1 ? ' · ' + etoiles(niveau(c)) : '') + '</div>'
-      + '<div class="fig">' + fig + '</div>'
-      + '<h2>' + esc(c.title) + '</h2>'
-      + '<p>' + esc(blurb(c, 150)) + '</p>'
-      + '<div class="face-foot"><span>ATQ <b>' + nbFr(atkReelle(c)) + '</b></span>'
-      + '<span>PV <b>' + nbFr(pvDe(c)) + '</b></span>'
-      + '<span>VIT <b>' + vitEff(c) + '</b></span>'
-      + '<button class="more" data-title="' + esc(c.title) + '">Fiche complète</button>'
-      + '</div>';
+      + '<div class="fig">' + fig
+      + '<div class="ff-puce">' + esc(c.rank) + gemmesHTML(c.rank)
+      + (marques ? '<span class="ff-marque">' + esc(marques.slice(3)) + '</span>' : '') + '</div>'
+      + '<h2 class="ff-titre">' + esc(c.title) + '</h2></div>'
+      + '<div class="ff-bas"><p>' + esc(blurb(c, 110)) + '</p>'
+      + '<div class="ff-pied"><span>N° ' + String(seedOf(c.title) % 999 + 1).padStart(3, '0') + '</span>'
+      + '<button class="more" data-title="' + esc(c.title) + '">Fiche complète</button></div></div>';
   }
 
   /* Un cadre qui ne coupe jamais le sujet.
@@ -6212,6 +6365,7 @@
   function appliquerImage(c, img) {
     c.thumb = img; c.imgVerif = true;
     majCarteCollection(c);
+    R3D.majImage(c);
     /* Si cette carte est affichee en ce moment au reveal, on rafraichit. */
     if (!el('reveal').hidden && queue[qi] && queue[qi].title === c.title
         && el('flipper').classList.contains('is-open')) {
@@ -6339,6 +6493,746 @@
       setTimeout(showNext, 260);
     }
   }
+
+
+  /* ---------- Révélation en 3D ----------
+     Quand le téléphone sait faire de la 3D (WebGL) et que la bibliothèque
+     three.js est arrivée, le paquet s'ouvre dans une scène 3D : les cartes
+     sortent en pile, se retournent une à une, et les plus rares tremblent,
+     s'illuminent et font jaillir des étincelles. Toute la logique du jeu
+     reste celle de onFlip : la carte est ajoutée à la collection au moment
+     où elle se retourne, avec les mêmes sons et vibrations.
+     Au moindre problème (pas de WebGL, bibliothèque absente, contexte
+     graphique perdu, erreur), on retombe sur la révélation classique à
+     l'endroit exact où l'on en était : rien n'est perdu ni compté deux fois.
+     Pour couper la 3D : localStorage 'wikigacha:3d' = 'non'. */
+  var R3D = (function () {
+    var THREE_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+    var chargement = 0;   /* 0 rien, 1 en cours, 2 prêt */
+    var echec = false;
+
+    function charger() {
+      if (chargement !== 0 || echec) return;
+      if (window.THREE) { chargement = 2; return; }
+      chargement = 1;
+      var s = document.createElement('script');
+      s.src = THREE_URL; s.async = true; s.crossOrigin = 'anonymous';
+      s.onload = function () { chargement = window.THREE ? 2 : 0; };
+      s.onerror = function () { chargement = 0; if (s.parentNode) s.parentNode.removeChild(s); };
+      document.head.appendChild(s);
+    }
+    function coupee() { try { return localStorage.getItem('wikigacha:3d') === 'non'; } catch (e) { return false; } }
+    function reduit() { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+    function dispo() { return !echec && !coupee() && chargement === 2 && !!window.THREE; }
+
+    /* ----- outils de dessin ----- */
+    function mk(w, h) { var c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; }
+    function hexRgb(h) {
+      h = String(h || '#8d93a3').replace('#', '');
+      if (h.length === 3) h = h.charAt(0) + h.charAt(0) + h.charAt(1) + h.charAt(1) + h.charAt(2) + h.charAt(2);
+      var n = parseInt(h, 16); return [n >> 16 & 255, n >> 8 & 255, n & 255];
+    }
+    function mix(a, b, k) {
+      var x = hexRgb(a), y = hexRgb(b);
+      return 'rgb(' + x.map(function (v, i) { return Math.round(v + (y[i] - v) * k); }).join(',') + ')';
+    }
+    function eclaircir(c, k) { return mix(c, '#ffffff', k); }
+    function assombrir(c, k) { return mix(c, '#0b0e17', k); }
+    function rng(seed) {
+      return function () {
+        seed = (seed + 0x6D2B79F5) | 0;
+        var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+    function espace(g, px) { try { g.letterSpacing = px + 'px'; } catch (e) {} }
+    function couper(g, texte, maxW, maxL) {
+      var mots = String(texte).split(' '), lignes = [], cur = '';
+      for (var i = 0; i < mots.length; i++) {
+        var essai = cur ? cur + ' ' + mots[i] : mots[i];
+        if (g.measureText(essai).width > maxW && cur) {
+          lignes.push(cur); cur = mots[i];
+          if (lignes.length === maxL) break;
+        } else cur = essai;
+      }
+      if (lignes.length < maxL && cur) lignes.push(cur);
+      else if (lignes.length === maxL && cur) {
+        var der = lignes[maxL - 1];
+        while (g.measureText(der + '…').width > maxW && der.length) der = der.slice(0, -1);
+        lignes[maxL - 1] = der.replace(/[\s,;.:]+$/, '') + '…';
+      }
+      return lignes;
+    }
+    function losange(g, x, y, s, plein, trait) {
+      g.beginPath(); g.moveTo(x, y - s); g.lineTo(x + s, y); g.lineTo(x, y + s); g.lineTo(x - s, y); g.closePath();
+      if (plein) { g.fillStyle = plein; g.fill(); }
+      if (trait) { g.strokeStyle = trait; g.lineWidth = 1.2; g.stroke(); }
+    }
+
+    var CW = 512, CH = 716, FS = 1.5;
+    var AX = 18, AY = 18, AW = CW - 36, AH = 530;
+
+    function artGenere(g, c, col, rg) {
+      var r = rng(seedOf(c.title)), x = AX, y = AY, w = AW, h = AH;
+      g.fillStyle = '#10131e'; g.fillRect(x, y, w, h);
+      var cx = x + w * (0.3 + r() * 0.4), cy = y + h * (0.28 + r() * 0.25);
+      var rgd = g.createRadialGradient(cx, cy, 10, cx, cy, h * 0.9);
+      rgd.addColorStop(0, eclaircir(col, 0.25)); rgd.addColorStop(0.35, assombrir(col, 0.35)); rgd.addColorStop(1, '#0d1019');
+      g.fillStyle = rgd; g.fillRect(x, y, w, h);
+      g.globalCompositeOperation = 'lighter';
+      for (var k = 0; k < 5; k++) {
+        var bx = x + r() * w, by = y + r() * h * 0.8, br = 60 + r() * 140;
+        var bg = g.createRadialGradient(bx, by, 0, bx, by, br);
+        bg.addColorStop(0, 'rgba(255,255,255,' + (0.05 + r() * 0.08) + ')'); bg.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = bg; g.fillRect(bx - br, by - br, br * 2, br * 2);
+      }
+      g.globalCompositeOperation = 'source-over';
+      var pts = [];
+      for (var p = 0; p < 16; p++) pts.push([x + 20 + r() * (w - 40), y + 20 + r() * (h * 0.7)]);
+      g.strokeStyle = 'rgba(246,241,228,.16)'; g.lineWidth = 1;
+      for (var q = 0; q < pts.length - 1; q++) {
+        if (r() < 0.55) { g.beginPath(); g.moveTo(pts[q][0], pts[q][1]); g.lineTo(pts[q + 1][0], pts[q + 1][1]); g.stroke(); }
+      }
+      pts.forEach(function (pt) {
+        g.fillStyle = 'rgba(246,241,228,' + (0.35 + r() * 0.5) + ')';
+        g.beginPath(); g.arc(pt[0], pt[1], 1.2 + r() * 2.2, 0, Math.PI * 2); g.fill();
+      });
+      g.strokeStyle = 'rgba(246,241,228,.09)';
+      for (var j = 0; j < 7; j++) { g.lineWidth = 1 + r(); g.beginPath(); g.arc(cx, cy, 70 + j * 34, 0, Math.PI * 2); g.stroke(); }
+      var L = c.title.charAt(0).toUpperCase();
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '600 230px Fraunces, Georgia, serif';
+      g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = 40; g.shadowOffsetY = 10;
+      var lg = g.createLinearGradient(0, cy - 120, 0, cy + 120);
+      lg.addColorStop(0, '#fffaf0'); lg.addColorStop(1, rg >= 4 ? '#f0cf7a' : '#d9d2c2');
+      g.fillStyle = lg; g.fillText(L, x + w / 2, cy + 10);
+      g.shadowColor = 'transparent'; g.shadowBlur = 0; g.shadowOffsetY = 0;
+      if (rg >= 3) { g.lineWidth = 2; g.strokeStyle = eclaircir(col, 0.35); g.strokeText(L, x + w / 2, cy + 10); }
+      g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    }
+
+    /* Même règle que visuelHTML : l'image entière, jamais recadrée sur un
+       menton, avec une reprise floutée d'elle-même derrière. Une photo large
+       remplit le cadre. */
+    function artImage(g, im) {
+      var x = AX, y = AY, w = AW, h = AH, iw = im.naturalWidth || im.width, ih = im.naturalHeight || im.height;
+      g.fillStyle = '#10131e'; g.fillRect(x, y, w, h);
+      var sf = Math.max(w / iw, h / ih) * 1.15;
+      try { g.filter = 'blur(18px) brightness(.5) saturate(1.1)'; } catch (e) {}
+      g.drawImage(im, x + (w - iw * sf) / 2, y + (h - ih * sf) / 2, iw * sf, ih * sf);
+      try { g.filter = 'none'; } catch (e) {}
+      if (iw / ih >= 1.15) {
+        var sc = Math.max(w / iw, h / ih);
+        g.drawImage(im, x + (w - iw * sc) / 2, y + (h - ih * sc) * 0.35, iw * sc, ih * sc);
+      } else {
+        var sc2 = Math.min(w / iw, h / ih);
+        g.drawImage(im, x + (w - iw * sc2) / 2, y + (h - ih * sc2) * 0.3, iw * sc2, ih * sc2);
+      }
+    }
+
+    function dessinerFace(o) {
+      var c = o.c, rg = o.rg, col = o.col, cl = eclaircir(col, 0.45), g = o.ctx;
+      g.setTransform(FS, 0, 0, FS, 0, 0);
+      g.clearRect(0, 0, CW, CH);
+      var fg;
+      if (rg >= 3) {
+        fg = g.createLinearGradient(0, 0, CW, CH);
+        fg.addColorStop(0, eclaircir(col, 0.35)); fg.addColorStop(0.3, col); fg.addColorStop(0.55, assombrir(col, 0.35));
+        fg.addColorStop(0.75, eclaircir(col, 0.2)); fg.addColorStop(1, assombrir(col, 0.3));
+      } else {
+        fg = g.createLinearGradient(0, 0, 0, CH);
+        fg.addColorStop(0, col); fg.addColorStop(1, assombrir(col, 0.25));
+      }
+      g.fillStyle = fg; g.fillRect(0, 0, CW, CH);
+      g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1; g.strokeRect(8.5, 8.5, CW - 17, CH - 17);
+
+      g.save(); g.beginPath(); g.rect(AX, AY, AW, AH); g.clip();
+      if (o.img) artImage(g, o.img); else artGenere(g, c, col, rg);
+      var vg = g.createLinearGradient(0, AY + AH * 0.55, 0, AY + AH);
+      vg.addColorStop(0, 'rgba(13,16,25,0)'); vg.addColorStop(1, 'rgba(13,16,25,.96)');
+      g.fillStyle = vg; g.fillRect(AX, AY, AW, AH);
+      g.restore();
+
+      /* Palier et gemmes */
+      g.font = '600 13px Inter, -apple-system, Arial, sans-serif'; espace(g, 2.2);
+      var lib = String(c.rank).toUpperCase(), lw = g.measureText(lib).width, puceW = lw + 24 + 6 * 14 + 8;
+      g.fillStyle = 'rgba(13,16,25,.72)'; g.fillRect(32, 32, puceW, 30);
+      g.strokeStyle = 'rgba(255,255,255,.14)'; g.strokeRect(32.5, 32.5, puceW - 1, 29);
+      g.fillStyle = cl; g.fillText(lib, 44, 52); espace(g, 0);
+      for (var i = 0; i < 6; i++) losange(g, 44 + lw + 16 + i * 14, 47, 4.5, i <= rg ? cl : null, i <= rg ? null : 'rgba(246,241,228,.3)');
+      var niv = niveau(c), marques = [];
+      if (c.garantie) marques.push('GARANTIE');
+      if (niv > 1) marques.push(etoiles(niv));
+      if (marques.length) {
+        g.font = '600 13px Inter, -apple-system, Arial, sans-serif'; g.textAlign = 'right';
+        g.fillStyle = '#f0dda4'; g.fillText(marques.join(' · '), CW - 36, 52); g.textAlign = 'left';
+      }
+
+      if (rg >= 2) {
+        g.strokeStyle = rg >= 4 ? '#f0dda4' : 'rgba(246,241,228,.7)'; g.lineWidth = 2;
+        [[AX + 8, AY + 8, 1, 1], [AX + AW - 8, AY + 8, -1, 1], [AX + 8, AY + AH - 8, 1, -1], [AX + AW - 8, AY + AH - 8, -1, -1]].forEach(function (k) {
+          g.beginPath(); g.moveTo(k[0], k[1] + 22 * k[3]); g.lineTo(k[0], k[1]); g.lineTo(k[0] + 22 * k[2], k[1]); g.stroke();
+        });
+      }
+      if (rg >= 4) { losange(g, CW / 2, 9, 7, '#f0dda4'); losange(g, CW / 2, CH - 9, 7, '#f0dda4'); }
+
+      /* Titre posé sur l'image */
+      g.fillStyle = '#fbf7ee'; g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 12;
+      var taille = 42;
+      do { g.font = '600 ' + taille + 'px Fraunces, Georgia, serif'; taille -= 2; }
+      while (g.measureText(c.title).width > AW - 40 && taille > 30);
+      if (g.measureText(c.title).width > AW - 40) {
+        g.font = '600 32px Fraunces, Georgia, serif';
+        couper(g, c.title, AW - 40, 2).forEach(function (l, k) { g.fillText(l, 36, AY + AH - 58 + k * 36); });
+      } else g.fillText(c.title, 36, AY + AH - 24);
+      g.shadowColor = 'transparent'; g.shadowBlur = 0;
+
+      /* Bandeau ivoire */
+      var py = AY + AH + 8;
+      g.fillStyle = '#f6f1e4'; g.fillRect(18, py, CW - 36, CH - 18 - py);
+      g.fillStyle = '#5b5446'; g.font = 'italic 400 19px Fraunces, Georgia, serif';
+      couper(g, blurb(c, 110), CW - 72, 2).forEach(function (l, k) { g.fillText(l, 36, py + 32 + k * 25); });
+      g.fillStyle = '#e1d7c1'; g.fillRect(36, py + 84, CW - 72, 1);
+      g.font = '600 11px Inter, -apple-system, Arial, sans-serif'; espace(g, 1.8); g.fillStyle = '#8a8170';
+      g.fillText('FR.WIKIPEDIA.ORG', 36, py + 106);
+      g.textAlign = 'right'; g.fillStyle = assombrir(col, 0.15);
+      g.fillText('N° ' + String(seedOf(c.title) % 999 + 1).padStart(3, '0'), CW - 36, py + 106);
+      g.textAlign = 'left'; espace(g, 0);
+      if (o.tex) o.tex.needsUpdate = true;
+    }
+
+    /* Images de Wikimedia en version plus grande quand elle existe. Le
+       paramètre ajouté distingue la requête CORS de la vignette ordinaire que
+       le service worker a pu garder en réponse opaque. */
+    function chargerImage(url) {
+      return new Promise(function (res) {
+        if (!url) { res(null); return; }
+        var im = new Image(), fini = false;
+        var t = setTimeout(function () { if (!fini) { fini = true; res(null); } }, 5000);
+        im.crossOrigin = 'anonymous';
+        im.onload = function () { if (!fini) { fini = true; clearTimeout(t); res(im); } };
+        im.onerror = function () { if (!fini) { fini = true; clearTimeout(t); res(null); } };
+        im.src = url + (url.indexOf('?') < 0 ? '?' : '&') + 'wg3d=1';
+      });
+    }
+    function chargerVisuel(o) {
+      var url = o.c.thumb, g0 = gen;
+      if (!url) return;
+      var grande = url.replace(/\/(\d+)px-/, function (m, n) { return '/' + Math.max(+n, 640) + 'px-'; });
+      chargerImage(grande).then(function (im) {
+        return im || (grande !== url ? chargerImage(url) : null);
+      }).then(function (im) {
+        if (!im || g0 !== gen || !o.tex) return;
+        o.img = im;
+        try { dessinerFace(o); } catch (e) { o.img = null; }
+      });
+    }
+
+    /* ----- moteur ----- */
+    var T, renderer, scene, camera, K = 0, W = 1, H = 1, D = 10, pxW = 0.01;
+    var racine, canvas, eclair, glowTex, dotTex, raysTex, backTex, cardGeo, holoGeo, backMat, rays, halo, raysArc = false;
+    var MAXP = 900, pGeo, pPos, pCol, pVel, pLife, pMax, pBase, pNext = 0;
+    var edgeMats = {};
+    var tweens = [], actif = false, occupe = false, cartes = [], courante = null, ouverte = false, gen = 0, secousse = 0;
+    var tilt = { x: 0, y: 0 }, tiltT = { x: 0, y: 0 }, orient = false, beta0 = null, down = null, dernierGeste = 0;
+    var horloge = null, temps = 0;
+
+    var HOLO_V = [
+      'varying vec2 vUv; varying vec3 vN; varying vec3 vV;',
+      'void main(){ vUv = uv; vec4 wp = modelMatrix * vec4(position,1.0);',
+      ' vN = normalize(mat3(modelMatrix) * normal); vV = normalize(cameraPosition - wp.xyz);',
+      ' gl_Position = projectionMatrix * viewMatrix * wp; }'
+    ].join('\n');
+    var HOLO_F = [
+      'uniform float uTime; uniform float uRainbow; uniform float uStrength; uniform float uGloss; uniform vec3 uColor;',
+      'varying vec2 vUv; varying vec3 vN; varying vec3 vV;',
+      'float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }',
+      'void main(){',
+      ' float inArt = step(0.0352,vUv.x)*step(vUv.x,0.9648)*step(0.2346,vUv.y)*step(vUv.y,0.9749);',
+      ' float inner = step(0.0352,vUv.x)*step(vUv.x,0.9648)*step(0.0251,vUv.y)*step(vUv.y,0.9749);',
+      ' float mask = max(inArt, 1.0 - inner);',
+      ' vec3 r = reflect(-vV, vN);',
+      ' float ph = vUv.x*1.4 + vUv.y*1.1 + r.x*2.4 + r.y*1.8;',
+      ' vec3 rainbow = 0.5 + 0.5*cos(6.28318*(ph + vec3(0.0,0.33,0.67)));',
+      ' vec3 base = mix(uColor, rainbow, uRainbow);',
+      ' float sweep = pow(max(0.0, 1.0 - abs(fract(ph*0.45 + uTime*0.03) - 0.5)*2.6), 3.0);',
+      ' vec2 cell = floor(vUv*vec2(60.0,84.0));',
+      ' vec2 fc = fract(vUv*vec2(60.0,84.0)) - 0.5;',
+      ' float sp = step(0.982, hash(cell)) * smoothstep(0.45, 0.05, length(fc)) * (0.5 + 0.5*sin(uTime*3.0 + hash(cell+3.1)*40.0 + ph*8.0));',
+      ' float a = mask*uStrength*(0.16 + sweep*0.95) + sp*mask*uStrength*1.3;',
+      ' float gl = uGloss*sweep*(0.35 + 0.65*mask);',
+      ' gl_FragColor = vec4(base*a + vec3(gl), 1.0);',
+      '}'
+    ].join('\n');
+    var HOLO = { 0: [0xffffff, 0, 0, 0.10], 1: [0xffffff, 0, 0, 0.12], 2: [0xbfd6ff, 0.1, 0.18, 0.14],
+                 3: [0xc9b2ff, 0.35, 0.55, 0.16], 4: [0xffe08a, 0.25, 0.7, 0.16], 5: [0xffffff, 1.0, 0.8, 0.16] };
+
+    function texte(c) { var t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy()); return t; }
+    function degrade(taille, stops) {
+      var a = mk(taille, taille), g = a[1], m = taille / 2;
+      var gr = g.createRadialGradient(m, m, 0, m, m, m);
+      stops.forEach(function (s) { gr.addColorStop(s[0], s[1]); });
+      g.fillStyle = gr; g.fillRect(0, 0, taille, taille);
+      return new T.CanvasTexture(a[0]);
+    }
+
+    function initMoteur() {
+      T = window.THREE;
+      racine = document.createElement('div');
+      racine.className = 'r3d'; racine.hidden = true;
+      racine.innerHTML = '<canvas class="r3d-scene" aria-label="Révélation des cartes"></canvas>'
+        + '<div class="r3d-eclair"></div>'
+        + '<p class="r3d-compteur"></p>'
+        + '<div class="r3d-bas">'
+        + '<div class="r3d-legende" hidden><span class="r3d-rang"></span>'
+        + '<h2 class="r3d-titre"></h2><span class="r3d-neuf"></span></div>'
+        + '<p class="r3d-aide"></p>'
+        + '<button class="reveal-vite r3d-vite" type="button">Tout révéler ›</button>'
+        + '</div>';
+      document.body.appendChild(racine);
+      canvas = racine.querySelector('.r3d-scene');
+      eclair = racine.querySelector('.r3d-eclair');
+      renderer = new T.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.5));
+      renderer.outputEncoding = T.sRGBEncoding;
+      renderer.setClearColor(0x000000, 0);
+      scene = new T.Scene();
+      camera = new T.PerspectiveCamera(40, 1, 0.1, 100);
+      K = 2 * Math.tan(T.MathUtils.degToRad(20));
+
+      glowTex = degrade(256, [[0, 'rgba(255,255,255,1)'], [0.35, 'rgba(255,255,255,.45)'], [1, 'rgba(255,255,255,0)']]);
+      dotTex = degrade(64, [[0, 'rgba(255,255,255,1)'], [0.3, 'rgba(255,255,255,.8)'], [1, 'rgba(255,255,255,0)']]);
+      raysTex = (function () {
+        var a = mk(512, 512), g = a[1], n = 28;
+        g.translate(256, 256);
+        for (var i = 0; i < n; i++) {
+          g.rotate(Math.PI * 2 / n);
+          g.fillStyle = i % 2 ? 'rgba(255,255,255,.9)' : 'rgba(255,255,255,.35)';
+          g.beginPath(); g.moveTo(0, 0); g.lineTo(260, -18); g.lineTo(260, 18); g.closePath(); g.fill();
+        }
+        g.setTransform(1, 0, 0, 1, 0, 0);
+        g.globalCompositeOperation = 'destination-in';
+        var gr = g.createRadialGradient(256, 256, 30, 256, 256, 256);
+        gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+        g.fillStyle = gr; g.fillRect(0, 0, 512, 512);
+        return new T.CanvasTexture(a[0]);
+      })();
+      backTex = (function () {
+        var a = mk(CW, CH), g = a[1];
+        g.fillStyle = '#1e2334'; g.fillRect(0, 0, CW, CH);
+        g.strokeStyle = '#2c3348'; g.lineWidth = 2;
+        for (var k = -CH; k < CW + CH; k += 34) {
+          g.beginPath(); g.moveTo(k, 0); g.lineTo(k + CH, CH); g.stroke();
+          g.beginPath(); g.moveTo(k, CH); g.lineTo(k + CH, 0); g.stroke();
+        }
+        g.strokeStyle = '#c9992e'; g.lineWidth = 3; g.strokeRect(20, 20, CW - 40, CH - 40);
+        g.strokeStyle = 'rgba(240,221,164,.35)'; g.lineWidth = 1; g.strokeRect(30, 30, CW - 60, CH - 60);
+        g.fillStyle = '#141826'; g.beginPath(); g.arc(CW / 2, CH / 2, 104, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = '#c9992e'; g.lineWidth = 3; g.stroke();
+        g.fillStyle = '#f0dda4'; g.font = '600 130px Fraunces, Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText('W', CW / 2, CH / 2 + 6);
+        g.font = '600 18px Inter, -apple-system, Arial, sans-serif'; espace(g, 6); g.fillStyle = '#b9c0d4';
+        g.fillText('WIKIGACHA', CW / 2, CH - 70);
+        return texte(a[0]);
+      })();
+      cardGeo = new T.BoxGeometry(2.5, 3.5, 0.02);
+      holoGeo = new T.PlaneGeometry(2.5, 3.5);
+      backMat = new T.MeshBasicMaterial({ map: backTex });
+
+      rays = new T.Mesh(new T.PlaneGeometry(1, 1), new T.MeshBasicMaterial({ map: raysTex, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false }));
+      rays.scale.set(11, 11, 1); scene.add(rays);
+      halo = new T.Sprite(new T.SpriteMaterial({ map: glowTex, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false }));
+      halo.scale.set(7, 8, 1); halo.position.z = -0.5; scene.add(halo);
+
+      pGeo = new T.BufferGeometry();
+      pPos = new Float32Array(MAXP * 3); pCol = new Float32Array(MAXP * 3);
+      pVel = new Float32Array(MAXP * 3); pLife = new Float32Array(MAXP); pMax = new Float32Array(MAXP); pBase = new Float32Array(MAXP * 3);
+      for (var q = 0; q < MAXP; q++) pPos[q * 3 + 2] = -999;
+      pGeo.setAttribute('position', new T.BufferAttribute(pPos, 3).setUsage(T.DynamicDrawUsage));
+      pGeo.setAttribute('color', new T.BufferAttribute(pCol, 3).setUsage(T.DynamicDrawUsage));
+      var pts = new T.Points(pGeo, new T.PointsMaterial({ size: 0.16, map: dotTex, vertexColors: true, transparent: true, depthWrite: false, blending: T.AdditiveBlending }));
+      pts.frustumCulled = false; scene.add(pts);
+
+      canvas.addEventListener('webglcontextlost', function (e) { e.preventDefault(); if (actif) secours(); else echec = true; });
+      canvas.addEventListener('pointerdown', function (e) {
+        down = { x: e.clientX, y: e.clientY, t: Date.now(), bouge: 0, lx: e.clientX, ly: e.clientY };
+      });
+      canvas.addEventListener('pointermove', function (e) {
+        if (!down) return;
+        down.bouge += Math.abs(e.clientX - down.lx) + Math.abs(e.clientY - down.ly);
+        down.lx = e.clientX; down.ly = e.clientY; dernierGeste = Date.now();
+        if (!orient) {
+          tiltT.x = (e.clientX / window.innerWidth - 0.5) * 2;
+          tiltT.y = (e.clientY / window.innerHeight - 0.5) * 2;
+        }
+      });
+      canvas.addEventListener('pointerup', function () {
+        if (!down) return;
+        var tape = down.bouge < 14 && Date.now() - down.t < 650;
+        down = null;
+        if (tape) toucher();
+      });
+      canvas.addEventListener('pointercancel', function () { down = null; });
+      racine.querySelector('.r3d-vite').addEventListener('click', toutReveler3D);
+      window.addEventListener('deviceorientation', function (e) {
+        if (!actif || e.gamma == null || e.beta == null) return;
+        if (beta0 === null) beta0 = e.beta;
+        orient = true;
+        tiltT.x = Math.max(-1, Math.min(1, e.gamma / 25));
+        tiltT.y = Math.max(-1, Math.min(1, (e.beta - beta0) / 25));
+        beta0 += (e.beta - beta0) * 0.004;
+      });
+      window.addEventListener('resize', function () { if (actif) disposer(true); });
+      return true;
+    }
+
+    function disposer(garder) {
+      var w = window.innerWidth, h = window.innerHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      H = Math.max(3.5 / 0.5, 2.5 / (0.74 * camera.aspect));
+      D = H / K; W = H * camera.aspect; pxW = H / h;
+      camera.position.set(0, 0, D); camera.updateProjectionMatrix();
+      if (garder && !occupe) cartes.forEach(function (o) {
+        if (!o.pose) return;
+        var p = poseDe(o.pose);
+        o.group.position.set(p.x, p.y, p.z); o.group.scale.setScalar(p.s); o.group.rotation.z = p.rz;
+      });
+    }
+
+    /* ----- cartes ----- */
+    function matBord(col) { return edgeMats[col] || (edgeMats[col] = new T.MeshBasicMaterial({ color: new T.Color(col).convertSRGBToLinear() })); }
+    function creerCarte(c) {
+      var rg = Math.max(0, rankIndex(c.rank)), col = tierOf(c.rank).color;
+      var a = mk(Math.round(CW * FS), Math.round(CH * FS));
+      var o = { c: c, rg: rg, col: col, cv: a[0], ctx: a[1], img: null, tex: null, pose: null };
+      dessinerFace(o);
+      o.tex = texte(o.cv);
+      o.face = new T.MeshBasicMaterial({ map: o.tex });
+      var e = matBord(col);
+      o.mesh = new T.Mesh(cardGeo, [e, e, e, e, o.face, backMat]);
+      o.pivot = new T.Group(); o.pivot.add(o.mesh); o.pivot.rotation.y = Math.PI;
+      o.glow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, color: new T.Color(col), transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false }));
+      o.glow.scale.set(5.2, 6.4, 1); o.glow.position.z = -0.25;
+      o.group = new T.Group(); o.group.add(o.glow); o.group.add(o.pivot);
+      var h = HOLO[rg];
+      o.holo = new T.Mesh(holoGeo, new T.ShaderMaterial({
+        vertexShader: HOLO_V, fragmentShader: HOLO_F, transparent: true, depthWrite: false, blending: T.AdditiveBlending,
+        uniforms: { uTime: { value: 0 }, uColor: { value: new T.Color(h[0]) }, uRainbow: { value: h[1] }, uStrength: { value: h[2] }, uGloss: { value: h[3] } }
+      }));
+      o.holo.position.z = 0.0105; o.mesh.add(o.holo);
+      scene.add(o.group);
+      return o;
+    }
+    function jeter(o) {
+      scene.remove(o.group);
+      o.tex.dispose(); o.face.dispose(); o.glow.material.dispose(); o.holo.material.dispose();
+      o.tex = null;
+    }
+
+    function poseDe(p) {
+      var n = cartes.length || 5, i = p.i;
+      if (p.k === 'pile') return { x: 0, y: 0, z: (n - 1 - i) * 0.04, s: 1, rz: (i % 2 ? 1 : -1) * 0.025 * i };
+      if (p.k === 'face') return { x: 0, y: 0, z: 0.9, s: 1, rz: 0 };
+      if (p.k === 'bac') {
+        var ecart = 0.08, s = Math.min(0.26, (W * 0.9 - (n - 1) * ecart) / n / 2.5);
+        var total = n * 2.5 * s + (n - 1) * ecart;
+        var hautPx = 60;
+        var cp = racine.querySelector('.r3d-compteur');
+        if (cp) hautPx = cp.getBoundingClientRect().bottom + 10;
+        return { x: -total / 2 + 1.25 * s + i * (2.5 * s + ecart), y: H / 2 - hautPx * pxW - 1.75 * s, z: 0.2, s: s, rz: 0 };
+      }
+      if (p.k === 'bas') return { x: 0, y: -H * 0.85, z: (n - 1 - i) * 0.04, s: 1, rz: 0 };
+    }
+
+    /* ----- animation ----- */
+    function tween(dur, fn, ease) {
+      ease = ease || eOut;
+      return new Promise(function (res) { tweens.push({ t: 0, dur: Math.max(0.001, dur), fn: fn, ease: ease, res: res }); });
+    }
+    function attendre(s) { return tween(s, function () {}); }
+    function eOut(k) { return 1 - Math.pow(1 - k, 3); }
+    function eInOut(k) { return k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2; }
+    function eLin(k) { return k; }
+    function eBack(k) { var c1 = 1.4, c3 = c1 + 1; return 1 + c3 * Math.pow(k - 1, 3) + c1 * Math.pow(k - 1, 2); }
+    function lerp(a, b, k) { return a + (b - a) * k; }
+    function vers(o, pose, dur, ease) {
+      o.pose = pose;
+      var p = poseDe(pose), g = o.group;
+      var f = { x: g.position.x, y: g.position.y, z: g.position.z, s: g.scale.x, rz: g.rotation.z };
+      return tween(dur, function (k) {
+        g.position.set(lerp(f.x, p.x, k), lerp(f.y, p.y, k), lerp(f.z, p.z, k));
+        g.scale.setScalar(lerp(f.s, p.s, k));
+        g.rotation.z = lerp(f.rz, p.rz, k);
+      }, ease);
+    }
+    function fondu(mat, cible, dur) { var d = mat.opacity; return tween(dur, function (k) { mat.opacity = lerp(d, cible, k); }); }
+
+    function eclats(x, y, z, n, couleurs, vitesse, monte) {
+      if (reduit()) n = Math.ceil(n / 3);
+      for (var i = 0; i < n; i++) {
+        var k = pNext; pNext = (pNext + 1) % MAXP;
+        var a = Math.random() * Math.PI * 2, e = (Math.random() - 0.5) * Math.PI, s = vitesse * (0.35 + Math.random() * 0.65);
+        pPos[k * 3] = x; pPos[k * 3 + 1] = y; pPos[k * 3 + 2] = z;
+        pVel[k * 3] = Math.cos(a) * Math.cos(e) * s; pVel[k * 3 + 1] = Math.sin(a) * Math.cos(e) * s + (monte || 0); pVel[k * 3 + 2] = Math.sin(e) * s * 0.6 + 0.4;
+        var c = new T.Color(couleurs[i % couleurs.length]);
+        pBase[k * 3] = c.r; pBase[k * 3 + 1] = c.g; pBase[k * 3 + 2] = c.b;
+        pMax[k] = pLife[k] = 0.8 + Math.random() * 1.1;
+      }
+    }
+    function majEclats(dt) {
+      var frein = Math.pow(0.35, dt);
+      for (var k = 0; k < MAXP; k++) {
+        if (pLife[k] <= 0) continue;
+        pLife[k] -= dt;
+        if (pLife[k] <= 0) { pPos[k * 3 + 2] = -999; pCol[k * 3] = pCol[k * 3 + 1] = pCol[k * 3 + 2] = 0; continue; }
+        pVel[k * 3 + 1] -= 2.4 * dt;
+        pVel[k * 3] *= frein; pVel[k * 3 + 1] *= frein; pVel[k * 3 + 2] *= frein;
+        pPos[k * 3] += pVel[k * 3] * dt; pPos[k * 3 + 1] += pVel[k * 3 + 1] * dt; pPos[k * 3 + 2] += pVel[k * 3 + 2] * dt;
+        var f = pLife[k] / pMax[k], tw = 0.75 + 0.25 * Math.sin(k * 7.1 + pLife[k] * 20);
+        pCol[k * 3] = pBase[k * 3] * f * tw; pCol[k * 3 + 1] = pBase[k * 3 + 1] * f * tw; pCol[k * 3 + 2] = pBase[k * 3 + 2] * f * tw;
+      }
+      pGeo.attributes.position.needsUpdate = true; pGeo.attributes.color.needsUpdate = true;
+    }
+    function viderEclats() { for (var k = 0; k < MAXP; k++) { pLife[k] = 0; pPos[k * 3 + 2] = -999; pCol[k * 3] = pCol[k * 3 + 1] = pCol[k * 3 + 2] = 0; } }
+
+    function boucle() {
+      if (!actif) return;
+      try {
+        var dt = Math.min(0.05, horloge.getDelta()); temps += dt;
+        for (var i = tweens.length - 1; i >= 0; i--) {
+          var tw = tweens[i]; tw.t += dt;
+          var k = Math.min(1, tw.t / tw.dur);
+          tw.fn(tw.ease(k));
+          if (k >= 1) { tweens.splice(i, 1); tw.res(); }
+        }
+        if (!orient && Date.now() - dernierGeste > 1500) { tiltT.x *= 0.97; tiltT.y *= 0.97; }
+        tilt.x += (tiltT.x - tilt.x) * 0.08; tilt.y += (tiltT.y - tilt.y) * 0.08;
+        if (courante) {
+          courante.mesh.rotation.y += (tilt.x * 0.3 + Math.sin(temps * 0.7) * 0.06 - courante.mesh.rotation.y) * 0.1;
+          courante.mesh.rotation.x += (tilt.y * 0.22 + Math.sin(temps * 0.9) * 0.04 - courante.mesh.rotation.x) * 0.1;
+        }
+        for (var j = 0; j < cartes.length; j++) cartes[j].holo.material.uniforms.uTime.value = temps;
+        if (rays.material.opacity > 0.001) {
+          rays.rotation.z += dt * 0.25;
+          if (raysArc) rays.material.color.setHSL((temps * 0.15) % 1, 0.8, 0.62);
+        }
+        majEclats(dt);
+        if (secousse > 0.001) {
+          camera.position.x = (Math.random() - 0.5) * secousse; camera.position.y = (Math.random() - 0.5) * secousse;
+          secousse *= Math.pow(0.02, dt);
+        } else { camera.position.x = 0; camera.position.y = 0; secousse = 0; }
+        renderer.render(scene, camera);
+      } catch (e) { secours(); return; }
+      requestAnimationFrame(boucle);
+    }
+
+    /* ----- interface ----- */
+    function q(sel) { return racine.querySelector(sel); }
+    function aide(t) { q('.r3d-aide').textContent = t; }
+    function compteur() {
+      q('.r3d-compteur').textContent = 'Carte ' + Math.min(qi + 1, queue.length) + ' sur ' + queue.length;
+    }
+    function legende(c, neuf, copies) {
+      var bloc = q('.r3d-legende');
+      if (!c) { bloc.hidden = true; return; }
+      var t = tierOf(c.rank), niv = niveau(c);
+      bloc.style.setProperty('--tier', t.color);
+      q('.r3d-rang').textContent = c.rank + (c.garantie ? ' · Garantie' : '') + (niv > 1 ? ' · ' + etoiles(niv) : '');
+      q('.r3d-titre').textContent = c.title;
+      var nf = q('.r3d-neuf');
+      nf.textContent = neuf ? 'NOUVELLE' : 'EXEMPLAIRE ×' + copies;
+      nf.className = 'r3d-neuf' + (neuf ? '' : ' vu');
+      bloc.hidden = false;
+    }
+    function vibrer(m) { try { vib(m); } catch (e) {} }
+    function jouer(nom) { try { son(nom); } catch (e) {} }
+
+    /* ----- déroulé ----- */
+    function lancer() {
+      if (!dispo() || !queue.length) return false;
+      /* Pendant le guide de démarrage, qui s'appuie sur la carte classique,
+         on garde la révélation classique. */
+      if (tutoEtape) return false;
+      try {
+        if (!renderer && !initMoteur()) { echec = true; return false; }
+      } catch (e) { echec = true; if (racine && racine.parentNode) racine.parentNode.removeChild(racine); renderer = null; return false; }
+      try {
+        gen++; nettoyer();
+        actif = true; ouverte = false; occupe = true; courante = null;
+        racine.hidden = false; racine.classList.remove('sort');
+        document.body.classList.add('r3d-ouvert');
+        disposer(false);
+        cartes = queue.map(function (c, i) {
+          var o = creerCarte(c);
+          var p = poseDe({ k: 'bas', i: i });
+          o.group.position.set(p.x, p.y, p.z);
+          return o;
+        });
+        cartes.forEach(chargerVisuel);
+        compteur(); legende(null); aide('');
+        q('.r3d-vite').hidden = queue.length <= 1;
+        horloge = new T.Clock(); temps = 0;
+        requestAnimationFrame(boucle);
+        entree(gen);
+        return true;
+      } catch (e) {
+        echec = true; fermer();
+        return false;
+      }
+    }
+
+    function entree(g) {
+      var meilleur = 0;
+      queue.forEach(function (c) { meilleur = Math.max(meilleur, rankIndex(c.rank)); });
+      var couleur = meilleur >= 2 ? (couleurEffet() || TIERS[meilleur].color) : '#f6f1e4';
+      halo.material.color.set(couleur);
+      halo.position.set(0, 0, -0.5);
+      fondu(halo.material, [0.25, 0.3, 0.4, 0.55, 0.7, 0.85][meilleur], 0.6);
+      eclats(0, -1.2, 0.4, [30, 40, 50, 80, 120, 180][meilleur], [couleur, '#f0dda4'], 2.8, 1.4);
+      vibrer(20);
+      Promise.all(cartes.map(function (o, i) {
+        return attendre(i * 0.07).then(function () { return vers(o, { k: 'pile', i: i }, 0.6, eOut); });
+      })).then(function () {
+        if (g !== gen) return;
+        fondu(halo.material, meilleur >= 3 ? 0.3 : 0.12, 0.8);
+        occupe = false;
+        aide('Touchez pour retourner la carte');
+      });
+    }
+
+    function toucher() {
+      if (!actif || occupe) return;
+      if (!ouverte) { if (qi < queue.length) reveler(); return; }
+      ouverte = false;
+      qi += 1;
+      if (qi < queue.length) reveler(); else terminer();
+    }
+
+    function reveler() {
+      var g = gen; occupe = true;
+      var o = cartes[qi], c = queue[qi], rg = Math.max(0, rankIndex(c.rank));
+      var prec = courante;
+      if (prec) {
+        fondu(rays.material, 0, 0.3);
+        fondu(prec.glow.material, 0, 0.3);
+        prec.mesh.rotation.set(0, 0, 0);
+        vers(prec, { k: 'bac', i: qi - 1 }, 0.45, eInOut);
+      } else fondu(halo.material, 0, 0.4);
+      courante = o;
+      legende(null); aide(''); compteur();
+      vers(o, { k: 'face', i: qi }, 0.35, eOut).then(function () {
+        if (g !== gen) return;
+        if (rg < 3) return;
+        var dur = [0, 0, 0, 0.6, 1.0, 1.5][rg];
+        vibrer(rg >= 5 ? [0, 40, 60, 40, 60, 80] : [0, 30, 50, 30]);
+        aide('Quelque chose brille…');
+        o.glow.material.color.set(couleurEffet() || o.col);
+        return tween(dur, function (k) {
+          o.glow.material.opacity = k * 0.9;
+          var amp = reduit() ? 0 : 0.015 + k * k * 0.07;
+          o.pivot.position.set((Math.random() - 0.5) * amp, (Math.random() - 0.5) * amp, 0);
+        }, eLin).then(function () { o.pivot.position.set(0, 0, 0); });
+      }).then(function () {
+        if (g !== gen) return;
+        return tween(0.6, function (k) {
+          o.pivot.rotation.y = Math.PI * (1 - k);
+          o.group.position.z = 0.9 + Math.sin(Math.min(1, Math.max(0, k)) * Math.PI) * 0.9;
+        }, eBack);
+      }).then(function () {
+        if (g !== gen) return;
+        o.pivot.rotation.y = 0; o.group.position.z = 0.9;
+        /* Même logique que onFlip : ajout, son, vibration. */
+        var poss = collection[c.title], neuf = !poss, copies = poss ? poss.count + 1 : 1;
+        jouer('carte');
+        if (rg >= 5) { vibrer([0, 30, 55, 30, 55, 70]); jouer('mythique'); }
+        else if (rg >= 4) { vibrer([0, 24, 50, 45]); jouer('legendaire'); }
+        else if (rg >= 3) { vibrer([0, 18, 45, 26]); jouer('rare'); }
+        else vibrer(11);
+        add(c);
+        ouverte = true;
+        var fx = couleurEffet() || o.col;
+        var couleurs = rg === 5 ? ['#ff5d5d', '#ffd166', '#6ee7b7', '#60a5fa', '#c084fc', '#ffffff'] : [fx, '#f6f1e4', eclaircir(o.col, 0.5)];
+        eclats(0, 0, 1.2, [24, 40, 70, 130, 220, 340][rg], couleurs, [2.2, 2.6, 3.2, 3.8, 4.6, 5.4][rg], 0.6);
+        o.glow.material.color.set(rg >= 2 ? fx : '#f6f1e4');
+        var repos = [0, 0.15, 0.3, 0.5, 0.7, 0.85][rg];
+        tween(0.9, function (k) { o.glow.material.opacity = lerp(1, repos, k); });
+        if (rg >= 4) {
+          raysArc = rg === 5;
+          rays.material.color.set(rg === 5 ? '#ff6b5e' : (couleurEffet() || '#f0c35a'));
+          rays.position.set(0, 0, 0.2);
+          fondu(rays.material, rg === 5 ? 0.75 : 0.55, 0.5);
+          secousse = reduit() ? 0 : (rg === 5 ? 0.22 : 0.12);
+        }
+        if (rg >= 3 && !reduit()) {
+          eclair.style.setProperty('--fx', fx);
+          eclair.classList.remove('go'); void eclair.offsetWidth; eclair.classList.add('go');
+        }
+        legende(c, neuf, copies);
+        aide(qi + 1 < queue.length ? 'Touchez pour la suivante' : 'Touchez pour voir le paquet');
+        occupe = false;
+      })['catch'](function () { if (g === gen) secours(); });
+    }
+
+    function terminer() {
+      occupe = true;
+      showNext();   /* qi == queue.length : le récapitulatif se dessine dessous */
+      sortir();
+    }
+
+    function toutReveler3D() {
+      if (!actif) return;
+      gen++; occupe = true;
+      if (ouverte) { qi += 1; ouverte = false; }
+      while (qi < queue.length) { add(queue[qi]); qi += 1; }
+      vibrer([0, 18, 40, 26]);
+      showNext();
+      sortir();
+    }
+
+    function sortir() {
+      var g = gen;
+      racine.classList.add('sort');
+      setTimeout(function () { if (g === gen) fermer(); }, 320);
+    }
+
+    function nettoyer() {
+      tweens.length = 0;
+      cartes.forEach(jeter); cartes = []; courante = null;
+      if (rays) rays.material.opacity = 0;
+      if (halo) halo.material.opacity = 0;
+      if (pGeo) viderEclats();
+      secousse = 0;
+    }
+
+    function fermer() {
+      actif = false; occupe = false; ouverte = false;
+      try { nettoyer(); } catch (e) {}
+      if (racine) { racine.hidden = true; racine.classList.remove('sort'); }
+      document.body.classList.remove('r3d-ouvert');
+    }
+
+    /* Retour à la révélation classique, là où l'on en était. */
+    function secours() {
+      if (!actif) return;
+      gen++; echec = true;
+      if (ouverte) qi += 1;
+      fermer();
+      el('reveal').hidden = false;
+      el('flipper').classList.remove('is-open');
+      showNext();
+    }
+
+    function majImage(c) {
+      if (!actif) return;
+      cartes.forEach(function (o) {
+        if (o.c.title === c.title && !o.img) chargerVisuel(o);
+      });
+    }
+
+    return { charger: charger, lancer: lancer, majImage: majImage, actif: function () { return actif; } };
+  })();
+  window.addEventListener('load', function () { setTimeout(R3D.charger, 2500); });
 
   /* Retire des articles jusqu'a en trouver un qui atteint reellement le
      palier garanti. Limite a quelques essais pour ne pas s'eterniser ;
@@ -6547,6 +7441,7 @@
   function openPack(pitie) {
     if (tirageEnCours) return;   /* verrou : un seul tirage a la fois */
     tirageEnCours = true;
+    R3D.charger();
     var status = el('status');
 
     /* Le geste d'ouverture a deja lance l'animation ('ouvert'). On charge
@@ -6618,12 +7513,15 @@
           el('pack').classList.remove('ouvert');
           el('pack').style.setProperty('--tear', 0);
           el('pack-stage').hidden = true;
-          el('reveal').hidden = false;
-          el('flipper').classList.remove('is-open');
           /* Le joueur va passer une dizaine de secondes sur ses cartes :
              on met le paquet suivant en réserve pendant ce temps. */
           setTimeout(prechargerPaquet, 400);
-          showNext();
+          /* Révélation 3D si le téléphone la permet, classique sinon. */
+          if (!R3D.lancer()) {
+            el('reveal').hidden = false;
+            el('flipper').classList.remove('is-open');
+            showNext();
+          }
           cards.forEach(rattraperImageCarte);
           refreshPacks();
           refreshSucces();

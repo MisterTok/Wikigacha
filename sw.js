@@ -13,7 +13,7 @@
    reponse fausserait le jeu. Seules les IMAGES d'articles sont conservees,
    pour que la collection reste illustree hors ligne. */
 
-var VERSION = 'wikigacha-v38';   /* a incrementer quand la liste change */
+var VERSION = 'wikigacha-v39';   /* a incrementer quand la liste change */
 var COQUILLE = VERSION + '-coquille';   /* le jeu lui-meme */
 var POLICES  = VERSION + '-polices';
 var IMAGES   = 'wikigacha-images';      /* survit aux versions : c'est lourd */
@@ -122,8 +122,10 @@ self.addEventListener('fetch', function (e) {
     return;
   }
 
-  /* 3. Les polices : elles ne changent jamais. */
-  if (hote === 'fonts.googleapis.com' || hote === 'fonts.gstatic.com') {
+  /* 3. Les polices, et la bibliotheque 3D (adresse versionnee) : elles ne
+        changent jamais. */
+  if (hote === 'fonts.googleapis.com' || hote === 'fonts.gstatic.com'
+      || hote === 'cdnjs.cloudflare.com') {
     e.respondWith(depuisCache(req, POLICES, false));
     return;
   }
